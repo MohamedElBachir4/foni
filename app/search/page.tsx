@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
@@ -33,7 +33,7 @@ function categoryLabel(type: string) {
   return "";
 }
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q") || "";
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -170,5 +170,28 @@ export default function SearchPage() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+function SearchPageFallback() {
+  return (
+    <div className="min-h-screen w-full bg-slate-50 antialiased">
+      <Navbar />
+      <main className="mx-auto max-w-6xl px-4 pb-20 pt-28 sm:px-6 sm:pb-24 sm:pt-32 lg:px-8">
+        <div className="flex items-center justify-center gap-2 py-16 text-gray-500">
+          <Search className="h-6 w-6 animate-pulse" />
+          <span>جاري البحث...</span>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchPageFallback />}>
+      <SearchPageContent />
+    </Suspense>
   );
 }
