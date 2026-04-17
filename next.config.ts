@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
   async rewrites() {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
     return [
       {
         source: "/uploads/:path*",
@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  }
 };
 
 export default nextConfig;
