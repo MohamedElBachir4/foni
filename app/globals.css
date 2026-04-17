@@ -1,26 +1,224 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-cairo), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-foni: var(--font-foni), system-ui, sans-serif;
+  /* ألوان فاخرة متناسقة مع Foni */
+  --color-luxury-blue: #0c4a6e;
+  --color-luxury-blue-light: #0ea5e9;
+  --color-luxury-slate: #0f172a;
+  --color-luxury-muted: #64748b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-cairo), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  background: linear-gradient(180deg, #f0f9ff 0%, #f8fafc 35%, #ffffff 100%);
+  color: #0f172a;
+  direction: rtl;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* توهج خفيف عند التركيز للوصولية */
+:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: rgba(14, 165, 233, 0.2);
+  color: #0f172a;
+}
+
+/* From exemple.html - glass and cards */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 20px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 20px;
+}
+
+/* Smooth transitions */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 30px 40px -20px rgba(0, 85, 255, 0.3);
+}
+
+.hover-glow {
+  transition: all 0.3s ease;
+}
+.hover-glow:hover {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3), 0 10px 20px -5px rgba(59, 130, 246, 0.2);
+}
+
+/* Luxury gradient animations */
+.luxury-gradient {
+  background: linear-gradient(145deg, #1e3a8a, #3b82f6, #60a5fa);
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Active states */
+.brand-chip.active,
+.brand-card.active {
+  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  color: white;
+  border: none;
+  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+}
+
+.category-chip.active {
+  background: #1e3a8a;
+  color: white;
+  border-color: #1e3a8a;
+}
+
+.price-filter.active {
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  color: white;
+  border-color: transparent;
+}
+
+/* Shimmer effect */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 3s infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* Animation delay for hero blobs */
+.delay-1000 {
+  animation-delay: 1000ms;
+}
+
+/* Admin Dashboard - modern tables & inputs */
+.admin-table-row {
+  transition: background-color 0.15s ease;
+}
+.admin-input {
+  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition;
+  @apply placeholder:text-slate-400;
+  @apply focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20;
+}
+.admin-input:disabled {
+  @apply cursor-not-allowed bg-slate-50 opacity-60;
+}
+.admin-select {
+  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition;
+  @apply focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20;
+}
+
+/* علامة الصح عند الإضافة للسلة */
+@keyframes checkPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-check-pop {
+  animation: checkPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Hero: خروج الصورة من الجانب ودخول التالية (اتجاه RTL) */
+@keyframes heroSlideOutSide {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@keyframes heroSlideInFromSide {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.hero-slide-out {
+  animation: heroSlideOutSide 0.5s ease-in-out forwards;
+}
+.hero-slide-in {
+  animation: heroSlideInFromSide 0.5s ease-in-out forwards;
 }
