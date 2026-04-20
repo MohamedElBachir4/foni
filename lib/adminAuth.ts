@@ -1,29 +1,40 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const LOGIN_FLAG = "foni_admin_logged_in";
+const TOKEN_KEY = "foni_admin_token";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  // We use this as a simple true/false flag since the real token is in an HttpOnly cookie
-  return localStorage.getItem(LOGIN_FLAG);
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) return token;
+
+  // Legacy compatibility from older builds where we only stored "true".
+  // Treat it as unauthenticated so we don't keep hitting protected endpoints.
+  const legacy = localStorage.getItem(LOGIN_FLAG);
+  if (legacy === "true") {
+    localStorage.removeItem(LOGIN_FLAG);
+  }
+  return null;
 }
 
-export function setToken(_token: string): void {
+export function setToken(token: string): void {
   if (typeof window === "undefined") return;
-  // Store a non-sensitive flag
+  localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(LOGIN_FLAG, "true");
 }
 
 export function clearToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(LOGIN_FLAG);
+  localStorage.removeItem(TOKEN_KEY);
   // Tell backend to clear cookie
   fetch(`${API_URL}/api/admin/logout`, { method: "POST", credentials: "include" }).catch(() => {});
 }
 
 export function getAuthHeaders(): HeadersInit {
+  const token = getToken();
   return {
     "Content-Type": "application/json",
-    // Token is automatically sent via HttpOnly cookie
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 

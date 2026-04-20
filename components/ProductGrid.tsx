@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Heart, ShoppingCart } from "lucide-react";
-import { PRODUCTS, type Product } from "@/lib/productsData";
+import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
+import { type Product } from "@/lib/productsData";
 import { ProductImage } from "@/components/ProductImage";
-import { AddToCartButton } from "@/components/AddToCartButton";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice } from "@/lib/pricing";
@@ -18,14 +16,6 @@ type ProductGridProps = {
   selectedBrandId: string | null;
 };
 
-const COLOR_HEX: Record<string, string> = {
-  white: "#ffffff",
-  black: "#1f2937",
-  gold: "#d4af37",
-  silver: "#c0c0c0",
-  purple: "#7c3aed",
-};
-
 function mapApiPhoneToProduct(phone: {
   _id: string;
   name: string;
@@ -36,10 +26,12 @@ function mapApiPhoneToProduct(phone: {
   brand?: { slug?: string; name?: string };
   image?: string;
   colors?: string[];
+  createdAt?: string;
 }): Product & { colors?: string[] } & {
   priceRetail?: number;
   priceWholesale?: number;
   priceReparateur?: number;
+  createdAt?: string;
 } {
   const b = typeof phone.brand === "object" ? phone.brand : null;
   const brandSlug =
@@ -56,6 +48,7 @@ function mapApiPhoneToProduct(phone: {
     priceRetail: phone.priceRetail,
     priceWholesale: phone.priceWholesale,
     priceReparateur: phone.priceReparateur,
+    createdAt: phone.createdAt,
   };
   return base;
 }
@@ -68,6 +61,7 @@ export function ProductGrid({ selectedBrandId }: ProductGridProps) {
       priceRetail?: number;
       priceWholesale?: number;
       priceReparateur?: number;
+      createdAt?: string;
     })[]
   >([]);
   const [apiLoading, setApiLoading] = useState(false);
@@ -96,7 +90,13 @@ export function ProductGrid({ selectedBrandId }: ProductGridProps) {
       .then((data) => {
         if (cancelled) return;
         const mapped = Array.isArray(data)
-          ? data.map(mapApiPhoneToProduct)
+          ? data
+              .map(mapApiPhoneToProduct)
+              .sort((a, b) => {
+                const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return bTime - aTime;
+              })
           : [];
         setApiProducts(mapped);
       })
@@ -119,19 +119,8 @@ export function ProductGrid({ selectedBrandId }: ProductGridProps) {
   const productsPerPage = isMobile ? 1 : 4;
 
   const filteredProducts = useMemo(() => {
-    if (apiProducts.length > 0) {
-      return apiProducts;
-    }
-
-    // Fallback إلى المنتجات الثابتة إذا لم يرجع الـ API شيئًا
-    if (!selectedBrandId || selectedBrandId === "all") {
-      return PRODUCTS;
-    }
-
-    return PRODUCTS.filter((product) =>
-      product.brand.toLowerCase() === selectedBrandId.toLowerCase()
-    );
-  }, [selectedBrandId, apiProducts]);
+    return apiProducts;
+  }, [apiProducts]);
 
   useEffect(() => {
     // eslint-disable-next-line

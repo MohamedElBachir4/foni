@@ -23,6 +23,12 @@ export default function AdminPanelLayout({
       const res = await fetch(`${API_URL}/api/admin/pending-orders-count`, {
         headers: getAuthHeaders(), credentials: 'include',
        });
+      if (res.status === 401) {
+        clearToken();
+        setHasToken(false);
+        router.replace("/admin/login");
+        return;
+      }
       if (res.ok) {
         const { count } = await res.json();
         setPendingCount(count ?? 0);
@@ -30,7 +36,7 @@ export default function AdminPanelLayout({
     } catch {
       setPendingCount(0);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     setMounted(true);

@@ -21,7 +21,8 @@ import {
   Target
 } from "lucide-react";
 import { AdminCard, AdminTable } from "@/components/admin";
-import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
+import { API_URL, getAuthHeaders, clearToken, getToken } from "@/lib/adminAuth";
+import { useRouter } from "next/navigation";
 
 type DashboardStats = {
   stats: {
@@ -125,12 +126,19 @@ const StatCard = ({
 type TopPeriod = "today" | "month" | "all";
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [topPeriod, setTopPeriod] = useState<TopPeriod>("today");
 
   const fetchStats = useCallback(async () => {
+    if (!getToken()) {
+      setLoading(false);
+      setError("يجب تسجيل الدخول");
+      router.replace("/admin/login");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -138,8 +146,13 @@ export default function AdminDashboardPage() {
         headers: getAuthHeaders(), credentials: 'include',
        });
       if (!res.ok) {
-        if (res.status === 401) setError("يجب تسجيل الدخول");
-        else setError("فشل في جلب الإحصائيات");
+        if (res.status === 401) {
+          clearToken();
+          setError("انتهت جلسة الأدمن، يرجى تسجيل الدخول من جديد");
+          router.replace("/admin/login");
+        } else {
+          setError("فشل في جلب الإحصائيات");
+        }
         return;
       }
       const json = await res.json();
@@ -149,7 +162,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchStats();
