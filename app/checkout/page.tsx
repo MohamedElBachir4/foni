@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ProductImage } from "@/components/ProductImage";
 import { useRouter } from "next/navigation";
@@ -9,20 +9,165 @@ import { useAccount } from "@/context/AccountContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { getProductImageUrl } from "@/lib/productImage";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+type Wilaya = { id: number; name: string };
+type Commune = { id: number; name: string; wilaya_id?: number };
+type Center = {
+  center_id: number;
+  name: string;
+  address?: string;
+  commune_name?: string;
+};
+
+type FeesResponse = {
+  from_wilaya_name?: string;
+  to_wilaya_name?: string;
+  per_commune?: Record<
+    string,
+    { express_home?: number; express_desk?: number; commune_name?: string }
+  >;
+};
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCart();
   const { account, getAuthToken } = useAccount();
+
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [wilaya, setWilaya] = useState("");
   const [address, setAddress] = useState("");
+
+  const [wilayas, setWilayas] = useState<Wilaya[]>([]);
+  const [communes, setCommunes] = useState<Commune[]>([]);
+  const [centers, setCenters] = useState<Center[]>([]);
+  const [wilayaId, setWilayaId] = useState<number | "">("");
+  const [communeName, setCommuneName] = useState("");
+  const [deliveryType, setDeliveryType] = useState<"home" | "stopdesk">("home");
+  const [stopdeskId, setStopdeskId] = useState<number | "">("");
+
+  const [fees, setFees] = useState<FeesResponse | null>(null);
+  const [feesLoading, setFeesLoading] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/api/yalidine/wilayas`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (cancelled) return;
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+          ? data.data
+          : [];
+        setWilayas(
+          list
+            .map((w: any) => ({ id: Number(w.id), name: String(w.name || "") }))
+            .filter((w: Wilaya) => w.id && w.name)
+        );
+      })
+      .catch(() => setWilayas([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setCommunes([]);
+    setCenters([]);
+    setCommuneName("");
+    setStopdeskId("");
+    setFees(null);
+    if (!wilayaId) return;
+    let cancelled = false;
+
+    fetch(`${API_URL}/api/yalidine/communes?wilaya_id=${wilayaId}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (cancelled) return;
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+          ? data.data
+          : [];
+        setCommunes(
+          list.map((c: any) => ({
+            id: Number(c.id),
+            name: String(c.name || ""),
+            wilaya_id: Number(c.wilaya_id ?? 0),
+          }))
+        );
+      })
+      .catch(() => setCommunes([]));
+
+    setFeesLoading(true);
+    fetch(`${API_URL}/api/yalidine/fees?to_wilaya_id=${wilayaId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setFees(data || null);
+      })
+      .catch(() => setFees(null))
+      .finally(() => {
+        if (!cancelled) setFeesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wilayaId]);
+
+  useEffect(() => {
+    if (deliveryType !== "stopdesk" || !wilayaId) {
+      setCenters([]);
+      setStopdeskId("");
+      return;
+    }
+    let cancelled = false;
+    fetch(`${API_URL}/api/yalidine/centers?wilaya_id=${wilayaId}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (cancelled) return;
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+          ? data.data
+          : [];
+        setCenters(
+          list.map((c: any) => ({
+            center_id: Number(c.center_id ?? c.id),
+            name: String(c.name || ""),
+            address: c.address || "",
+            commune_name: c.commune_name || "",
+          }))
+        );
+      })
+      .catch(() => setCenters([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [deliveryType, wilayaId]);
+
+  const deliveryFee = useMemo(() => {
+    if (!fees || !communeName) return 0;
+    const perCommune = fees.per_commune || {};
+    const entry =
+      perCommune[communeName] ||
+      Object.values(perCommune).find((e: any) => e?.commune_name === communeName);
+    if (!entry) return 0;
+    const fee = deliveryType === "stopdesk" ? entry.express_desk : entry.express_home;
+    return Number(fee) || 0;
+  }, [fees, communeName, deliveryType]);
+
+  const grandTotal = (Number(totalPrice) || 0) + (Number(deliveryFee) || 0);
+
+  const selectedWilayaName = useMemo(() => {
+    return wilayas.find((w) => w.id === Number(wilayaId))?.name || "";
+  }, [wilayas, wilayaId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,6 +176,19 @@ export default function CheckoutPage() {
       setError("السلة فارغة. أضف منتجات قبل إتمام الطلب.");
       return;
     }
+    if (!wilayaId) {
+      setError("اختر الولاية");
+      return;
+    }
+    if (!communeName) {
+      setError("اختر البلدية");
+      return;
+    }
+    if (deliveryType === "stopdesk" && !stopdeskId) {
+      setError("اختر مركز التسليم");
+      return;
+    }
+
     setLoading(true);
     try {
       const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -42,7 +200,12 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           fullName: fullName.trim(),
           phone: phone.trim(),
-          wilaya: wilaya.trim(),
+          wilaya: selectedWilayaName,
+          wilayaId: Number(wilayaId),
+          commune: communeName,
+          deliveryType,
+          stopdeskId: deliveryType === "stopdesk" ? Number(stopdeskId) : null,
+          deliveryFee,
           address: address.trim(),
           items: items.map((i) => ({
             name: i.name,
@@ -51,7 +214,7 @@ export default function CheckoutPage() {
             color: i.color || "",
             productType: i.productType || "phone",
           })),
-          totalPrice,
+          totalPrice: grandTotal,
         }),
       });
       if (!res.ok) {
@@ -117,9 +280,7 @@ export default function CheckoutPage() {
         <div className="grid gap-8 lg:grid-cols-[380px,1fr]">
           <div>
             <div className="sticky top-28 rounded-2xl border-0 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-6">
-              <h2 className="mb-4 text-lg font-bold text-slate-800">
-                ملخص الطلب
-              </h2>
+              <h2 className="mb-4 text-lg font-bold text-slate-800">ملخص الطلب</h2>
               <ul className="max-h-64 space-y-3 overflow-y-auto sm:max-h-80">
                 {items.map((item) => (
                   <li
@@ -148,13 +309,34 @@ export default function CheckoutPage() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-between">
+              <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>مجموع المنتجات</span>
+                  <span className="font-semibold">
+                    {Number(totalPrice).toLocaleString()} دج
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>
+                    سعر التوصيل
+                    {deliveryType === "stopdesk" ? " (Stop desk)" : " (للمنزل)"}
+                  </span>
+                  <span className="font-semibold">
+                    {feesLoading
+                      ? "..."
+                      : deliveryFee > 0
+                      ? `${deliveryFee.toLocaleString()} دج`
+                      : wilayaId
+                      ? "—"
+                      : "اختر الولاية"}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
                   <span className="font-semibold text-slate-700">
                     المجموع الكلي
                   </span>
                   <span className="text-xl font-bold text-blue-600">
-                    {totalPrice.toLocaleString()} دج
+                    {grandTotal.toLocaleString()} دج
                   </span>
                 </div>
               </div>
@@ -213,23 +395,119 @@ export default function CheckoutPage() {
                   placeholder="0550123456"
                 />
               </div>
-              <div>
-                <label
-                  htmlFor="wilaya"
-                  className="mb-1.5 block text-sm font-semibold text-slate-700"
-                >
-                  الولاية
-                </label>
-                <input
-                  id="wilaya"
-                  type="text"
-                  value={wilaya}
-                  onChange={(e) => setWilaya(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="الولاية"
-                />
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="wilaya"
+                    className="mb-1.5 block text-sm font-semibold text-slate-700"
+                  >
+                    الولاية
+                  </label>
+                  <select
+                    id="wilaya"
+                    value={wilayaId}
+                    onChange={(e) =>
+                      setWilayaId(e.target.value ? Number(e.target.value) : "")
+                    }
+                    required
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="">اختر الولاية</option>
+                    {wilayas.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.id} - {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="commune"
+                    className="mb-1.5 block text-sm font-semibold text-slate-700"
+                  >
+                    البلدية
+                  </label>
+                  <select
+                    id="commune"
+                    value={communeName}
+                    onChange={(e) => setCommuneName(e.target.value)}
+                    disabled={!wilayaId || communes.length === 0}
+                    required
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option value="">
+                      {wilayaId ? "اختر البلدية" : "اختر الولاية أولاً"}
+                    </option>
+                    {communes.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              <div>
+                <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  نوع التوصيل
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType("home")}
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                      deliveryType === "home"
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    توصيل للمنزل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType("stopdesk")}
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                      deliveryType === "stopdesk"
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    Stop desk
+                  </button>
+                </div>
+              </div>
+
+              {deliveryType === "stopdesk" && (
+                <div>
+                  <label
+                    htmlFor="stopdesk"
+                    className="mb-1.5 block text-sm font-semibold text-slate-700"
+                  >
+                    مركز التسليم
+                  </label>
+                  <select
+                    id="stopdesk"
+                    value={stopdeskId}
+                    onChange={(e) =>
+                      setStopdeskId(e.target.value ? Number(e.target.value) : "")
+                    }
+                    disabled={!wilayaId || centers.length === 0}
+                    required
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option value="">
+                      {centers.length === 0 ? "لا توجد مراكز" : "اختر المركز"}
+                    </option>
+                    {centers.map((c) => (
+                      <option key={c.center_id} value={c.center_id}>
+                        {c.name}
+                        {c.commune_name ? ` — ${c.commune_name}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label
                   htmlFor="address"
