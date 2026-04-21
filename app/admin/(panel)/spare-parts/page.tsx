@@ -448,7 +448,7 @@ export default function AdminSparePartsPage() {
         open={importOpen}
         onClose={closeImportModal}
         title="استيراد قطع الغيار من Excel"
-        description="الملفات المدعومة: .xlsx, .xls, .csv. الأعمدة: Désignation, Prix Gro, Prix Réparateur, Prix Détail."
+        description="الملفات المدعومة: .xlsx, .xls, .csv — حتى 100 سطر بيانات (غير فارغ) لكل ملف. الأعمدة: Désignation, Prix Gro, Prix Réparateur, Prix Détail."
         icon={<FileSpreadsheet className="h-5 w-5" />}
         size="md"
       >

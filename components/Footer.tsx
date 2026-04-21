@@ -82,25 +82,25 @@ export function Footer() {
             </h3>
             <ul className="space-y-4">
               <li>
-                <Link href="#" className="group flex items-center gap-2 text-gray-600 transition hover:text-blue-600">
+                <Link href="/" className="group flex items-center gap-2 text-gray-600 transition hover:text-blue-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-400 transition-all group-hover:w-3" />
                   الرئيسية
                 </Link>
               </li>
               <li>
-                <Link href="#" className="group flex items-center gap-2 text-gray-600 transition hover:text-blue-600">
+                <Link href="/products" className="group flex items-center gap-2 text-gray-600 transition hover:text-blue-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-400 transition-all group-hover:w-3" />
                   المنتجات
                 </Link>
               </li>
               <li>
-                <Link href="#" className="group flex items-center gap-2 text-gray-600 transition hover:text-blue-600">
+                <Link href="/services" className="group flex items-center gap-2 text-gray-600 transition hover:text-blue-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-400 transition-all group-hover:w-3" />
-                  المراكز المعتمدة
+                  خدماتنا
                 </Link>
               </li>
               <li>
-                <Link href="#" className="group flex items-center gap-2 text-gray-600 transition hover:text-blue-600">
+                <Link href="/contact" className="group flex items-center gap-2 text-gray-600 transition hover:text-blue-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-400 transition-all group-hover:w-3" />
                   تواصل معنا
                 </Link>

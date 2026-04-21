@@ -47,28 +47,28 @@ export function Navbar() {
 
           <div className="hidden items-center gap-8 md:flex">
             <Link
-              href="#"
+              href="/"
               className="group relative text-lg font-medium text-gray-700 transition hover:text-blue-600"
             >
               الرئيسية
               <span className="absolute bottom-0 right-0 h-0.5 w-0 bg-blue-600 transition-all duration-300 group-hover:w-full" />
             </Link>
             <Link
-              href="#"
+              href="/products"
               className="group relative text-lg font-medium text-gray-700 transition hover:text-blue-600"
             >
               المنتجات
               <span className="absolute bottom-0 right-0 h-0.5 w-0 bg-blue-600 transition-all duration-300 group-hover:w-full" />
             </Link>
             <Link
-              href="#"
+              href="/services"
               className="group relative text-lg font-medium text-gray-700 transition hover:text-blue-600"
             >
-              المراكز
+              خدماتنا
               <span className="absolute bottom-0 right-0 h-0.5 w-0 bg-blue-600 transition-all duration-300 group-hover:w-full" />
             </Link>
             <Link
-              href="#"
+              href="/contact"
               className="group relative text-lg font-medium text-gray-700 transition hover:text-blue-600"
             >
               تواصل معنا
@@ -202,28 +202,28 @@ export function Navbar() {
             <div className="mx-auto max-w-7xl px-4 py-3">
               <nav className="space-y-1 text-right">
                 <Link
-                  href="#"
+                  href="/"
                   className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50 hover:text-blue-600"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   الرئيسية
                 </Link>
                 <Link
-                  href="#"
+                  href="/products"
                   className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50 hover:text-blue-600"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   المنتجات
                 </Link>
                 <Link
-                  href="#"
+                  href="/services"
                   className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50 hover:text-blue-600"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  المراكز
+                  خدماتنا
                 </Link>
                 <Link
-                  href="#"
+                  href="/contact"
                   className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50 hover:text-blue-600"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

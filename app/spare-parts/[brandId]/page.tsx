@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { getProductImageUrl } from "@/lib/productImage";
+import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -34,17 +35,20 @@ export default function SparePartsModelsPage() {
       setLoading(true);
       setError(null);
       try {
-        // جلب الماركة لعرض اسمها في العنوان
         const brandRes = await fetch(`${API_URL}/api/brands`, { cache: "no-store" });
-        if (brandRes.ok) {
-          const brands: Brand[] = await brandRes.json();
-          const found = brands.find((b) => b._id === brandId) || null;
-          if (!cancelled) setBrand(found);
+        const brands: Brand[] = brandRes.ok ? await brandRes.json() : [];
+        const { mongoId, displayName } = resolveBrandRouteParam(brandId, brands);
+        if (!cancelled) {
+          setBrand({ _id: mongoId ?? brandId, name: displayName });
         }
 
-        // جلب موديلات الهواتف الخاصة بهذه الماركة
+        if (!mongoId) {
+          if (!cancelled) setModels([]);
+          return;
+        }
+
         const res = await fetch(
-          `${API_URL}/api/phone-types?brand=${encodeURIComponent(brandId)}`,
+          `${API_URL}/api/phone-types?brand=${encodeURIComponent(mongoId)}`,
           { cache: "no-store" }
         );
         if (!res.ok) {

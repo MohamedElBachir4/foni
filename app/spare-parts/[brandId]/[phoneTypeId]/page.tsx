@@ -9,6 +9,7 @@ import { ProductImage } from "@/components/ProductImage";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice } from "@/lib/pricing";
+import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -62,23 +63,31 @@ export default function SparePartsListPage() {
         const list = data.parts ?? (Array.isArray(data) ? data : []);
         if (!cancelled) setParts(list);
 
-        if (list.length > 0 && list[0].brand) {
-          if (!cancelled) setBrand(list[0].brand);
-        } else {
+        let mongoId: string | null = null;
+        let displayName = "ماركة";
+        const needBrandFallback = !(list.length > 0 && list[0].brand);
+        const needPhoneFallback = !(list.length > 0 && list[0].phoneType);
+
+        if (needBrandFallback || needPhoneFallback) {
           const brandRes = await fetch(`${API_URL}/api/brands`, {
             cache: "no-store",
           });
-          if (brandRes.ok) {
-            const brands: Brand[] = await brandRes.json();
-            const found = brands.find((b) => b._id === brandId) || null;
-            if (!cancelled) setBrand(found);
-          }
+          const brands: Brand[] = brandRes.ok ? await brandRes.json() : [];
+          const resolved = resolveBrandRouteParam(brandId, brands);
+          mongoId = resolved.mongoId;
+          displayName = resolved.displayName;
+        }
+
+        if (list.length > 0 && list[0].brand) {
+          if (!cancelled) setBrand(list[0].brand);
+        } else {
+          if (!cancelled) setBrand({ _id: mongoId ?? brandId, name: displayName });
         }
         if (list.length > 0 && list[0].phoneType) {
           if (!cancelled) setPhoneType(list[0].phoneType);
-        } else {
+        } else if (mongoId) {
           const ptRes = await fetch(
-            `${API_URL}/api/phone-types?brand=${encodeURIComponent(brandId)}`,
+            `${API_URL}/api/phone-types?brand=${encodeURIComponent(mongoId)}`,
             { cache: "no-store" }
           );
           if (ptRes.ok) {

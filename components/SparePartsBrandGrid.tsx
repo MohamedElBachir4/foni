@@ -12,8 +12,9 @@ type SparePartsBrandGridProps = {
 export function SparePartsBrandGrid({ brands }: SparePartsBrandGridProps) {
   const router = useRouter();
 
-  const handleClick = (brandId: string) => {
-    router.push(`/spare-parts/${brandId}`);
+  const handleClick = (brand: Brand) => {
+    const routeKey = brand.slug ?? brand._id;
+    router.push(`/spare-parts/${routeKey}`);
   };
 
   if (brands.length === 0) {
@@ -36,9 +37,9 @@ export function SparePartsBrandGrid({ brands }: SparePartsBrandGridProps) {
           const logoUrl = getOfficialBrandLogo(brand.name, brand.image);
           return (
             <button
-              key={brand._id}
+              key={brand.slug ?? brand._id}
               type="button"
-              onClick={() => handleClick(brand._id)}
+              onClick={() => handleClick(brand)}
               className="brand-card group cursor-pointer rounded-2xl border-2 border-transparent bg-white/80 p-4 text-center shadow-lg backdrop-blur-sm transition-all hover:border-blue-400 hover:shadow-2xl"
             >
               <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-2 transition-transform group-hover:scale-110">
