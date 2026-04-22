@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: "Foni - متجر قطع غيار الهواتف النقالة",
   description:
     "متجر عصري وفاخر لبيع قطع غيار الهواتف النقالة في الجزائر مع تجربة استخدام عربية بالكامل.",
+  icons: {
+    icon: "/LOGO.jpeg?v=3",
+    shortcut: "/LOGO.jpeg?v=3",
+    apple: "/LOGO.jpeg?v=3",
+  },
 };
 
 export const viewport = {
