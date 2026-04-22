@@ -1,0 +1,24 @@
+{
+  "brands": [
+    { "name": "Apple", "slug": "apple" },
+    { "name": "Samsung", "slug": "samsung" },
+    { "name": "Xiaomi", "slug": "xiaomi" },
+    { "name": "Oppo", "slug": "oppo" },
+    { "name": "Huawei", "slug": "huawei" },
+    { "name": "Infinix", "slug": "infinix" },
+    { "name": "Google", "slug": "google" },
+    { "name": "Realme", "slug": "realme" },
+    { "name": "OnePlus", "slug": "oneplus" },
+    { "name": "Redmi", "slug": "redmi" },
+    { "name": "Motorola", "slug": "motorola" },
+    { "name": "Vivo", "slug": "vivo" },
+    { "name": "Ace", "slug": "ace" },
+    { "name": "Tecno", "slug": "tecno" },
+    { "name": "Nokia", "slug": "nokia" },
+    { "name": "LG", "slug": "lg" },
+    { "name": "Condor", "slug": "condor" },
+    { "name": "Itel", "slug": "itel" },
+    { "name": "Honor", "slug": "honor" },
+    { "name": "Poco", "slug": "poco" }
+  ]
+}

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Phone, Mail, Clock, Send, Facebook, Instagram } from "lucide-react";
+import { MapPin, Phone, Clock, Send } from "lucide-react";
+import { SiTiktok, SiTelegram } from "react-icons/si";
 
 export function Footer() {
   return (
@@ -48,30 +49,24 @@ export function Footer() {
               <p className="text-gray-600">هواتف ذكية، إكسسوارات، وقطع غيار أصلية في مكان واحد</p>
             </div>
             <div className="flex gap-4">
-              <Link
-                href="#"
-                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-600 transition-all duration-300 hover:scale-110 hover:bg-blue-600 hover:text-white"
+              <a
+                href="https://www.tiktok.com/@foni.belfort?_r=1&_t=ZS-95lEifD1SGS"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="تيك توك FONI"
+                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-800 transition-all duration-300 hover:scale-110 hover:bg-[#000000] hover:text-white"
               >
-                <Facebook className="h-5 w-5" />
-              </Link>
-              <Link
-                href="#"
-                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-600 transition-all duration-300 hover:scale-110 hover:bg-blue-600 hover:text-white"
+                <SiTiktok className="h-5 w-5" />
+              </a>
+              <a
+                href="https://t.me/+QpoXZALMQ1ZkODk0"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="قناة FONI على تيليغرام"
+                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-800 transition-all duration-300 hover:scale-110 hover:bg-[#229ED9] hover:text-white"
               >
-                <Instagram className="h-5 w-5" />
-              </Link>
-              <Link
-                href="#"
-                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-600 transition-all duration-300 hover:scale-110 hover:bg-blue-600 hover:text-white"
-              >
-                <span className="text-xl">💬</span>
-              </Link>
-              <Link
-                href="#"
-                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-600 transition-all duration-300 hover:scale-110 hover:bg-blue-600 hover:text-white"
-              >
-                <span className="text-xl">♪</span>
-              </Link>
+                <SiTelegram className="h-5 w-5" />
+              </a>
             </div>
           </div>
 
@@ -134,15 +129,6 @@ export function Footer() {
                 </span>
               </li>
               <li className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-blue-500" />
-                <a
-                  href="mailto:Walid.walass@gmail.com"
-                  className="text-gray-600 transition hover:text-blue-600"
-                >
-                  Walid.walass@gmail.com
-                </a>
-              </li>
-              <li className="flex items-center gap-3">
                 <Clock className="h-5 w-5 text-blue-500" />
                 <span className="text-gray-600">
                   24/24
@@ -157,13 +143,13 @@ export function Footer() {
               <span className="absolute bottom-0 right-0 h-1 w-12 rounded-full bg-gradient-to-l from-blue-600 to-blue-400" />
             </h3>
             <p className="mb-4 text-gray-600">للطلبات التجارية والتعاون</p>
-            <a
-              href="mailto:Walid.walass@gmail.com?subject=%D8%B7%D9%84%D8%A8%20%D8%A7%D9%84%D8%A8%D9%8A%D8%B9%20%D8%A8%D8%A7%D9%84%D8%AC%D9%85%D9%84%D8%A9"
+            <Link
+              href="/accounts"
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-400 px-6 py-4 font-bold text-white shadow-lg transition-all hover:scale-[1.01] hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-100"
             >
               <Send className="h-5 w-5" />
               البيع بالجملة
-            </a>
+            </Link>
           </div>
         </div>
 
