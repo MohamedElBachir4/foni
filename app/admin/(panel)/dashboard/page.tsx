@@ -439,7 +439,7 @@ export default function AdminDashboardPage() {
                 </div>
               </Link>
               
-              <Link href="/admin/products" className="group flex items-center gap-5 rounded-2xl border border-white bg-white/60 p-5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-1 hover:bg-white hover:shadow-md">
+              <Link href="/admin/accessories/create" className="group flex items-center gap-5 rounded-2xl border border-white bg-white/60 p-5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-1 hover:bg-white hover:shadow-md">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-pink-600 transition-transform group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-pink-200 group-hover:bg-pink-600 group-hover:text-white">
                   <Package className="h-6 w-6" />
                 </div>
@@ -449,7 +449,7 @@ export default function AdminDashboardPage() {
                 </div>
               </Link>
               
-              <Link href="/admin/phones" className="group flex items-center gap-5 rounded-2xl border border-white bg-white/60 p-5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-1 hover:bg-white hover:shadow-md">
+              <Link href="/admin/phones/create" className="group flex items-center gap-5 rounded-2xl border border-white bg-white/60 p-5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-1 hover:bg-white hover:shadow-md">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-600 transition-transform group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-cyan-200 group-hover:bg-cyan-600 group-hover:text-white">
                   <Smartphone className="h-6 w-6" />
                 </div>
