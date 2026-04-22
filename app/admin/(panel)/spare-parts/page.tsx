@@ -52,6 +52,7 @@ export default function AdminSparePartsPage() {
   const [priceReparateur, setPriceReparateur] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
   const [selectedPhoneType, setSelectedPhoneType] = useState("");
+  const [newPhoneTypeName, setNewPhoneTypeName] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [editing, setEditing] = useState<SparePart | null>(null);
@@ -165,6 +166,7 @@ export default function AdminSparePartsPage() {
     setPriceReparateur("");
     setSelectedBrand("");
     setSelectedPhoneType("");
+    setNewPhoneTypeName("");
     setEditing(null);
   }
 
@@ -191,8 +193,8 @@ export default function AdminSparePartsPage() {
       setMessage({ type: "error", text: "اختر الماركة" });
       return;
     }
-    if (!selectedPhoneType) {
-      setMessage({ type: "error", text: "اختر الهاتف (الموديل)" });
+    if (!selectedPhoneType && !newPhoneTypeName.trim()) {
+      setMessage({ type: "error", text: "اختر الهاتف أو أدخل موديل جديد" });
       return;
     }
 
@@ -204,7 +206,8 @@ export default function AdminSparePartsPage() {
       priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
       brand: selectedBrand,
-      phoneType: selectedPhoneType,
+      phoneType: selectedPhoneType || undefined,
+      phoneTypeName: selectedPhoneType ? undefined : newPhoneTypeName.trim() || undefined,
     };
 
     try {
@@ -251,6 +254,7 @@ export default function AdminSparePartsPage() {
     const phoneTypeId = typeof item.phoneType === "string" ? item.phoneType : item.phoneType?._id;
     setSelectedBrand(brandId || "");
     setSelectedPhoneType(phoneTypeId || "");
+    setNewPhoneTypeName("");
     if (brandId) fetchPhoneTypesForBrand(brandId);
   }
 
@@ -637,6 +641,7 @@ export default function AdminSparePartsPage() {
               onChange={(e) => {
                 setSelectedBrand(e.target.value);
                 setSelectedPhoneType("");
+                setNewPhoneTypeName("");
               }}
               className="admin-select"
             >
@@ -666,6 +671,14 @@ export default function AdminSparePartsPage() {
                 </option>
               ))}
             </select>
+            <input
+              type="text"
+              value={newPhoneTypeName}
+              onChange={(e) => setNewPhoneTypeName(e.target.value)}
+              disabled={!selectedBrand}
+              className="admin-input mt-2 disabled:opacity-50"
+              placeholder="أو اكتب موديل جديد ليتم إنشاؤه تلقائياً"
+            />
           </div>
 
           <div>
