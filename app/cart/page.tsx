@@ -7,6 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft } from "lucide-react";
 import { getProductImageUrl } from "@/lib/productImage";
+import { formatDzd } from "@/lib/pricing";
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, totalItems, totalPrice } =
@@ -90,9 +91,9 @@ export default function CartPage() {
                       </p>
                     )}
                     <p className="mt-1 text-lg font-bold text-slate-700">
-                      {item.price.toLocaleString()}{" "}
+                      {formatDzd(item.price)}{" "}
                       <span className="text-sm font-medium text-slate-500">
-                        دج
+                        DA
                       </span>
                     </p>
                   </div>
@@ -126,7 +127,7 @@ export default function CartPage() {
                       </button>
                     </div>
                     <p className="min-w-[5rem] text-left text-lg font-bold text-blue-600">
-                      {(item.price * item.quantity).toLocaleString()} دج
+                      {formatDzd(item.price * item.quantity)} DA
                     </p>
                     <button
                       type="button"
@@ -148,8 +149,8 @@ export default function CartPage() {
                     المجموع الكلي
                   </p>
                   <p className="mt-1 text-3xl font-black text-white">
-                    {totalPrice.toLocaleString()}{" "}
-                    <span className="text-xl font-bold text-blue-100">دج</span>
+                    {formatDzd(totalPrice)}{" "}
+                    <span className="text-xl font-bold text-blue-100">DA</span>
                   </p>
                 </div>
                 <Link

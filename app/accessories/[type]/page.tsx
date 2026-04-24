@@ -4,6 +4,7 @@ import { AddToCartButton } from "@/components/AddToCartButton";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductImage } from "@/components/ProductImage";
+import { formatDzd } from "@/lib/pricing";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -118,12 +119,12 @@ export default async function AccessoriesByTypePage({
                   {a.price != null && a.price > 0 ? (
                     <p className="mb-2 text-center">
                       <span className="text-xl font-black text-slate-900 sm:text-2xl">
-                        {a.price.toLocaleString()}
+                        {formatDzd(a.price)}
                       </span>
-                      <span className="mr-1 text-sm font-semibold text-slate-500">دج</span>
+                      <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
                     </p>
                   ) : (
-                    <p className="mb-2 text-center text-sm font-semibold text-slate-400">— دج</p>
+                    <p className="mb-2 text-center text-sm font-semibold text-slate-400">— DA</p>
                   )}
 
                   <p className="mb-3 line-clamp-2 text-center text-xs text-slate-500 sm:text-sm">

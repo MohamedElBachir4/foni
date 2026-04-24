@@ -40,3 +40,16 @@ export function getEffectivePrice(
   return baseRetail;
 }
 
+/**
+ * تنسيق السعر لعرض الواجهة: بدون فواصل عند الآلاف (لا «15,000») — يلحق بـ «DA» في الواجهة
+ */
+export function formatDzd(n: number | null | undefined): string {
+  const v = n == null ? NaN : Number(n);
+  if (Number.isNaN(v)) return "0";
+  return new Intl.NumberFormat("en-US", {
+    useGrouping: false,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(v);
+}
+

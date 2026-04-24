@@ -8,7 +8,7 @@ import { Heart, ShoppingCart } from "lucide-react";
 import { ProductImage } from "@/components/ProductImage";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { useAccount } from "@/context/AccountContext";
-import { getEffectivePrice } from "@/lib/pricing";
+import { getEffectivePrice, formatDzd } from "@/lib/pricing";
 import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -209,12 +209,12 @@ export default function SparePartsListPage() {
                       {effectivePrice != null && Number(effectivePrice) > 0 ? (
                         <p className="mb-2 text-center">
                           <span className="text-xl font-black text-slate-900 sm:text-2xl">
-                            {Number(effectivePrice).toLocaleString()}
+                            {formatDzd(effectivePrice)}
                           </span>
-                          <span className="mr-1 text-sm font-semibold text-slate-500">دج</span>
+                          <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
                         </p>
                       ) : (
-                        <p className="mb-2 text-center text-sm font-semibold text-slate-400">— دج</p>
+                        <p className="mb-2 text-center text-sm font-semibold text-slate-400">— DA</p>
                       )}
 
                       <div className="mt-auto flex flex-col gap-2">

@@ -6,7 +6,7 @@ import { type Product } from "@/lib/productsData";
 import { ProductImage } from "@/components/ProductImage";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
-import { getEffectivePrice } from "@/lib/pricing";
+import { getEffectivePrice, formatDzd } from "@/lib/pricing";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -227,12 +227,12 @@ export function ProductGrid({ selectedBrandId }: ProductGridProps) {
                       {effectivePrice > 0 ? (
                         <p className="mb-1.5 text-center">
                           <span className="text-xl font-black text-slate-900 sm:text-2xl">
-                            {effectivePrice.toLocaleString()}
+                            {formatDzd(effectivePrice)}
                           </span>
-                          <span className="mr-1 text-sm font-semibold text-slate-500">دج</span>
+                          <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
                         </p>
                       ) : (
-                        <p className="mb-1.5 min-h-[1.5rem] text-center text-sm font-semibold text-slate-400">— دج</p>
+                        <p className="mb-1.5 min-h-[1.5rem] text-center text-sm font-semibold text-slate-400">— DA</p>
                       )}
 
                       {/* مساحة ثابتة للألوان (1–5 دوائر) والأزرار */}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { getProductImageUrl } from "@/lib/productImage";
+import { formatDzd } from "@/lib/pricing";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const DEBOUNCE_MS = 300;
@@ -223,8 +224,8 @@ export function SearchBar() {
                         </span>
                         {item.price != null && Number(item.price) > 0 && (
                           <span className="font-bold text-slate-800">
-                            {Number(item.price).toLocaleString()}
-                            <span className="mr-1 text-[10px] font-semibold text-slate-500">دج</span>
+                            {formatDzd(item.price)}
+                            <span className="mr-1 text-[10px] font-semibold text-slate-500">DA</span>
                           </span>
                         )}
                       </div>

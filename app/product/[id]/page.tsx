@@ -6,6 +6,7 @@ import { getProductById, getBrandLabel } from "@/lib/productsData";
 import { ProductImage } from "@/components/ProductImage";
 import { ShoppingCart, Phone, ArrowLeft, Shield, Truck, Heart } from "lucide-react";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { formatDzd } from "@/lib/pricing";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -137,8 +138,8 @@ export default async function ProductDetailPage({
                   <div className="mb-4 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-100 sm:mb-6 sm:rounded-xl sm:bg-gradient-to-l sm:from-blue-50 sm:to-slate-50 sm:p-4 sm:ring-blue-100/50">
                     <p className="hidden text-sm font-medium text-slate-500 sm:block">السعر</p>
                     <p className="text-xl font-black text-blue-600 sm:text-3xl">
-                      {product.price.toLocaleString()}
-                      <span className="mr-1 text-base font-semibold text-blue-400 sm:text-lg">دج</span>
+                      {formatDzd(product.price)}
+                      <span className="mr-1 text-base font-semibold text-blue-400 sm:text-lg">DA</span>
                     </p>
                   </div>
                 )}
@@ -251,12 +252,12 @@ export default async function ProductDetailPage({
                     {phone.price != null && Number(phone.price) > 0 ? (
                       <p className="mb-1.5 text-center">
                         <span className="text-xl font-black text-slate-900 sm:text-2xl">
-                          {Number(phone.price).toLocaleString()}
+                          {formatDzd(phone.price)}
                         </span>
-                        <span className="mr-1 text-sm font-semibold text-slate-500">دج</span>
+                        <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
                       </p>
                     ) : (
-                      <p className="mb-1.5 min-h-[1.5rem] text-center text-sm font-semibold text-slate-400">— دج</p>
+                      <p className="mb-1.5 min-h-[1.5rem] text-center text-sm font-semibold text-slate-400">— DA</p>
                     )}
 
                     <div className="mb-2 flex min-h-[28px] flex-wrap items-center justify-center gap-1.5">

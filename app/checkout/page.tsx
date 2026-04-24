@@ -9,6 +9,7 @@ import { useAccount } from "@/context/AccountContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
+import { formatDzd } from "@/lib/pricing";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -300,11 +301,11 @@ export default function CheckoutPage() {
                         {item.name}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {item.quantity} × {item.price.toLocaleString()} دج
+                        {item.quantity} × {formatDzd(item.price)} DA
                       </p>
                     </div>
                     <p className="shrink-0 text-sm font-bold text-slate-800">
-                      {(item.price * item.quantity).toLocaleString()} دج
+                      {formatDzd(item.price * item.quantity)} DA
                     </p>
                   </li>
                 ))}
@@ -313,7 +314,7 @@ export default function CheckoutPage() {
                 <div className="flex items-center justify-between text-slate-600">
                   <span>مجموع المنتجات</span>
                   <span className="font-semibold">
-                    {Number(totalPrice).toLocaleString()} دج
+                    {formatDzd(totalPrice)} DA
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-slate-600">
@@ -325,7 +326,7 @@ export default function CheckoutPage() {
                     {feesLoading
                       ? "..."
                       : deliveryFee > 0
-                      ? `${deliveryFee.toLocaleString()} دج`
+                      ? `${formatDzd(deliveryFee)} DA`
                       : wilayaId
                       ? "—"
                       : "اختر الولاية"}
@@ -336,7 +337,7 @@ export default function CheckoutPage() {
                     المجموع الكلي
                   </span>
                   <span className="text-xl font-bold text-blue-600">
-                    {grandTotal.toLocaleString()} دج
+                    {formatDzd(grandTotal)} DA
                   </span>
                 </div>
               </div>
