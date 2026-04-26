@@ -16,9 +16,9 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Foni - متجر قطع غيار الهواتف النقالة",
+  title: "Foni - عالم الهواتف النقالة",
   description:
-    "متجر عصري وفاخر لبيع قطع غيار الهواتف النقالة في الجزائر مع تجربة استخدام عربية بالكامل.",
+    "عالم الهواتف النقالة في الجزائر — هواتف، إكسسوارات، وقطع غيار مع تجربة عربية موحّدة.",
   icons: {
     icon: "/LOGO.jpeg?v=3",
     shortcut: "/LOGO.jpeg?v=3",

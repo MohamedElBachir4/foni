@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductImage } from "@/components/ProductImage";
 import { formatDzd } from "@/lib/pricing";
+import { filterAccessoriesForTypeListing } from "@/lib/accessoryVisibility";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -40,7 +41,7 @@ export default async function AccessoriesByTypePage({
   params: Promise<{ type: string }>;
 }) {
   const { type } = await params;
-  const accessories = await fetchAccessoriesByType(type);
+  const accessories = filterAccessoriesForTypeListing(await fetchAccessoriesByType(type));
 
   const first = accessories[0];
   const typeName =
@@ -69,7 +70,7 @@ export default async function AccessoriesByTypePage({
             {typeName}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-            المنتجات المتوفرة حاليًا ضمن هذا النوع من الأكسسوارات.
+            المنتجات العامة لهذا النوع. الأكسسوارات المربوطة بموديل هاتف محدّد تظهر فقط من صفحة الماركة ثم اختيار الموديل ثم «اكسسوارات».
           </p>
         </header>
 

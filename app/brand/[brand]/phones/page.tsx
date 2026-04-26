@@ -25,14 +25,46 @@ const BRAND_LABELS: Record<string, string> = {
   poco: "Poco",
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const MONGO_ID = /^[a-f0-9]{24}$/i;
+
 export default async function BrandPhonesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ brand: string }>;
+  searchParams: Promise<{ phoneType?: string }>;
 }) {
   const { brand } = await params;
+  const sp = await searchParams;
   const brandId = brand.toLowerCase();
   const brandLabel = BRAND_LABELS[brandId] ?? brandId;
+
+  let phoneTypeId: string | null = null;
+  let phoneTypeName: string | null = null;
+  const q = sp?.phoneType;
+  if (q && MONGO_ID.test(q)) {
+    try {
+      const res = await fetch(`${API_URL}/api/phone-types/${q}`, { cache: "no-store" });
+      if (res.ok) {
+        const pt = (await res.json()) as {
+          name?: string;
+          brand?: { slug?: string; name?: string } | null;
+        };
+        const bSlug = (pt.brand?.slug || "").toLowerCase();
+        const bName = (pt.brand?.name || "")
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, "-");
+        if (bSlug === brandId || bName === brandId) {
+          phoneTypeId = q;
+          phoneTypeName = pt.name ?? null;
+        }
+      }
+    } catch {
+      /* تجاهل query غير صالح */
+    }
+  }
 
   return (
     <div className="min-h-screen w-full antialiased">
@@ -40,19 +72,22 @@ export default async function BrandPhonesPage({
       <main className="mx-auto max-w-7xl px-6 pb-16 pt-28 lg:px-8">
         <section className="mb-10">
           <h1 className="mb-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">
-            هواتف {brandLabel}
+            {phoneTypeName
+              ? `هواتف ${brandLabel} — ${phoneTypeName}`
+              : `هواتف ${brandLabel}`}
           </h1>
           <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
-            استكشف هواتف {brandLabel} المتوفرة لدينا، مع إمكانية إضافة المزيد من الموديلات من لوحة
-            التحكم.
+            {phoneTypeName
+              ? `الهواتف المسجّلة تحت موديل «${phoneTypeName}» ضمن ${brandLabel}.`
+              : `استكشف هواتف ${brandLabel} المتوفرة لدينا، مع إمكانية إضافة المزيد من الموديلات من لوحة
+            التحكم.`}
           </p>
         </section>
 
-        <ProductGrid selectedBrandId={brandId} />
+        <ProductGrid selectedBrandId={brandId} phoneTypeId={phoneTypeId} />
 
         <Footer />
       </main>
     </div>
   );
 }
-

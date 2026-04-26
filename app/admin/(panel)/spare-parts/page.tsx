@@ -66,6 +66,7 @@ export default function AdminSparePartsPage() {
     updatedProductsList: { productName: string; changes: string }[];
     createdPhones: number;
     createdPhonesList: string[];
+    imagesRecovered?: number;
     emptyRowsSkipped: number;
     duplicateInDb: number;
     duplicateInFile: number;
@@ -575,6 +576,12 @@ export default function AdminSparePartsPage() {
                <div className="text-cyan-600 text-3xl font-bold">{importReport.totalInDb - importReport.createdProducts > 0 ? (importReport.totalInDb - importReport.createdProducts).toLocaleString() : '0'}</div>
                <div className="text-cyan-800 text-sm mt-2 font-medium">منتجات سابقة محفوظة</div>
             </div>
+            {(importReport.imagesRecovered ?? 0) > 0 && (
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-5 text-center shadow-sm col-span-2 lg:col-span-7">
+               <div className="text-teal-600 text-3xl font-bold">{importReport.imagesRecovered}</div>
+               <div className="text-teal-900 text-sm mt-2 font-medium">صور أُضيفت لمنتجات قديمة كانت بلا صورة (نفس الاستيراد)</div>
+            </div>
+            )}
           </div>
 
           {importReport.errors.length > 0 && (

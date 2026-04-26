@@ -14,7 +14,11 @@ export type { Product };
 
 type ProductGridProps = {
   selectedBrandId: string | null;
+  /** موديل نوع الهاتف (ObjectId) — يضيّق قائمة الهواتف عند الوجود */
+  phoneTypeId?: string | null;
 };
+
+const MONGO_ID = /^[a-f0-9]{24}$/i;
 
 function mapApiPhoneToProduct(phone: {
   _id: string;
@@ -53,7 +57,12 @@ function mapApiPhoneToProduct(phone: {
   return base;
 }
 
-export function ProductGrid({ selectedBrandId }: ProductGridProps) {
+export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: ProductGridProps) {
+  const phoneTypeId = useMemo(() => {
+    if (!phoneTypeIdProp || !MONGO_ID.test(phoneTypeIdProp)) return null;
+    return phoneTypeIdProp;
+  }, [phoneTypeIdProp]);
+
   const [page, setPage] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [apiProducts, setApiProducts] = useState<
@@ -80,10 +89,12 @@ export function ProductGrid({ selectedBrandId }: ProductGridProps) {
     // eslint-disable-next-line
     setApiLoading(true);
 
-    const query =
-      selectedBrandId && selectedBrandId !== "all"
-        ? `?brand=${encodeURIComponent(selectedBrandId)}`
-        : "";
+    const q = new URLSearchParams();
+    if (selectedBrandId && selectedBrandId !== "all") {
+      q.set("brand", selectedBrandId);
+    }
+    if (phoneTypeId) q.set("phoneType", phoneTypeId);
+    const query = q.toString() ? `?${q.toString()}` : "";
 
     fetch(`${API_URL}/api/phones${query}`)
       .then((res) => (res.ok ? res.json() : []))
@@ -112,7 +123,7 @@ export function ProductGrid({ selectedBrandId }: ProductGridProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedBrandId]);
+  }, [selectedBrandId, phoneTypeId]);
 
   const isBrandPage = !!(selectedBrandId && selectedBrandId !== "all");
 
@@ -125,7 +136,7 @@ export function ProductGrid({ selectedBrandId }: ProductGridProps) {
   useEffect(() => {
     // eslint-disable-next-line
     setPage(0);
-  }, [selectedBrandId, productsPerPage]);
+  }, [selectedBrandId, productsPerPage, phoneTypeId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productsPerPage));
   const currentPage = Math.min(page, totalPages - 1);

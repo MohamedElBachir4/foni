@@ -30,7 +30,7 @@ const BRANDS = [
 type BrandGridProps = {
   selectedBrandId: string | null;
   onSelectBrand: (brandId: string | null) => void;
-  /** عند التحديد: الانتقال مباشرة إلى قسم الماركة (هواتف/اكسسوارات/قطع غيار). غير مُمرّر = صفحة الماركة فقط (من الماركات المتوفرة) */
+  /** عند التحديد: الانتقال مباشرة إلى قسم الماركة. بدون category = قائمة موديلات الهواتف ثم اختيار القسم */
   category?: "phones" | "accessories" | "spare-parts";
 };
 
@@ -43,7 +43,9 @@ export function BrandGrid({ selectedBrandId, onSelectBrand, category }: BrandGri
     onSelectBrand(next);
     setShimmerId(brandId);
     setTimeout(() => setShimmerId(null), 1000);
-    const path = category ? `/brand/${brandId}/${category}` : `/brand/${brandId}`;
+    const path = category
+      ? `/brand/${brandId}/${category}`
+      : `/brand/${brandId}/models`;
     router.push(path);
   };
 

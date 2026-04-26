@@ -25,7 +25,7 @@ function normalizeSlug(name: string) {
   return name.toLowerCase().trim().replace(/\s+/g, "-");
 }
 
-export default function BrandSparePartsModelsPage() {
+export default function BrandModelsPage() {
   const params = useParams<{ brand: string }>();
   const brandParam = (params.brand || "").toLowerCase();
   const [brand, setBrand] = useState<Brand | null>(null);
@@ -99,17 +99,17 @@ export default function BrandSparePartsModelsPage() {
               الرئيسية
             </Link>
             <span aria-hidden>/</span>
-            <Link href={`/brand/${brandParam}/models`} className="hover:text-blue-600">
+            <span className="font-medium text-slate-700">
               {brand?.name ?? brandParam}
-            </Link>
+            </span>
             <span aria-hidden>/</span>
-            <span className="font-medium text-slate-700">قطع غيار الهواتف</span>
+            <span className="font-medium text-slate-700">موديلات الهواتف</span>
           </nav>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
             اختر الموديل
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
-            اختر موديل هاتفك لعرض قطع الغيار المتوفرة له.
+            اختر موديل الهاتف ثم اختر ما تريد: الهواتف النقّالة، الأكسسوارات، أو قطع الغيار.
           </p>
         </header>
 
@@ -136,7 +136,7 @@ export default function BrandSparePartsModelsPage() {
             {models.map((m) => (
               <Link
                 key={m._id}
-                href={`/spare-parts/${brand._id}/${m._id}`}
+                href={`/brand/${brandParam}/model/${m._id}`}
                 className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-blue-500/20 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:rounded-[1.25rem]"
               >
                 <div className="relative flex min-h-[140px] items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4 py-8 sm:min-h-[160px]">
@@ -159,11 +159,11 @@ export default function BrandSparePartsModelsPage() {
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col border-t border-slate-100 p-4">
-                  <h3 className="mb-3 line-clamp-2 text-sm font-bold leading-snug text-slate-800 group-hover:text-blue-700">
+                  <h2 className="mb-3 line-clamp-2 text-sm font-bold leading-snug text-slate-800 group-hover:text-blue-700">
                     {m.name}
-                  </h3>
+                  </h2>
                   <span className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-sm transition-colors group-hover:bg-blue-700">
-                    عرض قطع الغيار
+                    متابعة
                     <svg className="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>

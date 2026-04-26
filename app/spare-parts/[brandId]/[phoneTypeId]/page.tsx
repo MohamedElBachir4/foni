@@ -51,54 +51,84 @@ export default function SparePartsListPage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      if (!phoneTypeId) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(
-          `${API_URL}/api/spare-parts?phoneType=${encodeURIComponent(phoneTypeId)}`,
-          { cache: "no-store" }
-        );
-        if (!res.ok) throw new Error("فشل جلب قطع الغيار");
-        const data = await res.json();
-        const list = data.parts ?? (Array.isArray(data) ? data : []);
+        const ptId = String(phoneTypeId);
+        const [partsRes, brandsRes, phoneTypeOneRes] = await Promise.all([
+          fetch(
+            `${API_URL}/api/spare-parts?phoneType=${encodeURIComponent(ptId)}&limit=500`
+          ),
+          fetch(`${API_URL}/api/brands`),
+          fetch(`${API_URL}/api/phone-types/${encodeURIComponent(ptId)}`),
+        ]);
+
+        if (!partsRes.ok) throw new Error("فشل جلب قطع الغيار");
+
+        const [data, brandsJson, ptOne] = await Promise.all([
+          partsRes.json(),
+          brandsRes.json().catch(() => []),
+          phoneTypeOneRes.ok
+            ? phoneTypeOneRes.json()
+            : Promise.resolve(null),
+        ]);
+
+        const list: SparePart[] =
+          data.parts ?? (Array.isArray(data) ? data : []);
+        const brands: Brand[] = Array.isArray(brandsJson) ? brandsJson : [];
+
         if (!cancelled) setParts(list);
 
-        let mongoId: string | null = null;
-        let displayName = "ماركة";
-        const needBrandFallback = !(list.length > 0 && list[0].brand);
-        const needPhoneFallback = !(list.length > 0 && list[0].phoneType);
-
-        if (needBrandFallback || needPhoneFallback) {
-          const brandRes = await fetch(`${API_URL}/api/brands`, {
-            cache: "no-store",
-          });
-          const brands: Brand[] = brandRes.ok ? await brandRes.json() : [];
-          const resolved = resolveBrandRouteParam(brandId, brands);
-          mongoId = resolved.mongoId;
-          displayName = resolved.displayName;
-        }
-
-        if (list.length > 0 && list[0].brand) {
-          if (!cancelled) setBrand(list[0].brand);
+        if (ptOne && ptOne._id) {
+          if (!cancelled) {
+            setPhoneType({ _id: String(ptOne._id), name: String(ptOne.name || "") });
+            const b = ptOne.brand as { _id?: string; name?: string } | undefined;
+            if (b && b._id) {
+              setBrand({ _id: String(b._id), name: String(b.name || "") });
+            } else {
+              const resolved = resolveBrandRouteParam(brandId, brands);
+              setBrand({
+                _id: resolved.mongoId ?? brandId,
+                name: resolved.displayName,
+              });
+            }
+          }
         } else {
-          if (!cancelled) setBrand({ _id: mongoId ?? brandId, name: displayName });
-        }
-        if (list.length > 0 && list[0].phoneType) {
-          if (!cancelled) setPhoneType(list[0].phoneType);
-        } else if (mongoId) {
-          const ptRes = await fetch(
-            `${API_URL}/api/phone-types?brand=${encodeURIComponent(mongoId)}`,
-            { cache: "no-store" }
-          );
-          if (ptRes.ok) {
-            const types: PhoneType[] = await ptRes.json();
-            const found = types.find((t) => t._id === phoneTypeId) || null;
-            if (!cancelled) setPhoneType(found);
+          if (!cancelled && list[0]?.phoneType) {
+            setPhoneType(list[0].phoneType);
+          }
+          if (!cancelled && list[0]?.brand) {
+            setBrand(list[0].brand);
+          }
+          const resolved = resolveBrandRouteParam(brandId, brands);
+          if (!cancelled && !list[0]?.brand) {
+            setBrand({
+              _id: resolved.mongoId ?? brandId,
+              name: resolved.displayName,
+            });
+          }
+          if (!cancelled && !list[0]?.phoneType && resolved.mongoId) {
+            const ptRes2 = await fetch(
+              `${API_URL}/api/phone-types?brand=${encodeURIComponent(
+                resolved.mongoId
+              )}`
+            );
+            if (ptRes2.ok) {
+              const types: PhoneType[] = await ptRes2.json();
+              const found =
+                types.find((t) => t._id === phoneTypeId) ?? null;
+              if (found && !cancelled) setPhoneType(found);
+            }
           }
         }
       } catch (err: unknown) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : "تعذر تحميل قطع الغيار";
+          const msg =
+            err instanceof Error ? err.message : "تعذر تحميل قطع الغيار";
           setError(msg);
           setParts([]);
         }
