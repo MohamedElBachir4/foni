@@ -234,31 +234,36 @@ export function ProductDetailsModern({
       {relatedProducts.length > 0 && (
         <section className="space-y-4">
           <h2 className="text-xl font-extrabold text-slate-900 sm:text-2xl">منتجات مشابهة</h2>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4">
             {relatedProducts.map((item) => (
               <article
                 key={item._id}
-                className="group w-[240px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                className="group flex h-full min-h-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:border-slate-200 hover:shadow-xl sm:min-h-[360px] sm:rounded-[1.25rem]"
               >
-                <div className="relative h-44 bg-slate-50">
+                <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[130px]">
                   <ProductImage
                     src={item.image ?? ""}
                     alt={item.name}
-                    sizes="240px"
-                    className="object-contain p-3"
+                    sizes="(max-width: 640px) 50vw, 25vw"
+                    className="object-contain w-full max-w-[100px] sm:max-w-[130px]"
                   />
                 </div>
-                <div className="p-3">
-                  <h3 className="line-clamp-2 min-h-[42px] text-sm font-bold text-slate-900">
+                <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
+                  <h3 className="mb-1.5 min-h-[2.5rem] text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">
                     {item.name}
                   </h3>
-                  <p className="mt-1 text-sm font-extrabold text-blue-600">
-                    {formatDzd(item.price ?? 0)} DA
+
+                  <p className="mb-1.5 text-center">
+                    <span className="text-xl font-black text-slate-900 sm:text-2xl">
+                      {formatDzd(item.price ?? 0)}
+                    </span>
+                    <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
                   </p>
-                  <div className="mt-3 flex gap-2">
+
+                  <div className="mt-auto flex flex-col gap-2">
                     <Link
                       href={`/product/${item._id}`}
-                      className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-center text-xs font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-600"
+                      className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 sm:py-3"
                     >
                       التفاصيل
                     </Link>
@@ -267,7 +272,7 @@ export function ProductDetailsModern({
                       name={item.name}
                       price={item.price ?? 0}
                       image={item.image ?? ""}
-                      className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-semibold text-white transition hover:bg-blue-500"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
                     >
                       أضف
                     </AddToCartButton>
