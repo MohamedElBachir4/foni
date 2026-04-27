@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Shield, Truck, ShoppingCart, Phone } from "lucide-react";
+import { Shield, Truck, ShoppingCart, ClipboardList } from "lucide-react";
 import { AddToCartButton } from "@/components/AddToCartButton";
 
 const COLOR_HEX: Record<string, string> = {
@@ -91,10 +91,10 @@ export function ProductDetailsClient({
                     أضف للسلة
                 </AddToCartButton>
                 <Link
-                    href="tel:+213000000000"
+                    href="/checkout"
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-3.5 font-bold text-slate-700 active:scale-[0.98] sm:rounded-xl sm:py-4 sm:transition-all sm:duration-300 sm:hover:border-blue-400 sm:hover:bg-blue-50 sm:hover:text-blue-600"
                 >
-                    <Phone className="h-5 w-5" strokeWidth={2.5} />
+                    <ClipboardList className="h-5 w-5" strokeWidth={2.5} />
                     اطلب الآن
                 </Link>
             </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Menu, ShoppingBag, CircleUserRound, Search, X } from "lucide-react";
+import { Menu, ShoppingBag, CircleUserRound, Search, X, Sparkles, ShieldCheck } from "lucide-react";
 import { SearchBar } from "@/components/SearchBar";
 import { useCart } from "@/context/CartContext";
 import { useAccount } from "@/context/AccountContext";
@@ -13,7 +13,7 @@ export function Navbar() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const { totalItems } = useCart();
-  const { account, logout } = useAccount();
+  const { account, logout, setUseWholesalePricing } = useAccount();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -28,6 +28,29 @@ export function Navbar() {
 
   return (
     <nav className="glass fixed top-0 left-0 z-50 w-full border-b border-white/30 shadow-2xl">
+      {account?.role === "reparateur" && !account.useWholesalePricing && (
+        <div className="border-b border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2.5 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)] sm:px-4">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-[11px] text-amber-950 sm:text-sm">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 ring-1 ring-amber-200">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <p className="font-medium leading-relaxed">
+                <span className="font-extrabold">عرض خاص للمصلّحين:</span>{" "}
+                فعّل الشراء بالجملة للحصول على نفس أسعار حساب الجملة داخل الموقع.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUseWholesalePricing(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-600 to-orange-500 px-3 py-1.5 text-[11px] font-bold text-white shadow-md shadow-amber-500/30 transition hover:from-amber-500 hover:to-orange-500 hover:shadow-lg sm:px-4 sm:text-xs"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              تفعيل أسعار الجملة
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between gap-3">
           <Link
@@ -157,6 +180,26 @@ export function Navbar() {
                           </p>
                         )}
                       </div>
+                      {account.role === "reparateur" && (
+                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                          <p className="text-[11px] font-semibold text-amber-900 sm:text-xs">
+                            عرض خاص للمصلّحين: تفعيل أسعار الجملة
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setUseWholesalePricing(!account.useWholesalePricing)}
+                            className={`mt-2 inline-flex w-full items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                              account.useWholesalePricing
+                                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                : "bg-amber-600 text-white hover:bg-amber-700"
+                            }`}
+                          >
+                            {account.useWholesalePricing
+                              ? "مفعّل: أسعار الجملة"
+                              : "تفعيل أسعار الجملة"}
+                          </button>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => {

@@ -29,6 +29,14 @@ export function getEffectivePrice(
   }
 
   if (account.role === "reparateur") {
+    if (account.useWholesalePricing) {
+      const wholesale =
+        typeof tiered.priceWholesale === "number" &&
+        !Number.isNaN(tiered.priceWholesale)
+          ? tiered.priceWholesale
+          : null;
+      return wholesale ?? baseRetail;
+    }
     const v =
       typeof tiered.priceReparateur === "number" &&
       !Number.isNaN(tiered.priceReparateur)

@@ -65,6 +65,7 @@ export default function AccessoriesPage() {
   const [editing, setEditing] = useState<Accessory | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   const fetchTypes = useCallback(async () => {
     try {
@@ -162,7 +163,27 @@ export default function AccessoriesPage() {
     return extraImagesText
       .split(/\r?\n/)
       .map((l) => l.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  async function uploadImages(files: FileList | null): Promise<string[]> {
+    if (!files || files.length === 0) return [];
+    const formData = new FormData();
+    Array.from(files)
+      .slice(0, 5)
+      .forEach((file) => formData.append("images", file));
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("foni_admin_token") : null;
+    const res = await fetch(`${API_URL}/api/uploads/images`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "فشل رفع الصور");
+    return Array.isArray(data.urls) ? data.urls : [];
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -449,6 +470,69 @@ export default function AccessoriesPage() {
             </div>
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                رفع الصورة الرئيسية من الجهاز
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                className="admin-input"
+                onChange={async (e) => {
+                  setMessage(null);
+                  try {
+                    setUploadingImages(true);
+                    const urls = await uploadImages(e.target.files);
+                    if (urls[0]) {
+                      setImage(urls[0]);
+                      setMessage({ type: "success", text: "تم رفع الصورة الرئيسية" });
+                    }
+                  } catch (err) {
+                    setMessage({
+                      type: "error",
+                      text: err instanceof Error ? err.message : "فشل رفع الصورة",
+                    });
+                  } finally {
+                    setUploadingImages(false);
+                    e.currentTarget.value = "";
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                رفع صور إضافية من الجهاز (حتى 4)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="admin-input"
+                onChange={async (e) => {
+                  setMessage(null);
+                  try {
+                    setUploadingImages(true);
+                    const uploaded = await uploadImages(e.target.files);
+                    if (uploaded.length > 0) {
+                      const merged = [...parseExtraImages(), ...uploaded].slice(0, 4);
+                      setExtraImagesText(merged.join("\n"));
+                      setMessage({ type: "success", text: `تم رفع ${uploaded.length} صورة إضافية` });
+                    }
+                  } catch (err) {
+                    setMessage({
+                      type: "error",
+                      text: err instanceof Error ? err.message : "فشل رفع الصور",
+                    });
+                  } finally {
+                    setUploadingImages(false);
+                    e.currentTarget.value = "";
+                  }
+                }}
+              />
+            </div>
+          </div>
+
           {/* الألوان */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">الألوان المتوفرة</label>
@@ -560,8 +644,12 @@ export default function AccessoriesPage() {
                 إلغاء
               </AdminButton>
             )}
-            <AdminButton type="submit" variant="primary">
-              {editing ? "حفظ التعديلات" : "إضافة المنتج"}
+            <AdminButton type="submit" variant="primary" disabled={uploadingImages}>
+              {uploadingImages
+                ? "جاري رفع الصور..."
+                : editing
+                ? "حفظ التعديلات"
+                : "إضافة المنتج"}
             </AdminButton>
           </div>
         </form>

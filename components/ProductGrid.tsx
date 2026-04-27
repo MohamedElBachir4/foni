@@ -191,9 +191,24 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
               </div>
             </div>
           ) : (
-            <div className={`grid ${isBrandPage ? "grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4" : "grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4"}`}>
+            <div
+              className={
+                isBrandPage && isMobile
+                  ? "flex gap-2 overflow-x-auto pb-1"
+                  : `grid ${
+                      isBrandPage
+                        ? "grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4"
+                        : "grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4"
+                    }`
+              }
+            >
               {visibleProducts.map((product, index) => {
-                const tiered = product as any;
+                const tiered = product as {
+                  price?: number;
+                  priceRetail?: number;
+                  priceWholesale?: number;
+                  priceReparateur?: number;
+                };
                 const effectivePrice = getEffectivePrice(
                   {
                     price: tiered.price,
@@ -206,7 +221,9 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
                 return (
                   <div
                     key={product.id}
-                    className="group flex h-full min-h-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:border-slate-200 sm:min-h-[360px] sm:rounded-[1.25rem]"
+                    className={`group flex h-full min-h-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:border-slate-200 sm:min-h-[360px] sm:rounded-[1.25rem] ${
+                      isBrandPage && isMobile ? "w-[70vw] shrink-0" : ""
+                    }`}
                   >
                     {/* منطقة الصورة - ارتفاع ثابت */}
                     <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[130px]">

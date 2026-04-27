@@ -27,7 +27,9 @@ type PhoneType = {
 type SparePart = {
   _id: string;
   name: string;
+  details?: string;
   image?: string;
+  extraImages?: string[];
   price: number;
   priceRetail?: number;
   priceWholesale?: number;
@@ -45,7 +47,9 @@ export default function AdminSparePartsPage() {
   const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
+  const [details, setDetails] = useState("");
   const [image, setImage] = useState("");
+  const [extraImagesText, setExtraImagesText] = useState("");
   const [price, setPrice] = useState("");
   const [priceRetail, setPriceRetail] = useState("");
   const [priceWholesale, setPriceWholesale] = useState("");
@@ -78,6 +82,7 @@ export default function AdminSparePartsPage() {
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   const fetchBrands = useCallback(async () => {
     try {
@@ -160,7 +165,9 @@ export default function AdminSparePartsPage() {
 
   function resetForm() {
     setName("");
+    setDetails("");
     setImage("");
+    setExtraImagesText("");
     setPrice("");
     setPriceRetail("");
     setPriceWholesale("");
@@ -169,6 +176,32 @@ export default function AdminSparePartsPage() {
     setSelectedPhoneType("");
     setNewPhoneTypeName("");
     setEditing(null);
+  }
+
+  function parseExtraImages(): string[] {
+    return extraImagesText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  async function uploadImages(files: FileList | null): Promise<string[]> {
+    if (!files || files.length === 0) return [];
+    const formData = new FormData();
+    Array.from(files)
+      .slice(0, 5)
+      .forEach((file) => formData.append("images", file));
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/uploads/images`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "فشل رفع الصور");
+    return Array.isArray(data.urls) ? data.urls : [];
   }
 
   function getBrandName(item: SparePart): string {
@@ -190,6 +223,14 @@ export default function AdminSparePartsPage() {
       setMessage({ type: "error", text: "اسم قطعة الغيار مطلوب" });
       return;
     }
+    const normalizedDetails = details.trim();
+    if (normalizedDetails.length < 20) {
+      setMessage({
+        type: "error",
+        text: "أضف وصفاً واضحاً للمنتج (20 حرفاً على الأقل)",
+      });
+      return;
+    }
     if (!selectedBrand) {
       setMessage({ type: "error", text: "اختر الماركة" });
       return;
@@ -201,7 +242,10 @@ export default function AdminSparePartsPage() {
 
     const payload = {
       name: name.trim(),
+      details: normalizedDetails,
+      description: normalizedDetails,
       image: image.trim(),
+      extraImages: parseExtraImages(),
       price: price.trim() ? Number(price) : 0,
       priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
       priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
@@ -240,7 +284,9 @@ export default function AdminSparePartsPage() {
   function startEdit(item: SparePart) {
     setEditing(item);
     setName(item.name || "");
+    setDetails(item.details || "");
     setImage((item.image as string) || "");
+    setExtraImagesText((item.extraImages || []).join("\n"));
     setPrice(String(item.price ?? ""));
     setPriceRetail(
       item.priceRetail != null ? String(item.priceRetail) : ""
@@ -699,6 +745,21 @@ export default function AdminSparePartsPage() {
             />
           </div>
 
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              وصف المنتج
+            </label>
+            <textarea
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              className="admin-input min-h-[110px]"
+              placeholder="اكتب وصفاً واضحاً يشرح وظيفة القطعة، جودتها، والتوافق مع الموديلات..."
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              اجعل الوصف عملياً وواضحاً ليسهّل على العميل اتخاذ القرار.
+            </p>
+          </div>
+
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               سعر التجزئة (Retail) دج
@@ -757,14 +818,94 @@ export default function AdminSparePartsPage() {
             />
           </div>
 
+          <div className="sm:col-span-2 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                رفع الصورة الرئيسية من الجهاز
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                className="admin-input"
+                onChange={async (e) => {
+                  setMessage(null);
+                  try {
+                    setUploadingImages(true);
+                    const urls = await uploadImages(e.target.files);
+                    if (urls[0]) {
+                      setImage(urls[0]);
+                      setMessage({ type: "success", text: "تم رفع الصورة الرئيسية" });
+                    }
+                  } catch (err) {
+                    setMessage({
+                      type: "error",
+                      text: err instanceof Error ? err.message : "فشل رفع الصورة",
+                    });
+                  } finally {
+                    setUploadingImages(false);
+                    e.currentTarget.value = "";
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                رفع صور إضافية من الجهاز (حتى 4)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="admin-input"
+                onChange={async (e) => {
+                  setMessage(null);
+                  try {
+                    setUploadingImages(true);
+                    const uploaded = await uploadImages(e.target.files);
+                    if (uploaded.length > 0) {
+                      const merged = [...parseExtraImages(), ...uploaded].slice(0, 4);
+                      setExtraImagesText(merged.join("\n"));
+                      setMessage({ type: "success", text: `تم رفع ${uploaded.length} صورة إضافية` });
+                    }
+                  } catch (err) {
+                    setMessage({
+                      type: "error",
+                      text: err instanceof Error ? err.message : "فشل رفع الصور",
+                    });
+                  } finally {
+                    setUploadingImages(false);
+                    e.currentTarget.value = "";
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              صور إضافية (حتى 4 روابط - كل رابط في سطر)
+            </label>
+            <textarea
+              value={extraImagesText}
+              onChange={(e) => setExtraImagesText(e.target.value)}
+              rows={3}
+              className="admin-input"
+              placeholder="https://...\nhttps://..."
+            />
+          </div>
+
           <div className="flex items-center justify-end gap-3 sm:col-span-2">
             {editing && (
               <AdminButton type="button" variant="outline" onClick={resetForm}>
                 إلغاء التعديل
               </AdminButton>
             )}
-            <AdminButton type="submit" variant="success">
-              {editing ? "حفظ التعديلات" : "إضافة قطعة الغيار"}
+            <AdminButton type="submit" variant="success" disabled={uploadingImages}>
+              {uploadingImages
+                ? "جاري رفع الصور..."
+                : editing
+                ? "حفظ التعديلات"
+                : "إضافة قطعة الغيار"}
             </AdminButton>
           </div>
         </form>

@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { getProductById, getBrandLabel } from "@/lib/productsData";
-import { ProductImage } from "@/components/ProductImage";
-import { ShoppingCart, Phone, ArrowLeft, Shield, Truck, Heart } from "lucide-react";
+import { ProductImageGallery } from "@/components/ProductImageGallery";
+import { ShoppingCart, ClipboardList, ArrowLeft, Shield, Truck, Heart } from "lucide-react";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { formatDzd } from "@/lib/pricing";
 
@@ -20,6 +20,23 @@ const COLOR_HEX: Record<string, string> = {
   purple: "#7c3aed",
 };
 
+function normalizeExtraImages(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+  return [];
+}
+
 export default async function ProductDetailPage({
   params,
 }: {
@@ -28,14 +45,27 @@ export default async function ProductDetailPage({
   const { id } = await params;
   const productIdNum = parseInt(id, 10);
   const isNumericId = !Number.isNaN(productIdNum);
-  let product: { id: string; name: string; price: number; brand: string; category: string; image: string; details?: string; colors?: string[] } | null = null;
+  let product: {
+    id: string;
+    name: string;
+    price: number;
+    brand: string;
+    category: string;
+    image: string;
+    extraImages?: string[];
+    details?: string;
+    colors?: string[];
+  } | null = null;
   let brandLabel = "";
+  let source: "static" | "phone" | "sparePart" = "static";
+  let sparePartContext: { brandId?: string; phoneTypeId?: string } = {};
 
   if (isNumericId) {
     const staticProduct = getProductById(productIdNum);
     if (staticProduct) {
       product = { ...staticProduct, id: String(staticProduct.id) };
       brandLabel = getBrandLabel(staticProduct.brand);
+      source = "static";
     }
   }
 
@@ -57,8 +87,60 @@ export default async function ProductDetailPage({
           brand: typeof brand === "object" && brand?.slug ? brand.slug : "",
           category: "هواتف",
           image: apiPhone.image ?? "",
+          extraImages: normalizeExtraImages(
+            apiPhone.extraImages ?? apiPhone.images ?? apiPhone.galleryImages
+          ),
           details: apiPhone.details,
           colors: colorsArr,
+        };
+        source = "phone";
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!product && /^[a-f0-9A-F]{24}$/.test(id)) {
+    try {
+      let apiPart: any = null;
+      const byIdRes = await fetch(`${API_URL}/api/spare-parts/${id}`, { cache: "no-store" });
+      if (byIdRes.ok) {
+        apiPart = await byIdRes.json();
+      } else {
+        // توافق مع نسخ API أقدم لا تدعم /api/spare-parts/:id
+        const listRes = await fetch(`${API_URL}/api/spare-parts?limit=1000`, { cache: "no-store" });
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const parts = listData?.parts ?? (Array.isArray(listData) ? listData : []);
+          apiPart = Array.isArray(parts)
+            ? parts.find((item: { _id?: string }) => item?._id === id) ?? null
+            : null;
+        }
+      }
+
+      if (apiPart?._id) {
+        const brand = apiPart.brand;
+        const phoneType = apiPart.phoneType;
+        const brandId = typeof brand === "object" && brand?._id ? String(brand._id) : "";
+        const brandName = typeof brand === "object" && brand?.name ? String(brand.name) : "";
+        brandLabel = brandName;
+        product = {
+          id: apiPart._id,
+          name: apiPart.name,
+          price: apiPart.priceRetail ?? apiPart.price ?? 0,
+          brand: brandId || "",
+          category: "قطع غيار",
+          image: apiPart.image ?? "",
+          extraImages: normalizeExtraImages(
+            apiPart.extraImages ?? apiPart.images ?? apiPart.galleryImages
+          ),
+          details: String(apiPart.details ?? apiPart.description ?? ""),
+        };
+        source = "sparePart";
+        sparePartContext = {
+          brandId,
+          phoneTypeId:
+            typeof phoneType === "object" && phoneType?._id ? String(phoneType._id) : "",
         };
       }
     } catch {
@@ -68,12 +150,21 @@ export default async function ProductDetailPage({
 
   if (!product) notFound();
 
-  const defaultDescription = `هاتف ذكي من فئة ${product.category}، ماركة ${brandLabel}. جودة عالية وأسعار منافسة. متوفر للطلب الآن مع ضمان وتوصيل.`;
+  const defaultDescription =
+    source === "sparePart"
+      ? `قطعة غيار أصلية أو عالية الجودة لفئة ${product.category} من ${brandLabel || "الماركة المطلوبة"}. مناسبة للاستخدام اليومي مع أداء مستقر وسعر منافس.`
+      : `هاتف ذكي من فئة ${product.category}، ماركة ${brandLabel}. جودة عالية وأسعار منافسة. متوفر للطلب الآن مع ضمان وتوصيل.`;
   const description = product.details?.trim() || defaultDescription;
+  const backHref =
+    source === "sparePart" && sparePartContext.brandId && sparePartContext.phoneTypeId
+      ? `/spare-parts/${sparePartContext.brandId}/${sparePartContext.phoneTypeId}`
+      : `/phones/${product.brand}`;
+  const backLabel =
+    source === "sparePart" ? `قطع غيار ${brandLabel || ""}`.trim() : `هواتف ${brandLabel}`;
 
   let relatedPhones: { _id: string; name: string; price?: number; image?: string; colors?: string[] }[] = [];
   const brandForApi = product.brand || brandLabel.toLowerCase().trim().replace(/\s+/g, "-");
-  if (brandForApi) {
+  if (source !== "sparePart" && brandForApi) {
     try {
       const res = await fetch(`${API_URL}/api/phones?brand=${encodeURIComponent(brandForApi)}`, { cache: "no-store" });
       if (res.ok) {
@@ -102,29 +193,23 @@ export default async function ProductDetailPage({
         {/* Back - بسيط على الموبايل */}
         <nav className="mb-4 sm:mb-6">
           <Link
-            href={`/phones/${product.brand}`}
+            href={backHref}
             className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-white hover:text-blue-600 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
           >
             <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={2.5} />
-            هواتف {brandLabel}
+            {backLabel}
           </Link>
         </nav>
 
         <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-lg sm:rounded-2xl sm:shadow-xl sm:shadow-slate-200/50 sm:ring-1 sm:ring-slate-100/50 lg:rounded-3xl">
           <div className="grid gap-0 lg:grid-cols-[1.1fr_1fr] lg:gap-0">
             {/* Image */}
-            <div className="relative aspect-square overflow-hidden bg-slate-100 sm:aspect-[4/3] lg:aspect-square lg:min-h-[260px]">
-              <ProductImage
-                src={product.image}
-                alt={product.name}
-                priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 45vw"
-                className="object-contain p-3 sm:p-6 lg:p-8"
-              />
-              <div className="absolute right-2 top-2 rounded-lg bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600 shadow-md sm:right-3 sm:top-3 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs sm:shadow-lg">
-                {product.category}
-              </div>
-            </div>
+            <ProductImageGallery
+              name={product.name}
+              mainImage={product.image}
+              extraImages={product.extraImages}
+              category={product.category}
+            />
 
             {/* Details */}
             <div className="flex flex-col p-4 sm:p-8 lg:justify-between lg:p-10">
@@ -164,11 +249,29 @@ export default async function ProductDetailPage({
                     </div>
                   </div>
                 )}
-                <div className="mb-4 sm:mb-6">
-                  <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:mb-2 sm:text-sm">
-                    الوصف
+                <div
+                  className={`mb-4 rounded-2xl border p-4 shadow-sm sm:mb-6 sm:p-5 ${
+                    source === "sparePart"
+                      ? "border-blue-200 bg-gradient-to-l from-blue-50 to-white ring-1 ring-blue-100"
+                      : "border-slate-200 bg-slate-50"
+                  }`}
+                >
+                  <h2
+                    className={`mb-2 font-extrabold tracking-tight sm:mb-3 ${
+                      source === "sparePart"
+                        ? "text-xl text-blue-700 sm:text-2xl"
+                        : "text-lg text-slate-800 sm:text-xl"
+                    }`}
+                  >
+                    وصف المنتج
                   </h2>
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600 sm:text-base">
+                  <p
+                    className={`whitespace-pre-line leading-relaxed ${
+                      source === "sparePart"
+                        ? "text-base font-medium text-slate-700 sm:text-lg"
+                        : "text-base text-slate-700 sm:text-lg"
+                    }`}
+                  >
                     {description}
                   </p>
                 </div>
@@ -201,10 +304,10 @@ export default async function ProductDetailPage({
                   أضف للسلة
                 </AddToCartButton>
                 <Link
-                  href="tel:+213000000000"
+                  href="/checkout"
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-3.5 font-bold text-slate-700 active:scale-[0.98] sm:rounded-xl sm:py-4 sm:transition-all sm:duration-300 sm:hover:border-blue-400 sm:hover:bg-blue-50 sm:hover:text-blue-600"
                 >
-                  <Phone className="h-5 w-5" strokeWidth={2.5} />
+                  <ClipboardList className="h-5 w-5" strokeWidth={2.5} />
                   اطلب الآن
                 </Link>
               </div>
@@ -213,7 +316,7 @@ export default async function ProductDetailPage({
         </div>
 
         {/* هواتف أخرى من نفس الماركة - نفس تصميم بطاقات الهواتف */}
-        {relatedPhones.length > 0 && (
+        {source !== "sparePart" && relatedPhones.length > 0 && (
           <section className="mt-14 sm:mt-16">
             <h2 className="mb-6 flex items-center gap-3 text-xl font-bold text-slate-800 sm:text-2xl">
               <span className="h-6 w-1 rounded-full bg-gradient-to-b from-blue-600 to-blue-400" />

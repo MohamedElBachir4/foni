@@ -76,7 +76,7 @@ export default async function ModelHubPage({
           </p>
         </header>
 
-        <section className="mx-auto grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+        <section className="mx-auto grid max-w-4xl grid-cols-3 gap-3 sm:gap-6">
           <Link
             href={`/brand/${brandParam}/phones?phoneType=${phoneTypeId}`}
             className="group flex flex-col overflow-hidden rounded-2xl border-0 bg-white text-gray-700 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
@@ -89,9 +89,9 @@ export default async function ModelHubPage({
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
-            <div className="px-3 py-3 text-center">
-              <p className="text-xs font-semibold text-slate-800 sm:text-sm">الهواتف النقّالة</p>
-              <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">هواتف متوافقة مع هذا الموديل.</p>
+            <div className="px-2 py-2.5 text-center sm:px-3 sm:py-3">
+              <p className="text-[11px] font-semibold leading-tight text-slate-800 sm:text-sm">الهواتف النقّالة</p>
+              <p className="mt-1 hidden text-[11px] text-slate-500 sm:block sm:text-xs">هواتف متوافقة مع هذا الموديل.</p>
             </div>
           </Link>
 
@@ -107,9 +107,9 @@ export default async function ModelHubPage({
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
-            <div className="px-3 py-3 text-center">
-              <p className="text-xs font-semibold text-slate-800 sm:text-sm">اكسسوارات</p>
-              <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">جرابات وشواحن وغيرها المرتبطة بهذا الموديل.</p>
+            <div className="px-2 py-2.5 text-center sm:px-3 sm:py-3">
+              <p className="text-[11px] font-semibold leading-tight text-slate-800 sm:text-sm">اكسسوارات</p>
+              <p className="mt-1 hidden text-[11px] text-slate-500 sm:block sm:text-xs">جرابات وشواحن وغيرها المرتبطة بهذا الموديل.</p>
             </div>
           </Link>
 
@@ -125,9 +125,9 @@ export default async function ModelHubPage({
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
-            <div className="px-3 py-3 text-center">
-              <p className="text-xs font-semibold text-slate-800 sm:text-sm">قطع غيار الهواتف</p>
-              <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">شاشات، بطاريات وقطع لهذا الموديل.</p>
+            <div className="px-2 py-2.5 text-center sm:px-3 sm:py-3">
+              <p className="text-[11px] font-semibold leading-tight text-slate-800 sm:text-sm">قطع غيار الهواتف</p>
+              <p className="mt-1 hidden text-[11px] text-slate-500 sm:block sm:text-xs">شاشات، بطاريات وقطع لهذا الموديل.</p>
             </div>
           </Link>
         </section>

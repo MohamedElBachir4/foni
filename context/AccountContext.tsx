@@ -16,6 +16,7 @@ export type AccountInfo = {
   email: string;
   phone: string;
   role: "reparateur" | "grossiste";
+  useWholesalePricing?: boolean;
   wilaya?: string;
   shopName?: string;
   address?: string;
@@ -24,6 +25,7 @@ export type AccountInfo = {
 type StoredAccount = {
   account: AccountInfo;
   token: string | null;
+  useWholesalePricing?: boolean;
 };
 
 type AccountContextValue = {
@@ -32,6 +34,7 @@ type AccountContextValue = {
   getAuthToken: () => string | null;
   setFromApi: (payload: { account: any; token?: string }) => void;
   logout: () => void;
+  setUseWholesalePricing: (enabled: boolean) => void;
 };
 
 const STORAGE_KEY = "foni_account";
@@ -67,13 +70,18 @@ function saveToStorage(value: StoredAccount | null) {
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [useWholesalePricing, setUseWholesalePricingState] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const stored = loadFromStorage();
     if (stored?.account) {
-      setAccount(stored.account);
+      setAccount({
+        ...stored.account,
+        useWholesalePricing: !!stored.useWholesalePricing,
+      });
       setToken(stored.token ?? null);
+      setUseWholesalePricingState(!!stored.useWholesalePricing);
     }
     setHydrated(true);
   }, []);
@@ -83,9 +91,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     if (!account) {
       saveToStorage(null);
     } else {
-      saveToStorage({ account, token });
+      saveToStorage({ account, token, useWholesalePricing });
     }
-  }, [hydrated, account, token]);
+  }, [hydrated, account, token, useWholesalePricing]);
 
   const setFromApi = useCallback((payload: { account: any; token?: string }) => {
     if (!payload?.account) return;
@@ -99,14 +107,25 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       wilaya: payload.account.wilaya ?? "",
       shopName: payload.account.shopName ?? "",
       address: payload.account.address ?? "",
+      useWholesalePricing: false,
     };
     setAccount(acc);
     setToken(payload.token ?? null);
+    setUseWholesalePricingState(false);
   }, []);
 
   const logout = useCallback(() => {
     setAccount(null);
     setToken(null);
+    setUseWholesalePricingState(false);
+  }, []);
+
+  const setUseWholesalePricing = useCallback((enabled: boolean) => {
+    setUseWholesalePricingState(enabled);
+    setAccount((prev) => {
+      if (!prev || prev.role !== "reparateur") return prev;
+      return { ...prev, useWholesalePricing: enabled };
+    });
   }, []);
 
   const getAuthToken = useCallback(() => {
@@ -129,8 +148,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       getAuthToken,
       setFromApi,
       logout,
+      setUseWholesalePricing,
     }),
-    [account, token, getAuthToken, setFromApi, logout]
+    [account, token, getAuthToken, setFromApi, logout, setUseWholesalePricing]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

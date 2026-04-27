@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Heart, ShoppingCart } from "lucide-react";
@@ -16,6 +17,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 type SparePart = {
   _id: string;
   name: string;
+  details?: string;
   image?: string;
   price: number;
   priceRetail?: number;
@@ -258,6 +260,12 @@ export default function SparePartsListPage() {
                           <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2} />
                           أضف للسلة
                         </AddToCartButton>
+                        <Link
+                          href={`/product/${part._id}`}
+                          className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1"
+                        >
+                          التفاصيل
+                        </Link>
                       </div>
                     </div>
                   </div>

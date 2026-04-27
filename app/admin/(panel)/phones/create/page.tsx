@@ -11,6 +11,7 @@ type Phone = {
   name: string;
   brand: Brand | string;
   image?: string;
+  extraImages?: string[];
   price?: number;
   priceRetail?: number;
   priceWholesale?: number;
@@ -35,6 +36,7 @@ export default function CreatePhonePage() {
   const [phoneName, setPhoneName] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
   const [image, setImage] = useState("");
+  const [extraImagesText, setExtraImagesText] = useState("");
   const [price, setPrice] = useState("");
   const [priceRetail, setPriceRetail] = useState("");
   const [priceWholesale, setPriceWholesale] = useState("");
@@ -44,6 +46,7 @@ export default function CreatePhonePage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [editing, setEditing] = useState<Phone | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   const fetchBrands = useCallback(async () => {
     try {
@@ -78,6 +81,7 @@ export default function CreatePhonePage() {
     setPhoneName("");
     setSelectedBrand("");
     setImage("");
+    setExtraImagesText("");
     setPrice("");
     setPriceRetail("");
     setPriceWholesale("");
@@ -91,6 +95,32 @@ export default function CreatePhonePage() {
     setSelectedColors((prev) =>
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
     );
+  }
+
+  function parseExtraImages(): string[] {
+    return extraImagesText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+
+  async function uploadImages(files: FileList | null): Promise<string[]> {
+    if (!files || files.length === 0) return [];
+    const formData = new FormData();
+    Array.from(files)
+      .slice(0, 5)
+      .forEach((file) => formData.append("images", file));
+    const token = localStorage.getItem("foni_admin_token");
+    const res = await fetch(`${API_URL}/api/uploads/images`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "فشل رفع الصور");
+    return Array.isArray(data.urls) ? data.urls : [];
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -113,6 +143,7 @@ export default function CreatePhonePage() {
             name: phoneName.trim(),
             brand: selectedBrand,
             image: image.trim(),
+            extraImages: parseExtraImages(),
             price: price.trim() ? Number(price) : 0,
             priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
             priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
@@ -142,6 +173,7 @@ export default function CreatePhonePage() {
           name: phoneName.trim(),
           brand: selectedBrand,
           image: image.trim(),
+          extraImages: parseExtraImages(),
           price: price.trim() ? Number(price) : 0,
           priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
           priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
@@ -170,6 +202,7 @@ export default function CreatePhonePage() {
       typeof phone.brand === "string" ? phone.brand : phone.brand?._id || ""
     );
     setImage(phone.image || "");
+    setExtraImagesText((phone.extraImages || []).join("\n"));
     setPrice(phone.price != null ? String(phone.price) : "");
     setPriceRetail(
       phone.priceRetail != null ? String(phone.priceRetail) : ""
@@ -322,6 +355,76 @@ export default function CreatePhonePage() {
               />
             </div>
 
+            <div>
+              <label className={labelClass}>رفع الصورة الرئيسية من الجهاز</label>
+              <input
+                type="file"
+                accept="image/*"
+                className={inputClass}
+                onChange={async (e) => {
+                  setMessage(null);
+                  try {
+                    setUploadingImages(true);
+                    const urls = await uploadImages(e.target.files);
+                    if (urls[0]) {
+                      setImage(urls[0]);
+                      setMessage({ type: "success", text: "تم رفع الصورة الرئيسية بنجاح" });
+                    }
+                  } catch (err) {
+                    setMessage({
+                      type: "error",
+                      text: err instanceof Error ? err.message : "فشل رفع الصورة",
+                    });
+                  } finally {
+                    setUploadingImages(false);
+                    e.currentTarget.value = "";
+                  }
+                }}
+              />
+            </div>
+
+            <div className="lg:col-span-2">
+              <label className={labelClass}>صور إضافية (حتى 4 روابط، كل رابط في سطر)</label>
+              <textarea
+                value={extraImagesText}
+                onChange={(e) => setExtraImagesText(e.target.value)}
+                rows={3}
+                className={`${inputClass} resize-none`}
+                placeholder="https://...\nhttps://..."
+              />
+            </div>
+
+            <div className="lg:col-span-2">
+              <label className={labelClass}>رفع صور إضافية من الجهاز (حتى 4)</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className={inputClass}
+                onChange={async (e) => {
+                  setMessage(null);
+                  try {
+                    setUploadingImages(true);
+                    const uploaded = await uploadImages(e.target.files);
+                    if (uploaded.length > 0) {
+                      const current = parseExtraImages();
+                      const merged = [...current, ...uploaded].slice(0, 4);
+                      setExtraImagesText(merged.join("\n"));
+                      setMessage({ type: "success", text: `تم رفع ${uploaded.length} صورة إضافية` });
+                    }
+                  } catch (err) {
+                    setMessage({
+                      type: "error",
+                      text: err instanceof Error ? err.message : "فشل رفع الصور",
+                    });
+                  } finally {
+                    setUploadingImages(false);
+                    e.currentTarget.value = "";
+                  }
+                }}
+              />
+            </div>
+
             <div className="lg:col-span-2">
               <label className={labelClass}>الألوان المتوفرة</label>
               <div className="flex flex-wrap gap-4">
@@ -373,10 +476,15 @@ export default function CreatePhonePage() {
           <div className="mt-8 flex flex-wrap gap-4 border-t border-slate-100 pt-8">
             <button
               type="submit"
+              disabled={uploadingImages}
               className="group relative flex flex-1 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 px-8 py-4 font-bold text-white shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] sm:flex-none sm:hover:scale-[1.02] sm:hover:shadow-xl sm:hover:shadow-emerald-500/30"
             >
               <span className="relative z-10 flex items-center gap-2">
-                {editing ? "حفظ التعديلات المطبقة" : "تسجيل الهاتف الجديد"}
+                {uploadingImages
+                  ? "جاري رفع الصور..."
+                  : editing
+                  ? "حفظ التعديلات المطبقة"
+                  : "تسجيل الهاتف الجديد"}
                 <CheckCircle className="h-5 w-5 opacity-80" />
               </span>
               <div className="absolute inset-0 z-0 bg-gradient-to-r from-teal-500 to-emerald-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
