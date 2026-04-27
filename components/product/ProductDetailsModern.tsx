@@ -234,11 +234,12 @@ export function ProductDetailsModern({
       {relatedProducts.length > 0 && (
         <section className="space-y-4">
           <h2 className="text-xl font-extrabold text-slate-900 sm:text-2xl">منتجات مشابهة</h2>
+          <div className="overflow-hidden">
           <div className="grid grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4">
             {relatedProducts.map((item) => (
               <article
                 key={item._id}
-                className="group flex h-full min-h-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:border-slate-200 hover:shadow-xl sm:min-h-[360px] sm:rounded-[1.25rem]"
+                className="group min-w-0 flex h-full min-h-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:border-slate-200 hover:shadow-xl sm:min-h-[360px] sm:rounded-[1.25rem]"
               >
                 <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[130px]">
                   <ProductImage
@@ -247,9 +248,12 @@ export function ProductDetailsModern({
                     sizes="(max-width: 640px) 50vw, 25vw"
                     className="object-contain w-full max-w-[100px] sm:max-w-[130px]"
                   />
+                  <span className="absolute start-2 top-2 rounded-lg bg-blue-600 px-2 py-1 text-[9px] font-bold text-white shadow-sm sm:start-3 sm:top-3 sm:px-2.5 sm:text-[10px]">
+                    منتج
+                  </span>
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
-                  <h3 className="mb-1.5 min-h-[2.5rem] text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col border-t border-slate-100 p-3">
+                  <h3 className="mb-1.5 min-h-[2.5rem] text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 break-words [word-break:break-word] sm:text-base">
                     {item.name}
                   </h3>
 
@@ -280,6 +284,7 @@ export function ProductDetailsModern({
                 </div>
               </article>
             ))}
+          </div>
           </div>
         </section>
       )}
