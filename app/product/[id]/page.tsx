@@ -204,7 +204,7 @@ export default async function ProductDetailPage({
         const list = Array.isArray(data) ? data : [];
         relatedProducts = list
           .filter((item: { _id?: string }) => item?._id && item._id !== product.id)
-          .slice(0, 8)
+          .slice(0, 4)
           .map((item: { _id: string; name: string; price?: number; image?: string; colors?: string[] }) => ({
             _id: item._id,
             name: item.name,
@@ -212,6 +212,45 @@ export default async function ProductDetailPage({
             image: item.image,
             colors: Array.isArray(item.colors) ? item.colors : [],
           }));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (source === "sparePart") {
+    try {
+      const query = sparePartContext.phoneTypeId
+        ? `phoneType=${encodeURIComponent(sparePartContext.phoneTypeId)}`
+        : sparePartContext.brandId
+        ? `brand=${encodeURIComponent(sparePartContext.brandId)}`
+        : "";
+      const res = await fetch(
+        `${API_URL}/api/spare-parts${query ? `?${query}&limit=50` : "?limit=50"}`,
+        { cache: "no-store" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const list = data?.parts ?? (Array.isArray(data) ? data : []);
+        relatedProducts = (Array.isArray(list) ? list : [])
+          .filter((item: { _id?: string }) => item?._id && item._id !== product.id)
+          .slice(0, 4)
+          .map(
+            (item: {
+              _id: string;
+              name: string;
+              price?: number;
+              priceRetail?: number;
+              image?: string;
+              colors?: string[];
+            }) => ({
+              _id: item._id,
+              name: item.name,
+              price: item.priceRetail ?? item.price ?? 0,
+              image: item.image,
+              colors: Array.isArray(item.colors) ? item.colors : [],
+            })
+          );
       }
     } catch {
       // ignore
