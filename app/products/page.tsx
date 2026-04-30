@@ -1,6 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
+import type { Metadata } from "next";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { buildMetadata } from "@/lib/seo";
 
 /** نفس بطاقات صفحة العلامة التجارية (مثل /brand/apple) مع روابط الكتالوج العام */
 const IMG_PHONES =
@@ -9,6 +12,13 @@ const IMG_ACCESSORIES =
   "https://i.pinimg.com/736x/a1/f6/e2/a1f6e266de71fe64b1eb4a68b91c00ee.jpg";
 const IMG_SPARE_PARTS =
   "https://i.pinimg.com/736x/02/c2/62/02c262e51afde8e065fc64aac01eb378.jpg";
+
+export const metadata: Metadata = buildMetadata({
+  title: "المنتجات | هواتف واكسسوارات وقطع غيار في الجزائر",
+  description:
+    "استعرض جميع أقسام المنتجات في متجر Foni: الهواتف النقالة، الاكسسوارات، وقطع الغيار في الجزائر.",
+  path: "/products",
+});
 
 export default function ProductsHubPage() {
   return (
@@ -37,10 +47,11 @@ export default function ProductsHubPage() {
             className="group flex flex-col overflow-hidden rounded-2xl border-0 bg-white text-gray-700 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={IMG_PHONES}
                 alt="الهواتف النقالة"
+                fill
+                sizes="(max-width: 640px) 100vw, 33vw"
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
@@ -59,10 +70,11 @@ export default function ProductsHubPage() {
             className="group flex flex-col overflow-hidden rounded-2xl border-0 bg-white text-gray-700 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={IMG_ACCESSORIES}
                 alt="الإكسسوارات"
+                fill
+                sizes="(max-width: 640px) 100vw, 33vw"
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>
@@ -81,10 +93,11 @@ export default function ProductsHubPage() {
             className="group flex flex-col overflow-hidden rounded-2xl border-0 bg-white text-gray-700 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
           >
             <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={IMG_SPARE_PARTS}
                 alt="قطع غيار الهواتف"
+                fill
+                sizes="(max-width: 640px) 100vw, 33vw"
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             </div>

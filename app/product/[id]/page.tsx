@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { getProductById, getBrandLabel } from "@/lib/productsData";
 import { ProductDetailsModern } from "@/components/product/ProductDetailsModern";
+import { buildMetadata, getSiteUrl, slugifyProductName } from "@/lib/seo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -40,6 +42,82 @@ type RelatedPhone = {
   image?: string;
   colors?: string[];
 };
+
+async function getProductSeoData(id: string) {
+  const numericId = Number.parseInt(id, 10);
+  if (!Number.isNaN(numericId)) {
+    const staticProduct = getProductById(numericId);
+    if (staticProduct) {
+      const brandLabel = getBrandLabel(staticProduct.brand);
+      return {
+        id: String(staticProduct.id),
+        name: staticProduct.name,
+        image: staticProduct.image || "/LOGO.jpeg",
+        price: Number(staticProduct.price) || 0,
+        brandLabel,
+        description:
+          staticProduct.details ||
+          `${staticProduct.name} من ${brandLabel || "Foni"} متوفر الآن في الجزائر مع توصيل سريع.`,
+      };
+    }
+  }
+
+  if (/^[a-f0-9A-F]{24}$/.test(id)) {
+    try {
+      const res = await fetch(`${API_URL}/api/phones/${id}`, { cache: "no-store" });
+      if (res.ok) {
+        const phone = await res.json();
+        const brandLabel =
+          typeof phone.brand === "object" && phone.brand?.name
+            ? String(phone.brand.name)
+            : "";
+        return {
+          id: String(phone._id),
+          name: String(phone.name || "منتج"),
+          image: String(phone.image || "/LOGO.jpeg"),
+          price: Number(phone.priceRetail ?? phone.price ?? 0),
+          brandLabel,
+          description:
+            String(phone.details || phone.description || "").trim() ||
+            `${String(phone.name || "منتج")} من ${brandLabel || "Foni"} متوفر الآن في الجزائر بسعر مناسب.`,
+        };
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const seo = await getProductSeoData(id);
+  if (!seo) {
+    return buildMetadata({
+      title: "المنتج غير موجود",
+      description: "تعذر العثور على المنتج المطلوب.",
+      path: `/product/${id}`,
+    });
+  }
+  return buildMetadata({
+    title: `${seo.name} في الجزائر | Foni`,
+    description: seo.description,
+    keywords: [
+      seo.name,
+      `${seo.name} في الجزائر`,
+      seo.brandLabel ? `هواتف ${seo.brandLabel}` : "هواتف ذكية",
+      "سعر المنتج في الجزائر",
+      "Foni",
+    ],
+    path: `/product/${seo.id}/${slugifyProductName(seo.name)}`,
+    image: seo.image || "/LOGO.jpeg",
+  });
+}
 
 export default async function ProductDetailPage({
   params,
@@ -261,6 +339,29 @@ export default async function ProductDetailPage({
     <div className="min-h-screen w-full bg-slate-50 antialiased">
       <Navbar />
       <main className="mx-auto max-w-6xl px-3 pb-20 pt-24 sm:px-6 sm:pb-24 sm:pt-28 lg:px-8">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Product",
+              name: product.name,
+              image: [product.image, ...(product.extraImages || [])].filter(Boolean),
+              description,
+              brand: brandLabel ? { "@type": "Brand", name: brandLabel } : undefined,
+              offers: {
+                "@type": "Offer",
+                priceCurrency: "DZD",
+                price: Number(product.price) || 0,
+                availability:
+                  typeof product.stock === "number" && product.stock <= 0
+                    ? "https://schema.org/OutOfStock"
+                    : "https://schema.org/InStock",
+                url: `${getSiteUrl()}/product/${product.id}/${slugifyProductName(product.name)}`,
+              },
+            }),
+          }}
+        />
         <ProductDetailsModern
           backHref={backHref}
           backLabel={backLabel}

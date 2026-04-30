@@ -8,6 +8,7 @@ import { AddToCartButton } from "@/components/AddToCartButton";
 import { ProductImage } from "@/components/ProductImage";
 import { formatDzd } from "@/lib/pricing";
 import { useCart } from "@/context/CartContext";
+import { slugifyProductName } from "@/lib/seo";
 
 type RelatedProduct = {
   _id: string;
@@ -272,7 +273,7 @@ export function ProductDetailsModern({
 
                   <div className="mt-auto flex flex-col gap-2">
                     <Link
-                      href={`/product/${item._id}`}
+                      href={`/product/${item._id}/${slugifyProductName(item.name)}`}
                       className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 sm:py-3"
                     >
                       التفاصيل

@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  X,
 } from "lucide-react";
 import { apiUrl } from "@/lib/apiUrl";
 import { useAccount } from "@/context/AccountContext";
@@ -34,6 +35,23 @@ export type CustomerOrder = {
   items: CustomerOrderItem[];
   yalidineTracking?: string;
   yalidineLabelUrl?: string;
+  yalidineStatus?: string;
+};
+
+type TrackingHistoryRow = {
+  id: string;
+  status: string;
+  description?: string;
+  location?: string;
+  at?: string | null;
+};
+
+type TrackingResponse = {
+  tracking: string;
+  status: string;
+  labelUrl: string;
+  history: TrackingHistoryRow[];
+  lastUpdate?: string | null;
 };
 
 function statusLabel(status: string) {
@@ -64,6 +82,46 @@ function orderRef(id: string) {
   return `…${id.slice(-10)}`;
 }
 
+function normalizeStatus(status: string) {
+  return String(status || "").toLowerCase().trim();
+}
+
+function shippingStepFromStatus(status: string) {
+  const s = normalizeStatus(status);
+  if (!s) return 0;
+  if (
+    s.includes("delivered") ||
+    s.includes("livr") ||
+    s.includes("تم التسليم") ||
+    s.includes("وصل")
+  ) {
+    return 3;
+  }
+  if (
+    s.includes("route") ||
+    s.includes("transit") ||
+    s.includes("exped") ||
+    s.includes("dispatch") ||
+    s.includes("shipping") ||
+    s.includes("in way") ||
+    s.includes("في الطريق")
+  ) {
+    return 2;
+  }
+  if (
+    s.includes("created") ||
+    s.includes("pickup") ||
+    s.includes("received") ||
+    s.includes("accepted") ||
+    s.includes("prepar") ||
+    s.includes("تم إنشاء") ||
+    s.includes("قيد التحضير")
+  ) {
+    return 1;
+  }
+  return 0;
+}
+
 function OrderCardSkeleton() {
   return (
     <div className="animate-pulse rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -91,6 +149,11 @@ export function MyOrdersTab() {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState("");
+  const [trackingOrder, setTrackingOrder] = useState<CustomerOrder | null>(null);
+  const [trackingData, setTrackingData] = useState<TrackingResponse | null>(null);
 
   const load = useCallback(async () => {
     const t = getAuthToken();
@@ -118,6 +181,40 @@ export function MyOrdersTab() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!trackingModalOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [trackingModalOpen]);
+
+  const openTracking = useCallback(
+    async (order: CustomerOrder) => {
+      const t = getAuthToken();
+      if (!t) return;
+      setTrackingModalOpen(true);
+      setTrackingOrder(order);
+      setTrackingLoading(true);
+      setTrackingError("");
+      setTrackingData(null);
+      try {
+        const res = await fetch(apiUrl(`/api/orders/${order._id}/tracking`), {
+          headers: { Authorization: `Bearer ${t}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "تعذر تحميل تتبع الطلب");
+        setTrackingData(data as TrackingResponse);
+      } catch (e) {
+        setTrackingError(e instanceof Error ? e.message : "حدث خطأ أثناء جلب التتبع");
+      } finally {
+        setTrackingLoading(false);
+      }
+    },
+    [getAuthToken]
+  );
 
   const stats = useMemo(() => {
     const pending = orders.filter((o) => o.status === "pending").length;
@@ -363,6 +460,20 @@ export function MyOrdersTab() {
                           <ChevronLeft className="h-4 w-4 rotate-180 transition" aria-hidden />
                         </span>
                       </div>
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openTracking(o);
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-100"
+                        >
+                          <Truck className="h-3.5 w-3.5" />
+                          تتبع الطلب
+                        </button>
+                      </div>
                     </div>
                   </Link>
                 </li>
@@ -371,6 +482,162 @@ export function MyOrdersTab() {
           </ul>
         )}
       </div>
+      {trackingModalOpen && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"
+            onClick={() => setTrackingModalOpen(false)}
+            aria-label="إغلاق نافذة التتبع"
+          />
+          <div className="relative z-10 w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900">تتبع الطلب</h3>
+                <p className="text-xs text-slate-500" dir="ltr">
+                  {trackingOrder?._id || ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTrackingModalOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
+                aria-label="إغلاق"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {trackingLoading && (
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">
+                جاري تحميل بيانات التتبع...
+              </p>
+            )}
+
+            {!trackingLoading && trackingError && (
+              <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm font-semibold text-rose-800">
+                {trackingError}
+              </p>
+            )}
+
+            {!trackingLoading && !trackingError && (
+              <div className="space-y-4">
+                <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-500">رقم التتبع</p>
+                    <p className="mt-1 font-mono text-sm font-bold text-slate-900" dir="ltr">
+                      {trackingData?.tracking || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-500">الحالة الحالية</p>
+                    <p className="mt-1 text-sm font-bold text-blue-800">
+                      {trackingData?.status || trackingOrder?.yalidineStatus || "قيد المعالجة"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-slate-500">آخر تحديث</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {trackingData?.lastUpdate
+                        ? new Date(trackingData.lastUpdate).toLocaleString("ar-DZ", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                {trackingData?.labelUrl ? (
+                  <a
+                    href={trackingData.labelUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50"
+                  >
+                    فتح ملصق الشحن
+                  </a>
+                ) : null}
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <h4 className="mb-4 text-sm font-extrabold text-slate-900">حالة الشحنة</h4>
+                  {trackingOrder?.status === "cancelled" ? (
+                    <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
+                      تم إلغاء الطلب، لذلك تتبع الشحنة متوقف.
+                    </div>
+                  ) : null}
+                  {(() => {
+                    const stage = shippingStepFromStatus(
+                      trackingData?.status || trackingOrder?.yalidineStatus || ""
+                    );
+                    const steps = [
+                      "تم الطلب",
+                      "قيد التحضير",
+                      "في الطريق",
+                      "تم التسليم",
+                    ];
+                    return (
+                      <ol className="relative space-y-0 border-r-2 border-slate-200 pr-6">
+                        {steps.map((step, idx) => {
+                          const done = idx <= stage;
+                          const current = idx === stage;
+                          return (
+                            <li key={step} className="relative pb-7 last:pb-0">
+                              <span
+                                className={`absolute -right-[9px] top-1 flex h-4 w-4 rounded-full border-2 border-white ring-2 ${
+                                  done
+                                    ? "bg-emerald-500 ring-emerald-200"
+                                    : "bg-slate-200 ring-slate-100"
+                                }`}
+                              />
+                              <div className={current ? "rounded-xl bg-blue-50 px-3 py-2" : ""}>
+                                <p
+                                  className={`text-sm font-bold ${
+                                    done ? "text-emerald-900" : "text-slate-700"
+                                  }`}
+                                >
+                                  {done ? "✔ " : ""}
+                                  {step}
+                                </p>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    );
+                  })()}
+                </div>
+
+                {trackingData?.history && trackingData.history.length > 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                    <h4 className="mb-3 text-sm font-extrabold text-slate-900">سجل التتبع</h4>
+                    <ul className="space-y-2">
+                      {trackingData.history.slice(-6).reverse().map((row) => (
+                        <li key={row.id} className="rounded-lg border border-slate-100 bg-white px-3 py-2 text-xs">
+                          <p className="font-bold text-slate-800">{row.status}</p>
+                          {(row.description || row.location) && (
+                            <p className="mt-0.5 text-slate-600">
+                              {[row.description, row.location].filter(Boolean).join(" — ")}
+                            </p>
+                          )}
+                          {row.at ? (
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              {new Date(row.at).toLocaleString("ar-DZ", {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              })}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { slugifyProductName } from "@/lib/seo";
 
 const COLOR_HEX: Record<string, string> = {
     white: "#ffffff",
@@ -71,14 +72,14 @@ export function ProductCardActions({
                     image={image}
                     selectedColor={selectedColor}
                     productType={category === "هواتف" ? "phone" : undefined}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-900/20 transition-all hover:from-blue-600 hover:to-blue-500 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
                 >
                     <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2} />
                     أضف للسلة
                 </AddToCartButton>
                 <Link
-                    href={`/product/${id}`}
-                    className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 sm:py-3"
+                    href={`/product/${id}/${slugifyProductName(name)}`}
+                    className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 sm:py-3"
                 >
                     التفاصيل
                 </Link>

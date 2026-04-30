@@ -200,13 +200,11 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
           ) : (
             <div
               className={
-                isBrandPage && isMobile
-                  ? "flex gap-2 overflow-x-auto pb-1"
-                  : `grid ${
-                      isBrandPage
-                        ? "grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4"
-                        : "grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4"
-                    }`
+                `grid ${
+                  isBrandPage
+                    ? "grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4"
+                    : "grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4"
+                }`
               }
             >
               {visibleProducts.map((product, index) => {
@@ -228,46 +226,46 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
                 return (
                   <div
                     key={product.id}
-                    className={`group flex h-full min-h-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:border-slate-200 sm:min-h-[360px] sm:rounded-[1.25rem] ${
-                      isBrandPage && isMobile ? "w-[70vw] shrink-0" : ""
+                    className={`group flex h-full min-h-[390px] flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:min-h-[420px] ${
+                      ""
                     }`}
                   >
-                    {/* منطقة الصورة - ارتفاع ثابت */}
-                    <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[130px]">
+                    {/* منطقة الصورة - احترافية ومساحة أوضح للصورة */}
+                    <div className="relative flex h-[180px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 via-white to-blue-50/40 px-4 pb-3 pt-6 sm:h-[210px] sm:px-5">
                       <ProductImage
                         src={product.image}
                         alt={product.name}
                         priority={index < 4}
                         sizes={isBrandPage ? "(max-width: 640px) 50vw, 25vw" : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"}
-                        className="object-contain w-full max-w-[100px] sm:max-w-[130px]"
+                        className="h-full w-full rounded-2xl object-contain p-2 drop-shadow-[0_12px_22px_rgba(15,23,42,0.24)] sm:p-3"
                       />
-                      <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm sm:start-4 sm:top-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
+                      <span className="absolute start-3 top-3 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow sm:start-4 sm:top-4 sm:px-3 sm:text-xs">
                         {product.category}
                       </span>
                       <button
                         type="button"
                         aria-label="إضافة للمفضلة"
-                        className="absolute end-3 top-3 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-red-500 sm:end-4 sm:top-4 sm:p-2"
+                        className="absolute end-3 top-3 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-red-500 sm:end-4 sm:top-4 sm:p-2"
                       >
                         <Heart className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5" strokeWidth={1.5} />
                       </button>
                     </div>
 
                     {/* المحتوى - ارتفاع موحّد */}
-                    <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
-                      <h3 className="mb-1.5 min-h-[2.5rem] text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">
+                    <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-4">
+                      <h3 className="mb-2 min-h-[2.75rem] text-center text-sm font-extrabold leading-snug text-slate-900 line-clamp-2 sm:text-base">
                         {product.name}
                       </h3>
 
                       {effectivePrice > 0 ? (
-                        <p className="mb-1.5 text-center">
-                          <span className="text-xl font-black text-slate-900 sm:text-2xl">
+                        <p className="mb-2 text-center">
+                          <span className="text-2xl font-black tracking-tight text-blue-700 sm:text-[1.75rem]">
                             {formatDzd(effectivePrice)}
                           </span>
                           <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
                         </p>
                       ) : (
-                        <p className="mb-1.5 min-h-[1.5rem] text-center text-sm font-semibold text-slate-400">— DA</p>
+                        <p className="mb-2 min-h-[1.5rem] text-center text-sm font-semibold text-slate-400">— DA</p>
                       )}
 
                       {/* مساحة ثابتة للألوان (1–5 دوائر) والأزرار */}

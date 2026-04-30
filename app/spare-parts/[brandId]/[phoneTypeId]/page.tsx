@@ -11,6 +11,7 @@ import { AddToCartButton } from "@/components/AddToCartButton";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd } from "@/lib/pricing";
 import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
+import { slugifyProductName } from "@/lib/seo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -261,7 +262,7 @@ export default function SparePartsListPage() {
                           أضف للسلة
                         </AddToCartButton>
                         <Link
-                          href={`/product/${part._id}`}
+                          href={`/product/${part._id}/${slugifyProductName(part.name)}`}
                           className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1"
                         >
                           التفاصيل

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   Menu,
@@ -37,7 +38,7 @@ export function Navbar() {
   }, []);
 
   return (
-    <nav className="glass fixed top-0 left-0 z-50 w-full overflow-hidden rounded-b-3xl border-y border-white/30 shadow-2xl">
+    <nav className="glass fixed top-0 left-0 z-50 w-full overflow-visible rounded-b-3xl border-y border-white/30 shadow-2xl">
       {account?.role === "reparateur" && !account.useWholesalePricing && (
         <div className="border-b border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2.5 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)] sm:px-4">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
@@ -67,9 +68,12 @@ export function Navbar() {
             href="/"
             className="group flex h-14 shrink-0 items-center overflow-hidden rounded-xl border-2 border-white/40 shadow-md transition-all duration-300 hover:scale-105 hover:border-white/60 hover:shadow-lg"
           >
-            <img
+            <Image
               src="/LOGO.jpeg"
               alt="FONI"
+              width={140}
+              height={56}
+              priority
               className="block h-full w-auto max-h-14 max-w-[140px] object-contain"
             />
           </Link>

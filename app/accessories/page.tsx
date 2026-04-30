@@ -1,12 +1,22 @@
 import Link from "next/link";
+import Image from "next/image";
+import type { Metadata } from "next";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { buildMetadata } from "@/lib/seo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 type AccessoryType = { _id: string; name: string; image?: string };
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = buildMetadata({
+  title: "اكسسوارات الهواتف في الجزائر",
+  description:
+    "تصفح أنواع اكسسوارات الهواتف المتوفرة في متجر Foni مع صور واضحة وأسعار مناسبة داخل الجزائر.",
+  path: "/accessories",
+});
 
 async function fetchTypes(): Promise<AccessoryType[]> {
   try {
@@ -48,13 +58,14 @@ export default async function AccessoriesTypesPage() {
                 className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-md"
               >
                 <div className="aspect-square w-full overflow-hidden bg-slate-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={
                       t.image ||
                       "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80"
                     }
                     alt={t.name}
+                    fill
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>

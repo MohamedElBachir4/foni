@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cairo, Poppins } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import { buildMetadata } from "@/lib/seo";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -16,13 +17,24 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Foni - عالم الهواتف النقالة",
-  description:
-    "عالم الهواتف النقالة في الجزائر — هواتف، إكسسوارات، وقطع غيار مع تجربة عربية موحّدة.",
+  ...buildMetadata({
+    title: "عالم الهواتف النقالة - Foni",
+    description:
+      "عالم الهواتف النقالة في الجزائر — هواتف، اكسسوارات، وقطع غيار مع تجربة عربية موحدة.",
+    path: "/",
+    image: "/LOGO.jpeg",
+  }),
+  title: {
+    default: "عالم الهواتف النقالة - Foni",
+    template: "%s | Foni",
+  },
   icons: {
-    icon: "/LOGO.jpeg?v=3",
-    shortcut: "/LOGO.jpeg?v=3",
-    apple: "/LOGO.jpeg?v=3",
+    icon: [
+      { url: "/LOGO.jpeg?v=4", type: "image/jpeg", sizes: "32x32" },
+      { url: "/LOGO.jpeg?v=4", type: "image/jpeg", sizes: "192x192" },
+    ],
+    shortcut: "/LOGO.jpeg?v=4",
+    apple: "/LOGO.jpeg?v=4",
   },
 };
 

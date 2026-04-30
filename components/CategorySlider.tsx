@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Smartphone, Headphones, Wrench, ArrowLeft } from "lucide-react";
 
 const CATEGORIES = [
@@ -62,23 +62,25 @@ export function CategorySlider() {
               className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105 hover:shadow-2xl animate-fade-in-up"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="relative h-64 overflow-hidden">
-                <img
+              <div className="relative h-48 overflow-hidden sm:h-56 lg:h-64">
+                <Image
                   src={cat.image}
                   alt={cat.label}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} opacity-80`} />
                 
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white">
-                  <div className="mb-4 rounded-full bg-white/20 p-4 backdrop-blur-sm transition-all duration-300 group-hover:scale-110">
-                    <Icon className="h-12 w-12" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-white sm:p-5 lg:p-6">
+                  <div className="mb-2 rounded-full bg-white/20 p-2.5 backdrop-blur-sm transition-all duration-300 group-hover:scale-110 sm:mb-3 sm:p-3 lg:mb-4 lg:p-4">
+                    <Icon className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12" />
                   </div>
-                  <h3 className="mb-2 text-2xl font-bold">{cat.label}</h3>
-                  <p className="mb-4 text-white/90">{cat.description}</p>
-                  <div className="flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 backdrop-blur-sm transition-all duration-300 group-hover:bg-white/30">
+                  <h3 className="mb-1 text-lg font-bold sm:mb-1.5 sm:text-xl lg:mb-2 lg:text-2xl">{cat.label}</h3>
+                  <p className="mb-2 text-sm text-white/90 sm:mb-3 sm:text-base lg:mb-4">{cat.description}</p>
+                  <div className="flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-sm backdrop-blur-sm transition-all duration-300 group-hover:bg-white/30 sm:gap-2 sm:px-4 sm:py-2">
                     <span>تسوق الآن</span>
-                    <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
+                    <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1 sm:h-4 sm:w-4" />
                   </div>
                 </div>
               </div>
