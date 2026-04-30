@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect } from "react";
 import { API_URL, getAuthHeaders, getToken } from "@/lib/adminAuth";
-import { Package, CheckCircle, AlertCircle, Pencil, Trash2, FileSpreadsheet, X, Download, RefreshCw } from "lucide-react";
+import { Package, CheckCircle, AlertCircle, Pencil, Trash2, FileSpreadsheet, X, Download, RefreshCw, Search } from "lucide-react";
 import {
   AdminButton,
   AdminCard,
@@ -37,6 +37,8 @@ type SparePart = {
   brand: Brand | string;
   phoneType: PhoneType | string;
 };
+
+type ImportReportError = { productName: string; reason: string };
 
 export default function AdminSparePartsPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -75,7 +77,7 @@ export default function AdminSparePartsPage() {
     duplicateInDb: number;
     duplicateInFile: number;
     errorRows: number;
-    errors: { productName: string; reason: string }[];
+    errors: ImportReportError[];
     totalInDb: number;
   } | null>(null);
   const [showPhonesModal, setShowPhonesModal] = useState(false);
@@ -83,6 +85,17 @@ export default function AdminSparePartsPage() {
   const [deletingAll, setDeletingAll] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useLayoutEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, brandFilter]);
 
   const fetchBrands = useCallback(async () => {
     try {
@@ -103,7 +116,7 @@ export default function AdminSparePartsPage() {
     }
     try {
       const res = await fetch(
-        `${API_URL}/api/phone-types?brand=${encodeURIComponent(brandId, { credentials: "include" })}`,
+        `${API_URL}/api/phone-types?brand=${encodeURIComponent(brandId)}`,
         { headers: getAuthHeaders(), credentials: 'include',  }
       );
       if (res.ok) {
@@ -116,11 +129,13 @@ export default function AdminSparePartsPage() {
   }, []);
 
   const fetchParts = useCallback(
-    async (brandId?: string, page = 1) => {
+    async (brandId?: string, page = 1, searchTerm?: string) => {
       setLoading(true);
       try {
         let query = `?page=${page}&limit=${PAGE_SIZE}`;
         if (brandId) query += `&brand=${encodeURIComponent(brandId)}`;
+        const sq = (searchTerm ?? "").trim();
+        if (sq) query += `&search=${encodeURIComponent(sq)}`;
         const res = await fetch(`${API_URL}/api/spare-parts${query}`, {
           headers: getAuthHeaders(), credentials: 'include',
          });
@@ -160,8 +175,8 @@ export default function AdminSparePartsPage() {
   }, [selectedBrand, fetchPhoneTypesForBrand]);
 
   useEffect(() => {
-    fetchParts(brandFilter || undefined, currentPage);
-  }, [fetchParts, brandFilter, currentPage]);
+    fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
+  }, [fetchParts, brandFilter, currentPage, debouncedSearch]);
 
   function resetForm() {
     setName("");
@@ -272,7 +287,7 @@ export default function AdminSparePartsPage() {
           text: isEdit ? "تم تحديث قطعة الغيار" : "تم إنشاء قطعة الغيار",
         });
         resetForm();
-        fetchParts(brandFilter || undefined);
+        fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
       } else {
         setMessage({ type: "error", text: data.error || (isEdit ? "فشل التحديث" : "فشل الإنشاء") });
       }
@@ -317,7 +332,7 @@ export default function AdminSparePartsPage() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setMessage({ type: "success", text: "تم حذف قطعة الغيار" });
-        fetchParts(brandFilter || undefined);
+        fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
       } else {
         setMessage({ type: "error", text: data.error || "فشل الحذف" });
       }
@@ -365,7 +380,7 @@ export default function AdminSparePartsPage() {
           totalInDb: data.report.totalInDb ?? 0,
         });
         setMessage({ type: "success", text: data.message || "تم انتهاء الاستيراد" });
-        fetchParts(brandFilter || undefined);
+        fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
         setImportFile(null);
         setImportOpen(false);
       } else {
@@ -409,7 +424,7 @@ export default function AdminSparePartsPage() {
   const downloadErrorReport = () => {
     if (!importReport?.errors?.length) return;
     let csv = "المنتج;السبب\n";
-    importReport.errors.forEach((err: any) => {
+    importReport.errors.forEach((err: ImportReportError) => {
       const name = (err?.productName || String(err)).replace(/"/g, '""');
       const reason = (err?.reason || "غير معروف").replace(/"/g, '""');
       csv += `"${name}";"${reason}"\n`;
@@ -436,7 +451,7 @@ export default function AdminSparePartsPage() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setMessage({ type: "success", text: data.message || `تم حذف ${data.deletedCount ?? 0} قطعة غيار` });
-        fetchParts(brandFilter || undefined);
+        fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
       } else {
         setMessage({ type: "error", text: data.error || "فشل الحذف" });
       }
@@ -448,10 +463,6 @@ export default function AdminSparePartsPage() {
   };
 
   // Pagination is now server-side - parts array IS the current page
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [brandFilter]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -647,7 +658,7 @@ export default function AdminSparePartsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {importReport.errors.map((err: any, idx) => (
+                    {importReport.errors.map((err: ImportReportError, idx) => (
                       <tr key={idx} className="hover:bg-rose-50/50 transition-colors">
                         <td className="px-5 py-4 font-medium text-slate-700 border-l border-slate-100 align-top leading-relaxed" dir="ltr">
                           {err?.productName || String(err)}
@@ -814,7 +825,7 @@ export default function AdminSparePartsPage() {
               value={image}
               onChange={(e) => setImage(e.target.value)}
               className="admin-input"
-              placeholder="https://example.com/image.jpg"
+              placeholder="https:// أو //... — أي رابط صورة"
             />
           </div>
 
@@ -916,6 +927,29 @@ export default function AdminSparePartsPage() {
         description={`المجموع: ${loading ? "—" : totalParts.toLocaleString()} قطعة`}
         icon={<Package className="h-5 w-5" />}
       >
+        <div className="mb-4 space-y-2">
+          <label className="block text-sm font-medium text-slate-700" htmlFor="spare-parts-search">
+            بحث في المنتجات
+          </label>
+          <div className="relative max-w-xl">
+            <Search
+              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
+            />
+            <input
+              id="spare-parts-search"
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="admin-input w-full py-2.5 pe-10 ps-3"
+              placeholder="اسم القطعة، الماركة، الموديل، التفاصيل، نوع القطعة…"
+              autoComplete="off"
+            />
+          </div>
+          <p className="max-w-xl text-xs text-slate-500">
+            بحث ضمن الاسم والوصف وتفاصيل المنتج ومسمى الموديل؛ يمكنك كتابة عدة كلمات لتضييق النتائج. يمكنك التعديل أو الحذف مباشرة من الجدول.
+          </p>
+        </div>
         <AdminTable
           columns={[
             { key: "image", label: "الصورة" },

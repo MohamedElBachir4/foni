@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Menu, ShoppingBag, CircleUserRound, Search, X, Sparkles, ShieldCheck } from "lucide-react";
+import {
+  Menu,
+  ShoppingBag,
+  CircleUserRound,
+  Search,
+  X,
+  Sparkles,
+  ShieldCheck,
+  ListOrdered,
+  User,
+} from "lucide-react";
 import { SearchBar } from "@/components/SearchBar";
 import { useCart } from "@/context/CartContext";
 import { useAccount } from "@/context/AccountContext";
@@ -145,12 +155,19 @@ export function Navbar() {
                 <div className="absolute left-0 top-[120%] w-64 rounded-2xl border border-slate-200 bg-white/95 p-3 text-xs text-slate-800 shadow-xl sm:w-72 sm:text-sm">
                   {account ? (
                     <>
-                      <div className="mb-3 flex items-center gap-3">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-400 text-sm font-bold text-white shadow-sm">
-                          {`${(account.firstName || "").charAt(0)}${(account.lastName || "").charAt(0)}`.toUpperCase()}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate font-bold">
+                      <div className="mb-4 flex items-center gap-3">
+                        <div className="relative shrink-0">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-400 text-sm font-bold text-white shadow-sm ring-2 ring-white">
+                            {`${(account.firstName || "").charAt(0)}${(account.lastName || "").charAt(0)}`.toUpperCase()}
+                          </span>
+                          <span
+                            className="absolute bottom-0 end-0 z-10 h-3 w-3 rounded-full border-[2.5px] border-white bg-emerald-500 shadow-sm ring-1 ring-emerald-600/30"
+                            title="نشط"
+                            aria-hidden
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-bold text-slate-900">
                             {account.firstName} {account.lastName}
                           </p>
                           <p className="text-[11px] text-slate-500 sm:text-xs">
@@ -158,40 +175,36 @@ export function Navbar() {
                           </p>
                         </div>
                       </div>
-                      <div className="space-y-1.5 text-[11px] sm:text-xs">
-                        <p>
-                          <span className="font-semibold">الهاتف: </span>
-                          <span dir="ltr">{account.phone}</span>
-                        </p>
-                        <p className="truncate">
-                          <span className="font-semibold">البريد: </span>
-                          {account.email}
-                        </p>
-                        {account.wilaya && (
-                          <p>
-                            <span className="font-semibold">الولاية: </span>
-                            {account.wilaya}
-                          </p>
-                        )}
-                        {account.address && (
-                          <p>
-                            <span className="font-semibold">العنوان: </span>
-                            {account.address}
-                          </p>
-                        )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <Link
+                          href="/accounts?tab=profile"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-center text-[11px] font-bold text-slate-800 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/80 hover:text-blue-900 sm:text-xs"
+                          onClick={() => setIsAccountMenuOpen(false)}
+                        >
+                          <User className="h-3.5 w-3.5 shrink-0 text-blue-600" aria-hidden />
+                          الحساب
+                        </Link>
+                        <Link
+                          href="/accounts?tab=orders"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/90 px-2 py-2.5 text-center text-[11px] font-bold text-blue-900 shadow-sm transition hover:bg-blue-100 sm:text-xs"
+                          onClick={() => setIsAccountMenuOpen(false)}
+                        >
+                          <ListOrdered className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          طلباتي
+                        </Link>
                       </div>
                       {account.role === "reparateur" && (
-                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
                           <p className="text-[11px] font-semibold text-amber-900 sm:text-xs">
-                            عرض خاص للمصلّحين: تفعيل أسعار الجملة
+                            عرض خاص للمصلّحين: أسعار الجملة
                           </p>
                           <button
                             type="button"
                             onClick={() => setUseWholesalePricing(!account.useWholesalePricing)}
-                            className={`mt-2 inline-flex w-full items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                            className={`mt-2 inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-bold ${
                               account.useWholesalePricing
-                                ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                : "bg-amber-600 text-white hover:bg-amber-700"
+                                ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25 hover:bg-emerald-700"
+                                : "bg-amber-600 text-white shadow-sm hover:bg-amber-700"
                             }`}
                           >
                             {account.useWholesalePricing
@@ -272,6 +285,15 @@ export function Navbar() {
                 >
                   تواصل معنا
                 </Link>
+                {account && (
+                  <Link
+                    href="/accounts?tab=orders"
+                    className="block rounded-lg px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    طلباتي
+                  </Link>
+                )}
               </nav>
             </div>
           </div>

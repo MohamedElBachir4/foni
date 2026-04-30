@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { API_URL } from "@/lib/adminAuth";
 import { useAccount } from "@/context/AccountContext";
+import { MyOrdersTab } from "@/components/accounts/MyOrdersTab";
 
 type Role = "reparateur" | "grossiste" | null;
 
@@ -70,8 +72,9 @@ const WILAYAS = [
   "58 - المنيعة",
 ];
 
-export default function AccountsPage() {
+function AccountsPageContent() {
   const { account, setFromApi, logout } = useAccount();
+  const searchParams = useSearchParams();
   const [role, setRole] = useState<Role>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -90,6 +93,20 @@ export default function AccountsPage() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [accountTab, setAccountTab] = useState<"profile" | "orders">("profile");
+
+  useEffect(() => {
+    if (!account) return;
+    const tab = searchParams.get("tab");
+    if (tab === "orders") setAccountTab("orders");
+    else if (tab === "profile") setAccountTab("profile");
+  }, [account, searchParams]);
+
+  useEffect(() => {
+    if (account) return;
+    const reg = searchParams.get("register");
+    if (reg === "reparateur" || reg === "grossiste") setRole(reg);
+  }, [account, searchParams]);
 
   const isReparateur = role === "reparateur";
   const isGrossiste = role === "grossiste";
@@ -220,6 +237,45 @@ export default function AccountsPage() {
             )}
 
             {account && (
+              <div
+                className="flex gap-1 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-100/95 to-slate-50/90 p-1 shadow-inner"
+                role="tablist"
+                aria-label="أقسام الحساب"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={accountTab === "profile"}
+                  onClick={() => setAccountTab("profile")}
+                  className={`flex-1 rounded-xl px-3 py-3 text-center text-xs font-bold transition sm:text-sm ${
+                    accountTab === "profile"
+                      ? "bg-white text-slate-900 shadow-md shadow-slate-200/50 ring-1 ring-slate-200/90"
+                      : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+                  }`}
+                >
+                  الملف الشخصي
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={accountTab === "orders"}
+                  onClick={() => setAccountTab("orders")}
+                  className={`flex-1 rounded-xl px-3 py-3 text-center text-xs font-bold transition sm:text-sm ${
+                    accountTab === "orders"
+                      ? "bg-white text-blue-900 shadow-md shadow-blue-200/40 ring-1 ring-blue-200/80"
+                      : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+                  }`}
+                >
+                  طلباتي
+                </button>
+              </div>
+            )}
+
+            {account && accountTab === "orders" ? (
+              <MyOrdersTab />
+            ) : (
+              <>
+            {account && (
               <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:grid-cols-2 sm:p-5">
                 <div className="flex items-center gap-3">
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-400 text-base font-bold text-white shadow-sm">
@@ -260,6 +316,7 @@ export default function AccountsPage() {
               </div>
             )}
 
+            {!account && (
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
               <h2 className="mb-3 text-sm font-bold text-slate-900 sm:text-base">
                 لديك حساب مسبقاً ؟ قم بتسجيل الدخول
@@ -306,7 +363,9 @@ export default function AccountsPage() {
                 </p>
               )}
             </div>
+            )}
 
+            {!account && (
             <div className="space-y-2 text-center">
               <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
                 اختر نوع الحساب المهني
@@ -316,7 +375,9 @@ export default function AccountsPage() {
                 <span className="font-semibold">Grossiste</span> للاستفادة من التخفيضات.
               </p>
             </div>
+            )}
 
+            {!account && (
             <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
               {/* حساب Réparateur */}
               <article className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300/70 hover:bg-white sm:p-5">
@@ -376,8 +437,9 @@ export default function AccountsPage() {
                 </button>
               </article>
             </div>
+            )}
 
-            {role && (
+            {!account && role && (
               <div className="mt-6 space-y-3 border-t border-slate-100 pt-4">
                 <h2 className="text-sm font-bold text-slate-900 sm:text-base">
                   {isReparateur ? "معلومات حساب Réparateur" : "معلومات حساب Grossiste"}
@@ -525,6 +587,9 @@ export default function AccountsPage() {
               </div>
             )}
 
+            </>
+            )}
+
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 sm:text-xs">
               <span>يمكنك دائماً تغيير نوع الحساب بالتواصل مع فريق الدعم.</span>
               <Link
@@ -542,3 +607,20 @@ export default function AccountsPage() {
   );
 }
 
+export default function AccountsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 antialiased">
+          <Navbar />
+          <main className="mx-auto flex w-full max-w-4xl flex-col px-3 pt-32 pb-16 sm:px-4">
+            <p className="text-center text-sm text-slate-500">جاري التحميل…</p>
+          </main>
+          <Footer />
+        </div>
+      }
+    >
+      <AccountsPageContent />
+    </Suspense>
+  );
+}

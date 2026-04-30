@@ -345,13 +345,14 @@ export default function CreatePhonePage() {
             </div>
 
             <div>
-              <label className={labelClass}>رابط صورة المنتج (URL)</label>
+              <label className={labelClass}>رابط صورة المنتج</label>
               <input
-                type="url"
+                type="text"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
                 className={inputClass}
-                placeholder="https://example.com/image.png"
+                dir="ltr"
+                placeholder="https:// أو //... — أي رابط صورة (حتى data:...)"
               />
             </div>
 

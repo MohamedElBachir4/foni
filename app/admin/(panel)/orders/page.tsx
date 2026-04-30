@@ -62,50 +62,14 @@ export default function AdminOrdersPage() {
 
     console.log("Updating order status:", { orderId: cleanId, status });
 
-    // إذا تم اختيار "cancelled"، عرض رسالة تأكيد
     if (status === "cancelled") {
-      if (!confirm("هل أنت متأكد من حذف هذا الطلب نهائياً؟ لا يمكن التراجع عن هذه العملية.")) {
+      if (
+        !confirm(
+          "هل تريد إلغاء هذا الطلب؟ سيبقى في سجل الطلبات ويظهر للزبون كحالة «ملغى»."
+        )
+      ) {
         return;
       }
-      // حذف الطلب
-      setUpdatingId(cleanId);
-      try {
-        const url = `${API_URL}/api/orders/${cleanId}`;
-        console.log("DELETE URL:", url);
-        const headers = getAuthHeaders();
-        console.log("Request headers:", { ...headers, Authorization: "Cookie [TOKEN]" });
-
-        const res = await fetch(url, {
-          method: "DELETE",
-          headers: headers,
-          credentials: "include"
-         });
-
-        console.log("Response status:", res.status);
-
-        if (res.ok) {
-          console.log("Order deleted successfully");
-          setOrders((prev) => prev.filter((o) => o._id !== cleanId));
-          window.dispatchEvent(new CustomEvent("admin-orders-updated"));
-          alert("تم حذف الطلب بنجاح");
-        } else {
-          let errorMsg = `خطأ ${res.status}: `;
-          try {
-            const errData = await res.json();
-            errorMsg += errData.error || "فشل حذف الطلب";
-          } catch {
-            errorMsg += "فشل حذف الطلب";
-          }
-          console.error("Delete failed:", errorMsg);
-          alert(errorMsg);
-        }
-      } catch (err) {
-        console.error("Delete error:", err);
-        alert(`خطأ في الاتصال بالخادم: ${err}`);
-      } finally {
-        setUpdatingId(null);
-      }
-      return;
     }
 
     setUpdatingId(cleanId);

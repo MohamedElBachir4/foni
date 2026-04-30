@@ -1,5 +1,7 @@
 "use client";
 
+import { getProductImageUrl } from "@/lib/productImage";
+
 interface AdminTableProps {
   columns: { key: string; label: string; className?: string }[];
   rows: Record<string, React.ReactNode>[];
@@ -90,8 +92,7 @@ export function AdminTableCellImage({
     );
   }
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  const imageSrc = src.startsWith("/") ? `${API_URL}${src}` : src;
+  const imageSrc = getProductImageUrl(src);
 
   return (
     <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-slate-50">

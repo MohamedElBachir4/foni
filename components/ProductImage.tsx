@@ -29,7 +29,11 @@ export function ProductImage({
 }: ProductImageProps) {
   const [useFallback, setUseFallback] = useState(false);
   const resolvedSrc = getProductImageUrl(src);
-  const isExternal = /^https?:\/\//i.test(resolvedSrc);
+  /** مسارات نسبية من جذر الموقع (مثل /uploads) تمر عبر Next Image؛ أي رابط مطلق أو data: يعرض tag img */
+  const isLocalPathForOptimizer =
+    resolvedSrc.startsWith("/") &&
+    !resolvedSrc.toLowerCase().startsWith("///");
+  const useNativeImg = !isLocalPathForOptimizer && resolvedSrc !== DEFAULT_PHONE_IMAGE;
 
   if (useFallback) {
     return (
@@ -45,7 +49,7 @@ export function ProductImage({
     );
   }
 
-  if (isExternal) {
+  if (useNativeImg) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img

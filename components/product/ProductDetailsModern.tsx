@@ -71,7 +71,13 @@ export function ProductDetailsModern({
   }, [product.image, product.extraImages]);
 
   const [selectedImage, setSelectedImage] = useState(images[0] || "");
-  const isAvailable = product.stock === undefined ? true : Number(product.stock) > 0;
+  /** الهواتف: في الـ API الافتراضي stock=0 ولا يعني «غير متوفر» حتى يُضبط تتبع المخزون. */
+  const isAvailable =
+    product.category === "هواتف"
+      ? true
+      : product.stock === undefined
+        ? true
+        : Number(product.stock) > 0;
   const sanitizedDescription = sanitizeHtml(product.description || "");
   const hasHtmlDescription = isHtml(sanitizedDescription);
 

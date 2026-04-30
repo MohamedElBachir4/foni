@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getToken, clearToken, getAuthHeaders, API_URL } from "@/lib/adminAuth";
-import { LayoutDashboard, Smartphone, LogOut, Package, ShoppingCart, User, Archive, Settings, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Smartphone, LogOut, Package, ShoppingCart, User, Archive, Settings, ChevronRight, Tags } from "lucide-react";
 
 export default function AdminPanelLayout({
   children,
@@ -163,6 +163,13 @@ export default function AdminPanelLayout({
 
           <div className="mb-2 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">المنتجات</div>
           <div className="space-y-1 mb-6">
+            {navLink(
+              "/admin/brands",
+              <Tags className="h-5 w-5 shrink-0" />,
+              "الماركات",
+              undefined,
+              "text-indigo-500 group-hover:text-indigo-600"
+            )}
             {navLink(
               "/admin/phones/create",
               <Smartphone className="h-5 w-5 shrink-0" />,

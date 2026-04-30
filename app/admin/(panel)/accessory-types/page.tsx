@@ -186,11 +186,12 @@ export default function AccessoryTypesPage() {
                 رابط الصورة (اختياري)
               </label>
               <input
-                type="url"
+                type="text"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
                 className="admin-input"
-                placeholder="https://..."
+                dir="ltr"
+                placeholder="أي رابط صورة (https، //، data:...)"
               />
             </div>
           </div>

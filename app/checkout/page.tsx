@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ProductImage } from "@/components/ProductImage";
 import { useRouter } from "next/navigation";
@@ -53,6 +53,63 @@ export default function CheckoutPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const pendingStopdeskRestore = useRef<number | null>(null);
+  const [restoredShippingHint, setRestoredShippingHint] = useState(false);
+
+  useEffect(() => {
+    if (!account) return;
+    const token = getAuthToken();
+    if (!token) return;
+    let cancelled = false;
+    pendingStopdeskRestore.current = null;
+    fetch(`${API_URL}/api/accounts/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { account?: Record<string, unknown> } | null) => {
+        if (cancelled || !data?.account) return;
+        const a = data.account;
+        const checkoutName = String(a.checkoutFullName || "").trim();
+        const regName = `${String(a.firstName || "").trim()} ${String(a.lastName || "").trim()}`.trim();
+        const full = checkoutName || regName;
+        if (full) setFullName(full);
+        const checkoutPhone = String(a.checkoutPhone || "").trim();
+        const phoneVal = checkoutPhone || String(a.phone || "").trim();
+        if (phoneVal) setPhone(phoneVal);
+        const checkoutAddr = String(a.checkoutAddress || "").trim();
+        const addrVal = checkoutAddr || String(a.address || "").trim();
+        if (addrVal) setAddress(addrVal);
+        const wid = a.checkoutWilayaId;
+        if (wid != null && wid !== "" && Number.isFinite(Number(wid))) {
+          setWilayaId(Number(wid));
+        }
+        const commune = String(a.checkoutCommune || "").trim();
+        if (commune) setCommuneName(commune);
+        const dt = a.checkoutDeliveryType;
+        if (dt === "home" || dt === "stopdesk") setDeliveryType(dt);
+        const sid = a.checkoutStopdeskId;
+        if (dt === "stopdesk" && sid != null && sid !== "" && Number.isFinite(Number(sid))) {
+          pendingStopdeskRestore.current = Number(sid);
+        }
+        const hadSavedCheckout =
+          !!(checkoutName || checkoutPhone || checkoutAddr || commune || (wid != null && wid !== ""));
+        if (hadSavedCheckout) setRestoredShippingHint(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [account, getAuthToken]);
+
+  useEffect(() => {
+    if (deliveryType !== "stopdesk") return;
+    const want = pendingStopdeskRestore.current;
+    if (want == null || centers.length === 0) return;
+    if (centers.some((c) => c.center_id === want)) {
+      setStopdeskId(want);
+      pendingStopdeskRestore.current = null;
+    }
+  }, [deliveryType, centers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -214,6 +271,7 @@ export default function CheckoutPage() {
             quantity: i.quantity,
             color: i.color || "",
             productType: i.productType || "phone",
+            image: i.image || "",
           })),
           totalPrice: grandTotal,
         }),
@@ -348,14 +406,21 @@ export default function CheckoutPage() {
             className="rounded-2xl border-0 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8"
           >
             {account && (
-              <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-                أنت مسجّل الدخول كـ{" "}
-                <span className="font-bold">
-                  {account.role === "grossiste" ? "بائع جملة" : "مصلح"}
-                </span>
-                {" — "}
-                سيُسجّل الطلب تلقائياً بهذا النوع.
-              </p>
+              <>
+                <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+                  أنت مسجّل الدخول كـ{" "}
+                  <span className="font-bold">
+                    {account.role === "grossiste" ? "بائع جملة" : "مصلح"}
+                  </span>
+                  {" — "}
+                  سيُسجّل الطلب تلقائياً بهذا النوع.
+                </p>
+                {restoredShippingHint && (
+                  <p className="mb-4 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-emerald-900">
+                    تم ملء بيانات التوصيل من آخر طلب سجّلته في حسابك. يمكنك تعديلها قبل الإرسال.
+                  </p>
+                )}
+              </>
             )}
             <h2 className="mb-6 text-lg font-bold text-slate-800">
               بيانات التوصيل

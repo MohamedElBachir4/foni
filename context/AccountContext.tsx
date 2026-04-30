@@ -31,6 +31,8 @@ type StoredAccount = {
 type AccountContextValue = {
   account: AccountInfo | null;
   token: string | null;
+  /** true after reading localStorage on the client (avoid flash for logged-in users). */
+  hydrated: boolean;
   getAuthToken: () => string | null;
   setFromApi: (payload: { account: any; token?: string }) => void;
   logout: () => void;
@@ -145,12 +147,13 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     () => ({
       account,
       token,
+      hydrated,
       getAuthToken,
       setFromApi,
       logout,
       setUseWholesalePricing,
     }),
-    [account, token, getAuthToken, setFromApi, logout, setUseWholesalePricing]
+    [account, token, hydrated, getAuthToken, setFromApi, logout, setUseWholesalePricing]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

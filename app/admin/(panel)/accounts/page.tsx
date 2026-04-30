@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
-import { User, Phone, MapPin, Mail, Loader2 } from "lucide-react";
+import { User, Phone, MapPin, Mail, Loader2, ChevronLeft } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin";
 
 type Account = {
@@ -101,9 +102,10 @@ export default function AdminAccountsPage() {
       ) : (
         <div className="mt-8 space-y-5">
           {accounts.map((acc) => (
-            <div
+            <Link
               key={acc._id}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+              href={`/admin/accounts/${acc._id}`}
+              className="group block overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-violet-200 hover:shadow-md"
             >
               <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -120,8 +122,12 @@ export default function AdminAccountsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="text-left text-xs text-slate-500">
+                  <div className="flex flex-col items-end gap-1 text-left text-xs text-slate-500">
                     <p>تاريخ الإنشاء: {formatDate(acc.createdAt)}</p>
+                    <span className="inline-flex items-center gap-1 font-semibold text-violet-600 group-hover:text-violet-800">
+                      طلبات الحساب
+                      <ChevronLeft className="h-3.5 w-3.5 rotate-180 transition group-hover:translate-x-0.5" />
+                    </span>
                   </div>
                 </div>
               </div>
@@ -157,7 +163,7 @@ export default function AdminAccountsPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

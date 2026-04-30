@@ -14,11 +14,16 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
   async rewrites() {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+    const raw = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000";
+    const base = String(raw).replace(/\/+$/, "");
     return [
       {
         source: "/uploads/:path*",
-        destination: `${API_URL}/uploads/:path*`, // Proxy to Backend
+        destination: `${base}/uploads/:path*`,
+      },
+      {
+        source: "/api/:path*",
+        destination: `${base}/api/:path*`,
       },
     ];
   },

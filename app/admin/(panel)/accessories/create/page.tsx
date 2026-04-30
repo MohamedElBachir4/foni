@@ -449,11 +449,12 @@ export default function AccessoriesPage() {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">الصورة الرئيسية</label>
               <input
-                type="url"
+                type="text"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
                 className="admin-input"
-                placeholder="https://..."
+                dir="ltr"
+                placeholder="أي رابط صورة (https، //، ipfs:، data:...)"
               />
             </div>
             <div>
@@ -465,7 +466,7 @@ export default function AccessoriesPage() {
                 onChange={(e) => setExtraImagesText(e.target.value)}
                 rows={3}
                 className="admin-input"
-                placeholder="https://...\nhttps://..."
+                placeholder="رابط لكل سطر — أي تنسيق صورة"
               />
             </div>
           </div>

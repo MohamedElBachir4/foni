@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BRAND_OFFICIAL_LOGOS } from "@/lib/brandLogos";
+import { getProductImageUrl } from "@/lib/productImage";
 
-const BRANDS = [
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+
+const STATIC_BRANDS = [
   { id: "apple", name: "Apple", image: BRAND_OFFICIAL_LOGOS.apple },
   { id: "samsung", name: "Samsung", image: BRAND_OFFICIAL_LOGOS.samsung },
   { id: "xiaomi", name: "Xiaomi", image: BRAND_OFFICIAL_LOGOS.xiaomi },
@@ -27,6 +30,33 @@ const BRANDS = [
   { id: "poco", name: "Poco", image: BRAND_OFFICIAL_LOGOS.poco },
 ];
 
+type BrandRow = { id: string; name: string; image: string };
+
+function mergeBrandsFromApi(
+  apiList: { name?: string; slug?: string; image?: string }[] | null
+): BrandRow[] {
+  if (!apiList || !Array.isArray(apiList) || apiList.length === 0) {
+    return STATIC_BRANDS;
+  }
+  const fromApi: BrandRow[] = apiList
+    .filter((b) => b?.name && String(b.name).trim())
+    .map((b) => {
+      const slug = String(b.slug || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-");
+      const id = slug || String(b.name).toLowerCase().replace(/\s+/g, "-");
+      const name = String(b.name).trim();
+      const custom = b.image && String(b.image).trim() ? getProductImageUrl(b.image) : "";
+      const fallback =
+        (id && (BRAND_OFFICIAL_LOGOS as Record<string, string>)[id]) || BRAND_OFFICIAL_LOGOS[slug] || "/LOGO.jpeg";
+      return { id, name, image: custom || fallback };
+    });
+  const apiIds = new Set(fromApi.map((b) => b.id));
+  const fromStatic = STATIC_BRANDS.filter((b) => !apiIds.has(b.id));
+  return [...fromApi, ...fromStatic].sort((a, b) => a.name.localeCompare(b.name, "ar", { sensitivity: "base" }));
+}
+
 type BrandGridProps = {
   selectedBrandId: string | null;
   onSelectBrand: (brandId: string | null) => void;
@@ -36,7 +66,20 @@ type BrandGridProps = {
 
 export function BrandGrid({ selectedBrandId, onSelectBrand, category }: BrandGridProps) {
   const [shimmerId, setShimmerId] = useState<string | null>(null);
+  const [brands, setBrands] = useState<BrandRow[]>(STATIC_BRANDS);
   const router = useRouter();
+
+  useEffect(() => {
+    const url = API_BASE ? `${API_BASE}/api/brands` : "/api/brands";
+    fetch(url, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setBrands(mergeBrandsFromApi(data));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleClick = (brandId: string) => {
     const next = selectedBrandId === brandId ? null : brandId;
@@ -58,7 +101,7 @@ export function BrandGrid({ selectedBrandId, onSelectBrand, category }: BrandGri
       
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        {BRANDS.map((brand) => (
+        {brands.map((brand) => (
           <button
             key={brand.id}
             type="button"
