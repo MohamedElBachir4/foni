@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme inline {
+:root {
   --font-sans: var(--font-cairo), system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
   --font-foni: var(--font-foni), system-ui, sans-serif;
@@ -173,16 +173,42 @@ select {
   transition: background-color 0.15s ease;
 }
 .admin-input {
-  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition;
-  @apply placeholder:text-slate-400;
-  @apply focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.admin-input::placeholder {
+  color: #94a3b8;
+}
+.admin-input:focus {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
 }
 .admin-input:disabled {
-  @apply cursor-not-allowed bg-slate-50 opacity-60;
+  cursor: not-allowed;
+  background: #f8fafc;
+  opacity: 0.6;
 }
 .admin-select {
-  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition;
-  @apply focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.admin-select:focus {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
 }
 
 /* علامة الصح عند الإضافة للسلة */

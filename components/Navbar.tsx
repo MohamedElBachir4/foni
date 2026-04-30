@@ -37,7 +37,7 @@ export function Navbar() {
   }, []);
 
   return (
-    <nav className="glass fixed top-0 left-0 z-50 w-full border-b border-white/30 shadow-2xl">
+    <nav className="glass fixed top-0 left-0 z-50 w-full overflow-hidden rounded-b-3xl border-y border-white/30 shadow-2xl">
       {account?.role === "reparateur" && !account.useWholesalePricing && (
         <div className="border-b border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2.5 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)] sm:px-4">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">

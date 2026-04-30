@@ -2,78 +2,85 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Smartphone, Headphones, Wrench, ArrowLeft } from "lucide-react";
 
 const CATEGORIES = [
   {
     id: "phones",
     label: "الهواتف النقالة",
-    image: "https://i.pinimg.com/736x/e3/f4/a2/e3f4a286400d050bad935c6853879d6e.jpg",
+    image: "https://i.pinimg.com/736x/4d/eb/00/4deb0070c186156633bd7888d3b8337b.jpg",
+    icon: Smartphone,
+    color: "from-blue-600 to-blue-400",
+    description: "أحدث الهواتف الذكية",
   },
   {
     id: "accessories",
     label: "اكسسوارات",
-    image: "https://i.pinimg.com/736x/a1/f6/e2/a1f6e266de71fe64b1eb4a68b91c00ee.jpg",
+    image: "https://i.pinimg.com/736x/fc/7d/03/fc7d035abeb24f90fc3479fc23125c0c.jpg",
+    icon: Headphones,
+    color: "from-purple-600 to-pink-500",
+    description: "اكسسوارات أصلية",
   },
   {
     id: "parts",
-    label: "قطع غيار الهواتف",
-    image: "https://i.pinimg.com/736x/02/c2/62/02c262e51afde8e065fc64aac01eb378.jpg",
+    label: "قطع غيار",
+    image: "https://i.pinimg.com/1200x/77/ff/dc/77ffdcdbe44f5ee9d537ab5b9880a0f9.jpg",
+    icon: Wrench,
+    color: "from-green-600 to-emerald-500",
+    description: "قطع غيار أصلية",
   },
 ];
 
 export function CategorySlider() {
-  const [activeId, setActiveId] = useState<string | null>(null);
   const router = useRouter();
 
+  const handleClick = (catId: string) => {
+    const routes: Record<string, string> = {
+      phones: "/phones",
+      accessories: "/accessories",
+      parts: "/spare-parts",
+    };
+    router.push(routes[catId] || "/");
+  };
+
   return (
-    <section className="mb-14">
-      <div className="mb-6">
-        <h2 className="flex items-center gap-3 text-2xl font-bold text-gray-800 sm:text-3xl">
-          <span className="h-6 w-1 rounded-full bg-gradient-to-b from-blue-600 to-blue-400 sm:h-8 sm:w-1.5" />
+    <section className="mb-20">
+      <div className="mb-10 text-center">
+        <h2 className="mb-3 text-4xl font-bold text-gray-800">
           تصفح حسب التصنيف
         </h2>
+        <p className="text-gray-500">اكتشف مجموعتنا المتنوعة</p>
       </div>
 
-      <div className="mx-auto grid max-w-4xl grid-cols-3 gap-4 sm:gap-8 lg:gap-10">
-        {CATEGORIES.map((cat) => {
-          const isActive = activeId === cat.id;
-          const handleClick = () => {
-            if (cat.id === "phones") {
-              router.push("/phones");
-              return;
-            }
-            if (cat.id === "accessories") {
-              router.push("/accessories");
-              return;
-            }
-            if (cat.id === "parts") {
-              router.push("/spare-parts");
-              return;
-            }
-            setActiveId(isActive ? null : cat.id);
-          };
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {CATEGORIES.map((cat, index) => {
+          const Icon = cat.icon;
           return (
             <button
               key={cat.id}
-              type="button"
-              onClick={handleClick}
-              className={`group flex flex-col overflow-hidden rounded-2xl border bg-white text-gray-700 shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md cursor-pointer ${
-                isActive
-                  ? "border-blue-400 bg-blue-50/40"
-                  : "border-slate-200"
-              }`}
+              onClick={() => handleClick(cat.id)}
+              className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105 hover:shadow-2xl animate-fade-in-up"
+              style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
+              <div className="relative h-64 overflow-hidden">
                 <img
                   src={cat.image}
                   alt={cat.label}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
-              </div>
-              <div className="px-2 py-2 text-center">
-                <p className="text-xs font-semibold text-slate-800 sm:text-sm">
-                  {cat.label}
-                </p>
+                <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} opacity-80`} />
+                
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white">
+                  <div className="mb-4 rounded-full bg-white/20 p-4 backdrop-blur-sm transition-all duration-300 group-hover:scale-110">
+                    <Icon className="h-12 w-12" />
+                  </div>
+                  <h3 className="mb-2 text-2xl font-bold">{cat.label}</h3>
+                  <p className="mb-4 text-white/90">{cat.description}</p>
+                  <div className="flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 backdrop-blur-sm transition-all duration-300 group-hover:bg-white/30">
+                    <span>تسوق الآن</span>
+                    <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
+                  </div>
+                </div>
               </div>
             </button>
           );

@@ -6,15 +6,15 @@ import { Crown, Tag, Truck, UserPlus, Package, ChevronLeft } from "lucide-react"
 
 const HERO_IMAGES = [
   {
-    src: "https://i.pinimg.com/736x/e3/f4/a2/e3f4a286400d050bad935c6853879d6e.jpg",
+    src: "https://i.pinimg.com/736x/4d/eb/00/4deb0070c186156633bd7888d3b8337b.jpg",
     alt: "iPhone Pro Max",
   },
   {
-    src: "https://i.pinimg.com/736x/a1/f6/e2/a1f6e266de71fe64b1eb4a68b91c00ee.jpg",
+    src: "https://i.pinimg.com/736x/fc/7d/03/fc7d035abeb24f90fc3479fc23125c0c.jpg",
     alt: "اكسسوارات الهواتف",
   },
   {
-    src: "https://i.pinimg.com/736x/02/c2/62/02c262e51afde8e065fc64aac01eb378.jpg",
+    src: "https://i.pinimg.com/1200x/77/ff/dc/77ffdcdbe44f5ee9d537ab5b9880a0f9.jpg",
     alt: "قطع غيار الهواتف",
   },
   {
