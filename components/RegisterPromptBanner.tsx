@@ -36,7 +36,8 @@ export function RegisterPromptBanner() {
     !account &&
     !dismissed &&
     !!pathname &&
-    !pathname.startsWith("/accounts");
+    !pathname.startsWith("/accounts") &&
+    !pathname.startsWith("/admin");
 
   useEffect(() => {
     if (!baseEligible) {

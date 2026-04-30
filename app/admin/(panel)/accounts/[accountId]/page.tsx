@@ -25,6 +25,9 @@ type AccountDetail = {
   email: string;
   phone: string;
   role: "reparateur" | "grossiste";
+  approvalStatus?: "pending" | "approved" | "rejected";
+  approvalNote?: string;
+  approvalReviewedAt?: string | null;
   wilaya?: string;
   address?: string;
   shopName?: string;
@@ -66,6 +69,7 @@ export default function AdminAccountOrdersPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!accountId) {
@@ -101,6 +105,39 @@ export default function AdminAccountOrdersPage() {
   const completedCount = orders.filter((o) => o.status === "completed").length;
   const pendingCount = orders.filter((o) => o.status === "pending").length;
   const cancelledCount = orders.filter((o) => o.status === "cancelled").length;
+
+  function approvalLabel(s?: string) {
+    if (s === "approved") return "مفعّل";
+    if (s === "rejected") return "مرفوض";
+    return "قيد المراجعة";
+  }
+
+  function approvalClass(s?: string) {
+    if (s === "approved") return "bg-emerald-100 text-emerald-900 ring-emerald-200";
+    if (s === "rejected") return "bg-rose-100 text-rose-900 ring-rose-200";
+    return "bg-amber-100 text-amber-950 ring-amber-200";
+  }
+
+  async function setApprovalStatus(status: "approved" | "rejected") {
+    if (!account?._id) return;
+    setActionLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/accounts/${account._id}/approval-status`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ approvalStatus: status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "فشل تحديث حالة الحساب");
+      setAccount(data.account || null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل تحديث حالة الحساب");
+    } finally {
+      setActionLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -166,6 +203,13 @@ export default function AdminAccountOrdersPage() {
             <p className="text-xs text-slate-500">
               النوع: {account.role === "reparateur" ? "Réparateur" : "Grossiste"}
             </p>
+            <span
+              className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${approvalClass(
+                account.approvalStatus
+              )}`}
+            >
+              حالة التفعيل: {approvalLabel(account.approvalStatus)}
+            </span>
           </div>
           <div className="space-y-2 text-sm text-slate-700">
             {account.wilaya && (
@@ -183,8 +227,37 @@ export default function AdminAccountOrdersPage() {
             {account.address && (
               <p className="text-xs leading-relaxed text-slate-600">{account.address}</p>
             )}
+            {account.approvalReviewedAt && (
+              <p className="text-xs text-slate-500">
+                آخر مراجعة:{" "}
+                {new Date(account.approvalReviewedAt).toLocaleString("ar-DZ", {
+                  dateStyle: "short",
+                  timeStyle: "short",
+                })}
+              </p>
+            )}
           </div>
         </div>
+        {account.approvalStatus !== "approved" && (
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => setApprovalStatus("approved")}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              قبول الحساب
+            </button>
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => setApprovalStatus("rejected")}
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-60"
+            >
+              رفض الحساب
+            </button>
+          </div>
+        )}
       </AdminCard>
 
       <div className="grid gap-3 sm:grid-cols-3">

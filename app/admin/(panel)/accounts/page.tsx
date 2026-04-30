@@ -16,6 +16,8 @@ type Account = {
   shopName?: string;
   address?: string;
   role: "reparateur" | "grossiste";
+  approvalStatus?: "pending" | "approved" | "rejected";
+  approvalNote?: string;
   createdAt: string;
 };
 
@@ -23,11 +25,17 @@ export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [approvalFilter, setApprovalFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${API_URL}/api/accounts`, {
+        const q =
+          approvalFilter === "all"
+            ? ""
+            : `?approvalStatus=${encodeURIComponent(approvalFilter)}`;
+        const res = await fetch(`${API_URL}/api/accounts${q}`, {
           headers: getAuthHeaders(), credentials: 'include',
          });
         if (!res.ok) {
@@ -44,7 +52,42 @@ export default function AdminAccountsPage() {
       }
     }
     load();
-  }, []);
+  }, [approvalFilter]);
+
+  async function updateStatus(accountId: string, status: "approved" | "rejected") {
+    setActionLoadingId(accountId);
+    try {
+      const res = await fetch(`${API_URL}/api/accounts/${accountId}/approval-status`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ approvalStatus: status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "فشل تحديث حالة الحساب");
+      setAccounts((prev) =>
+        prev.map((a) =>
+          a._id === accountId ? { ...a, approvalStatus: status } : a
+        )
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل تحديث الحالة");
+    } finally {
+      setActionLoadingId(null);
+    }
+  }
+
+  function statusLabel(s?: string) {
+    if (s === "approved") return "مفعّل";
+    if (s === "rejected") return "مرفوض";
+    return "قيد المراجعة";
+  }
+
+  function statusClass(s?: string) {
+    if (s === "approved") return "bg-emerald-50 text-emerald-800 border-emerald-200";
+    if (s === "rejected") return "bg-rose-50 text-rose-800 border-rose-200";
+    return "bg-amber-50 text-amber-900 border-amber-200";
+  }
 
   function formatDate(iso: string) {
     try {
@@ -90,8 +133,20 @@ export default function AdminAccountsPage() {
     <div className="mx-auto max-w-4xl">
       <AdminPageHeader
         title="الحسابات"
-        description="جميع الحسابات المسجلة من صفحة /accounts"
+        description="الحسابات الجديدة والمعلقة مع إمكانية قبول أو رفض التفعيل"
         icon={<User className="h-5 w-5" />}
+        actions={
+          <select
+            value={approvalFilter}
+            onChange={(e) => setApprovalFilter(e.target.value as "all" | "pending" | "approved" | "rejected")}
+            className="admin-select w-auto min-w-[160px]"
+          >
+            <option value="pending">قيد المراجعة</option>
+            <option value="approved">المفعّلة</option>
+            <option value="rejected">المرفوضة</option>
+            <option value="all">الكل</option>
+          </select>
+        }
       />
 
       {accounts.length === 0 ? (
@@ -120,6 +175,9 @@ export default function AdminAccountsPage() {
                       <p className="text-xs text-slate-500">
                         {acc.role === "reparateur" ? "Réparateur" : "Grossiste"}
                       </p>
+                      <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClass(acc.approvalStatus)}`}>
+                        {statusLabel(acc.approvalStatus)}
+                      </span>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 text-left text-xs text-slate-500">
@@ -160,6 +218,32 @@ export default function AdminAccountsPage() {
                       <span className="font-semibold">العنوان: </span>
                       {acc.address}
                     </p>
+                  )}
+                  {acc.approvalStatus !== "approved" && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={actionLoadingId === acc._id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          updateStatus(acc._id, "approved");
+                        }}
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        قبول
+                      </button>
+                      <button
+                        type="button"
+                        disabled={actionLoadingId === acc._id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          updateStatus(acc._id, "rejected");
+                        }}
+                        className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-60"
+                      >
+                        رفض
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

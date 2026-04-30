@@ -16,6 +16,7 @@ export type AccountInfo = {
   email: string;
   phone: string;
   role: "reparateur" | "grossiste";
+  approvalStatus?: "pending" | "approved" | "rejected";
   useWholesalePricing?: boolean;
   wilaya?: string;
   shopName?: string;
@@ -106,6 +107,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       email: payload.account.email ?? "",
       phone: payload.account.phone ?? "",
       role: payload.account.role === "grossiste" ? "grossiste" : "reparateur",
+      approvalStatus: payload.account.approvalStatus ?? "approved",
       wilaya: payload.account.wilaya ?? "",
       shopName: payload.account.shopName ?? "",
       address: payload.account.address ?? "",

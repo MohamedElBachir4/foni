@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { API_URL, getAuthHeaders, getToken } from "@/lib/adminAuth";
+import { getProductImageUrl } from "@/lib/productImage";
 import { Smartphone, CheckCircle, AlertCircle, Pencil, Trash2, Search, ChevronDown, ChevronUp, FileSpreadsheet } from "lucide-react";
 import { SPARE_PARTS_STATIC_BRANDS } from "@/lib/sparePartsStaticBrands";
 import {
@@ -589,7 +590,7 @@ export default function SpareModelsPage() {
                             {phone.image && (
                               <div className="flex-shrink-0 w-12 h-12 bg-slate-100 rounded-md overflow-hidden">
                                 <img
-                                  src={phone.image}
+                                  src={getProductImageUrl(phone.image)}
                                   alt={phone.name}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {

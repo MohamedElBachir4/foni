@@ -1,4 +1,13 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+function getApiBase(): string {
+  const raw = (process.env.NEXT_PUBLIC_API_URL || "").trim();
+  if (raw) return raw.replace(/\/+$/, "");
+  // Browser: use same-origin /api (handled by Next rewrites/proxy in deployment).
+  if (typeof window !== "undefined") return "";
+  // Server-side fallback for local dev/runtime scripts.
+  return "http://localhost:5000";
+}
+
+const API_URL = getApiBase();
 const LOGIN_FLAG = "foni_admin_logged_in";
 const TOKEN_KEY = "foni_admin_token";
 

@@ -18,6 +18,20 @@ function normalizeImagePath(raw: string): string {
 }
 
 /**
+ * Accept common user-entered image links even when protocol is omitted.
+ * Examples:
+ * - example.com/a.jpg -> https://example.com/a.jpg
+ * - www.example.com/a.png -> https://www.example.com/a.png
+ */
+function looksLikeDomainUrl(raw: string): boolean {
+  const s = raw.trim();
+  if (!s || /\s/.test(s)) return false;
+  if (s.startsWith("/") || s.startsWith("./") || s.startsWith("../")) return false;
+  // Basic domain.tld[/...]
+  return /^[a-z0-9.-]+\.[a-z]{2,}(?:[/:?#].*)?$/i.test(s);
+}
+
+/**
  * يعيد رابطاً صالحاً لصورة المنتج.
  * - فارغ: الصورة الافتراضية.
  * - بروتوكول نسبي //domain/...: يُحوَّل إلى https (تجنب مشاكل المختلط / Next).
@@ -29,6 +43,9 @@ export function getProductImageUrl(imageUrl: string | undefined | null): string 
   if (!raw) return DEFAULT_PHONE_IMAGE;
   if (raw.startsWith("//") && !raw.toLowerCase().startsWith("///")) {
     return `https:${raw}`;
+  }
+  if (looksLikeDomainUrl(raw)) {
+    return `https://${raw.replace(/^\/+/, "")}`;
   }
   if (
     raw.startsWith("http://") ||

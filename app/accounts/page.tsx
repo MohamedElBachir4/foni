@@ -88,6 +88,7 @@ function AccountsPageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -107,6 +108,15 @@ function AccountsPageContent() {
     const reg = searchParams.get("register");
     if (reg === "reparateur" || reg === "grossiste") setRole(reg);
   }, [account, searchParams]);
+
+  useEffect(() => {
+    if (!successModalOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [successModalOpen]);
 
   const isReparateur = role === "reparateur";
   const isGrossiste = role === "grossiste";
@@ -161,8 +171,11 @@ function AccountsPageContent() {
       if (!res.ok) {
         throw new Error(data.error || "فشل في إنشاء الحساب");
       }
-      setFromApi(data);
-      setSuccess("تم إنشاء الحساب وتسجيل الدخول بنجاح. يمكنك الآن تصفح الموقع بحسابك.");
+      setSuccess(
+        data.message ||
+          "تم إرسال طلب إنشاء الحساب بنجاح. حسابك الآن قيد المراجعة وسيتم تفعيله بعد موافقة الإدارة."
+      );
+      setSuccessModalOpen(true);
       setFirstName("");
       setLastName("");
       setPhone("");
@@ -321,6 +334,9 @@ function AccountsPageContent() {
               <h2 className="mb-3 text-sm font-bold text-slate-900 sm:text-base">
                 لديك حساب مسبقاً ؟ قم بتسجيل الدخول
               </h2>
+              <p className="mb-3 text-xs text-amber-700 sm:text-sm">
+                ملاحظة: تسجيل الدخول متاح فقط بعد موافقة الإدارة على الحساب.
+              </p>
               <form
                 onSubmit={handleLogin}
                 className="grid gap-3 sm:grid-cols-[2fr,2fr,auto]"
@@ -603,6 +619,45 @@ function AccountsPageContent() {
         </section>
       </main>
       <Footer />
+      {successModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+            onClick={() => setSuccessModalOpen(false)}
+            aria-label="إغلاق النافذة"
+          />
+          <div className="relative w-full max-w-md animate-[successPop_.32s_ease-out] rounded-3xl border border-emerald-100 bg-white p-6 shadow-2xl">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              ✓
+            </div>
+            <h3 className="text-center text-xl font-extrabold text-slate-900">تم التسجيل بنجاح</h3>
+            <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
+              تم إنشاء حسابك بنجاح، وطلب تفعيل الحساب الآن <span className="font-bold text-amber-700">قيد المراجعة</span> من الإدارة.
+              ستتمكن من تسجيل الدخول فور الموافقة.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSuccessModalOpen(false)}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+            >
+              فهمت
+            </button>
+          </div>
+          <style jsx>{`
+            @keyframes successPop {
+              0% {
+                opacity: 0;
+                transform: translateY(14px) scale(0.96);
+              }
+              100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+              }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }
