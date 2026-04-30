@@ -135,7 +135,11 @@ export default function AdminSparePartsPage() {
         let query = `?page=${page}&limit=${PAGE_SIZE}`;
         if (brandId) query += `&brand=${encodeURIComponent(brandId)}`;
         const sq = (searchTerm ?? "").trim();
-        if (sq) query += `&search=${encodeURIComponent(sq)}`;
+        if (sq) {
+          const encoded = encodeURIComponent(sq);
+          // Backward-compatible: some deployed backends still read `q` instead of `search`.
+          query += `&search=${encoded}&q=${encoded}`;
+        }
         const res = await fetch(`${API_URL}/api/spare-parts${query}`, {
           headers: getAuthHeaders(), credentials: 'include',
          });
