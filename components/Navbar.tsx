@@ -29,7 +29,12 @@ export function Navbar() {
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (!accountMenuRef.current) return;
-      if (!accountMenuRef.current.contains(e.target as Node)) {
+      const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+      const clickedInside =
+        path.length > 0
+          ? path.includes(accountMenuRef.current)
+          : accountMenuRef.current.contains(e.target as Node);
+      if (!clickedInside) {
         setIsAccountMenuOpen(false);
       }
     }
@@ -136,10 +141,16 @@ export function Navbar() {
                 </span>
               )}
             </Link>
-            <div className="relative flex items-center gap-2" ref={accountMenuRef}>
+            <div
+              className="relative flex items-center gap-2"
+              ref={accountMenuRef}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => setIsAccountMenuOpen((v) => !v)}
+                aria-expanded={isAccountMenuOpen}
+                aria-haspopup="menu"
                 className="group flex items-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-2.5 py-2 text-gray-700 shadow-md transition-all duration-300 hover:scale-105 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600"
               >
                 {account ? (
@@ -156,7 +167,7 @@ export function Navbar() {
                 </span>
               </button>
               {isAccountMenuOpen && (
-                <div className="absolute end-0 top-[120%] z-[120] w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-slate-200 bg-white/95 p-3 text-xs text-slate-800 shadow-xl sm:w-72 sm:text-sm">
+                <div className="absolute end-0 top-[120%] z-[999] w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-slate-200 bg-white/95 p-3 text-xs text-slate-800 shadow-xl sm:w-72 sm:text-sm">
                   {account ? (
                     <>
                       <div className="mb-4 flex items-center gap-3">
