@@ -198,7 +198,7 @@ export function SearchBar() {
 
       {showPanel && (
         <div
-          className="absolute right-0 left-0 z-[100] mt-2 max-h-[min(72vh,520px)] overflow-hidden overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl"
+          className="absolute right-0 left-0 z-[1300] mt-2 max-h-[min(72vh,520px)] overflow-hidden overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl"
         >
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-2.5">
             <span className="text-sm font-semibold text-slate-700">اقتراحات</span>

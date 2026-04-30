@@ -43,7 +43,7 @@ export function Navbar() {
   }, []);
 
   return (
-    <nav className="glass fixed top-0 left-0 z-50 w-full overflow-visible rounded-b-3xl border-y border-white/30 shadow-2xl">
+    <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible rounded-b-3xl border-y border-white/30 shadow-2xl">
       {account?.role === "reparateur" && !account.useWholesalePricing && (
         <div className="border-b border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2.5 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)] sm:px-4">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
@@ -167,7 +167,7 @@ export function Navbar() {
                 </span>
               </button>
               {isAccountMenuOpen && (
-                <div className="absolute end-0 top-[120%] z-[999] w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-slate-200 bg-white/95 p-3 text-xs text-slate-800 shadow-xl sm:w-72 sm:text-sm">
+                <div className="absolute end-0 top-[120%] z-[1200] w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-slate-200 bg-white/95 p-3 text-xs text-slate-800 shadow-xl sm:w-72 sm:text-sm">
                   {account ? (
                     <>
                       <div className="mb-4 flex items-center gap-3">
@@ -269,7 +269,7 @@ export function Navbar() {
       </div>
       {isMobileMenuOpen && (
         <div className="md:hidden">
-          <div className="absolute inset-x-0 top-20 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-sm shadow-lg">
+          <div className="absolute inset-x-0 top-20 z-[1200] border-b border-slate-200 bg-white/95 backdrop-blur-sm shadow-lg">
             <div className="mx-auto max-w-7xl px-4 py-3">
               <nav className="space-y-1 text-right">
                 <Link
@@ -316,7 +316,7 @@ export function Navbar() {
       )}
       {isMobileSearchOpen && (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-[1300] bg-black/40 backdrop-blur-sm md:hidden"
           onClick={() => setIsMobileSearchOpen(false)}
         >
           <div
