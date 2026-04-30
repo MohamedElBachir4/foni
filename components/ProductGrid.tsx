@@ -7,6 +7,7 @@ import { ProductImage } from "@/components/ProductImage";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd } from "@/lib/pricing";
+import { sortPhoneTypesForAppleIphone } from "@/lib/iphoneModelOrder";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -101,13 +102,19 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
       .then((data) => {
         if (cancelled) return;
         const mapped = Array.isArray(data)
-          ? data
-              .map(mapApiPhoneToProduct)
-              .sort((a, b) => {
+          ? (() => {
+              const list = data.map(mapApiPhoneToProduct);
+              const isApple =
+                list.length > 0 && list[0]!.brand === "apple";
+              if (isApple) {
+                return sortPhoneTypesForAppleIphone(list);
+              }
+              return list.sort((a, b) => {
                 const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
                 const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                 return bTime - aTime;
-              })
+              });
+            })()
           : [];
         setApiProducts(mapped);
       })

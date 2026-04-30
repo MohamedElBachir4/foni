@@ -158,8 +158,9 @@ export default function SpareModelsPage() {
         // إنشاء الماركة تلقائياً إذا كانت من القائمة الثابتة وغير موجودة بقاعدة البيانات
         const createBrandRes = await fetch(`${API_URL}/api/brands`, {
           method: "POST",
-          headers: getAuthHeaders(), credentials: "include",
-          body: JSON.stringify({ name: selectedStatic.name }),
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ name: selectedStatic.name, allowEditDelete: false }),
         });
         const createBrandData = await createBrandRes.json().catch(() => ({}));
         if (createBrandRes.ok && createBrandData?._id) {

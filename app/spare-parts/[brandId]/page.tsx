@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { getProductImageUrl } from "@/lib/productImage";
+import { IphoneOrPlainModelGrid } from "@/components/brand/IphoneModelSections";
 import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -115,47 +115,13 @@ export default function SparePartsModelsPage() {
             <p className="mt-1 text-sm text-slate-500">يمكن إضافتها من لوحة التحكم</p>
           </div>
         ) : (
-          <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {models.map((m) => (
-              <button
-                key={m._id}
-                type="button"
-                onClick={() => router.push(`/spare-parts/${brandId}/${m._id}`)}
-                className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-2 hover:ring-blue-500/20 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:rounded-[1.25rem]"
-              >
-                <div className="relative flex min-h-[140px] items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4 py-8 sm:min-h-[160px]">
-                  {m.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={getProductImageUrl(m.image)}
-                      alt={m.name}
-                      className="max-h-[120px] w-full max-w-[120px] object-contain transition-transform duration-300 group-hover:scale-105 sm:max-h-[140px] sm:max-w-[140px]"
-                    />
-                  ) : (
-                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                      <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
-                      </svg>
-                    </div>
-                  )}
-                  <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-                    موديل
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col border-t border-slate-100 p-4">
-                  <h3 className="mb-3 line-clamp-2 text-sm font-bold leading-snug text-slate-800 group-hover:text-blue-700">
-                    {m.name}
-                  </h3>
-                  <span className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-sm transition-colors group-hover:bg-blue-700">
-                    عرض قطع الغيار
-                    <svg className="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </span>
-                </div>
-              </button>
-            ))}
-          </section>
+          <IphoneOrPlainModelGrid
+            brandParam={brandId}
+            brandName={brand?.name}
+            models={models}
+            ctaLabel="عرض قطع الغيار"
+            onModelNavigate={(m) => router.push(`/spare-parts/${brandId}/${m._id}`)}
+          />
         )}
       </main>
       <Footer />
