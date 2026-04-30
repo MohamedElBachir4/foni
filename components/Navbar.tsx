@@ -156,7 +156,7 @@ export function Navbar() {
                 </span>
               </button>
               {isAccountMenuOpen && (
-                <div className="absolute left-0 top-[120%] w-64 rounded-2xl border border-slate-200 bg-white/95 p-3 text-xs text-slate-800 shadow-xl sm:w-72 sm:text-sm">
+                <div className="absolute end-0 top-[120%] z-[120] w-64 max-w-[calc(100vw-1rem)] rounded-2xl border border-slate-200 bg-white/95 p-3 text-xs text-slate-800 shadow-xl sm:w-72 sm:text-sm">
                   {account ? (
                     <>
                       <div className="mb-4 flex items-center gap-3">
