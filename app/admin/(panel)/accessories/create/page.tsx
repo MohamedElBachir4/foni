@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { getPhoneTypeIdsFromAccessory } from "@/lib/accessoryVisibility";
 import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
-import { Package, CheckCircle, AlertCircle, Pencil, Trash2 } from "lucide-react";
+import {
+  ADMIN_COPY_UNCHANGED_MESSAGE,
+  buildAccessoryCreateComparePayload,
+  snapshotAccessoryAfterModelsResolved,
+  snapshotCreatePayload,
+} from "@/lib/adminCopyProduct";
+import { Package, CheckCircle, AlertCircle, Pencil, Trash2, Copy } from "lucide-react";
 import {
   AdminButton,
   AdminCard,
@@ -10,6 +17,7 @@ import {
   AdminTable,
   AdminTableCellImage,
   AdminPagination,
+  AdminProductColorsPicker,
 } from "@/components/admin";
 
 const PAGE_SIZE = 12;
@@ -23,6 +31,7 @@ type Accessory = {
   type: AccessoryType | string;
   brand?: Brand | string;
   phoneType?: PhoneTypeRow | string;
+  phoneTypes?: PhoneTypeRow[] | string[];
   image?: string;
   extraImages?: string[];
   colors?: string[];
@@ -34,14 +43,6 @@ type Accessory = {
   details?: string;
 };
 
-const COLOR_OPTIONS = [
-  { id: "white", label: "أبيض" },
-  { id: "black", label: "أسود" },
-  { id: "gold", label: "ذهبي" },
-  { id: "silver", label: "فضي" },
-  { id: "purple", label: "بنفسجي" },
-];
-
 export default function AccessoriesPage() {
   const [types, setTypes] = useState<AccessoryType[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -52,7 +53,8 @@ export default function AccessoriesPage() {
   const [name, setName] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
-  const [selectedPhoneType, setSelectedPhoneType] = useState("");
+  const [selectedPhoneTypes, setSelectedPhoneTypes] = useState<string[]>([]);
+  const [modelPickerSearch, setModelPickerSearch] = useState("");
   const [image, setImage] = useState("");
   const [extraImagesText, setExtraImagesText] = useState("");
   const [price, setPrice] = useState("");
@@ -63,6 +65,7 @@ export default function AccessoriesPage() {
   const [details, setDetails] = useState("");
   const [colors, setColors] = useState<string[]>([]);
   const [editing, setEditing] = useState<Accessory | null>(null);
+  const [copySnapshot, setCopySnapshot] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -141,7 +144,8 @@ export default function AccessoriesPage() {
     setName("");
     setSelectedType("");
     setSelectedBrand("");
-    setSelectedPhoneType("");
+    setSelectedPhoneTypes([]);
+    setModelPickerSearch("");
     setPhoneTypes([]);
     setImage("");
     setExtraImagesText("");
@@ -153,10 +157,7 @@ export default function AccessoriesPage() {
     setDetails("");
     setColors([]);
     setEditing(null);
-  }
-
-  function toggleColor(id: string) {
-    setColors((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+    setCopySnapshot(null);
   }
 
   function parseExtraImages(): string[] {
@@ -197,15 +198,18 @@ export default function AccessoriesPage() {
       setMessage({ type: "error", text: "اختر نوع الأكسسوار" });
       return;
     }
-    if (!selectedBrand || !selectedPhoneType) {
-      setMessage({ type: "error", text: "اختر الماركة وموديل الهاتف" });
+    if (!selectedBrand || selectedPhoneTypes.length === 0) {
+      setMessage({
+        type: "error",
+        text: "اختر الماركة وموديل هاتف واحد على الأقل (يمكن اختيار عدة موديلات)",
+      });
       return;
     }
     const payload = {
       name: name.trim(),
       type: selectedType,
       brand: String(selectedBrand).trim(),
-      phoneType: String(selectedPhoneType).trim(),
+      phoneTypes: selectedPhoneTypes,
       image: image.trim(),
       extraImages: parseExtraImages(),
       colors,
@@ -216,6 +220,29 @@ export default function AccessoriesPage() {
       stock: stock.trim() ? Number(stock) : 0,
       details: details.trim(),
     };
+    if (!editing && copySnapshot) {
+      const current = snapshotCreatePayload(
+        buildAccessoryCreateComparePayload({
+          name,
+          selectedType,
+          selectedBrand,
+          selectedPhoneTypes,
+          image,
+          extraImagesText,
+          colors,
+          price,
+          priceRetail,
+          priceWholesale,
+          priceReparateur,
+          stock,
+          details,
+        })
+      );
+      if (current === copySnapshot) {
+        setMessage({ type: "error", text: ADMIN_COPY_UNCHANGED_MESSAGE });
+        return;
+      }
+    }
     try {
       let res: Response;
       if (editing) {
@@ -247,9 +274,13 @@ export default function AccessoriesPage() {
     }
   }
 
-  async function startEdit(item: Accessory) {
-    setEditing(item);
+  async function startCopyFrom(item: Accessory) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setEditing(null);
+    setCopySnapshot(null);
+    setMessage(null);
     setName(item.name);
+    setModelPickerSearch("");
     setSelectedType(typeof item.type === "object" ? (item.type as AccessoryType)._id : "");
     const bid = String(
       typeof item.brand === "object" && item.brand && "_id" in item.brand
@@ -258,13 +289,8 @@ export default function AccessoriesPage() {
           ? item.brand
           : ""
     );
-    const pid = String(
-      typeof item.phoneType === "object" && item.phoneType && "_id" in item.phoneType
-        ? (item.phoneType as PhoneTypeRow)._id
-        : typeof item.phoneType === "string"
-          ? item.phoneType
-          : ""
-    );
+    const storedIds = getPhoneTypeIdsFromAccessory(item);
+
     setImage(item.image || "");
     setExtraImagesText((item.extraImages || []).join("\n"));
     setPrice(item.price != null ? String(item.price) : "");
@@ -283,20 +309,104 @@ export default function AccessoriesPage() {
 
     if (bid) {
       let list = await loadPhoneTypes(bid);
-      if (pid && !list.some((p) => p._id === pid)) {
-        const nameHint =
-          typeof item.phoneType === "object" && item.phoneType && "name" in item.phoneType
-            ? (item.phoneType as PhoneTypeRow).name
-            : pid;
-        list = [{ _id: pid, name: `${nameHint} (محفوظ)` }, ...list];
+
+      function displayNameForId(id: string): string {
+        if (Array.isArray(item.phoneTypes)) {
+          for (const pt of item.phoneTypes) {
+            if (typeof pt === "object" && pt !== null && "_id" in pt && (pt as PhoneTypeRow)._id === id) {
+              const n = (pt as PhoneTypeRow).name;
+              return `${n ?? id.slice(0, 8)} (محفوظ)`;
+            }
+          }
+        }
+        if (typeof item.phoneType === "object" && item.phoneType && "_id" in item.phoneType) {
+          const row = item.phoneType as PhoneTypeRow;
+          if (row._id === id) return `${row.name ?? id.slice(0, 8)} (محفوظ)`;
+        }
+        return `${id.slice(0, 8)}… (محفوظ)`;
       }
+
+      const missing = storedIds.filter((id) => !list.some((p) => p._id === id));
+      for (const id of [...missing].reverse()) {
+        list = [{ _id: id, name: displayNameForId(id) }, ...list];
+      }
+
+      const selected = storedIds.filter((id) => list.some((p) => p._id === id));
+      setCopySnapshot(snapshotAccessoryAfterModelsResolved(item, selected));
       setPhoneTypes(list);
       setSelectedBrand(bid);
-      setSelectedPhoneType(pid && list.some((p) => p._id === pid) ? pid : "");
+      setSelectedPhoneTypes(selected);
     } else {
       setPhoneTypes([]);
       setSelectedBrand("");
-      setSelectedPhoneType("");
+      setSelectedPhoneTypes([]);
+      setCopySnapshot(snapshotAccessoryAfterModelsResolved(item, []));
+    }
+  }
+
+  async function startEdit(item: Accessory) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCopySnapshot(null);
+    setEditing(item);
+    setName(item.name);
+    setModelPickerSearch("");
+    setSelectedType(typeof item.type === "object" ? (item.type as AccessoryType)._id : "");
+    const bid = String(
+      typeof item.brand === "object" && item.brand && "_id" in item.brand
+        ? (item.brand as Brand)._id
+        : typeof item.brand === "string"
+          ? item.brand
+          : ""
+    );
+    const storedIds = getPhoneTypeIdsFromAccessory(item);
+
+    setImage(item.image || "");
+    setExtraImagesText((item.extraImages || []).join("\n"));
+    setPrice(item.price != null ? String(item.price) : "");
+    setPriceRetail(
+      item.priceRetail != null ? String(item.priceRetail) : ""
+    );
+    setPriceWholesale(
+      item.priceWholesale != null ? String(item.priceWholesale) : ""
+    );
+    setPriceReparateur(
+      item.priceReparateur != null ? String(item.priceReparateur) : ""
+    );
+    setStock(item.stock != null ? String(item.stock) : "");
+    setDetails(item.details || "");
+    setColors(Array.isArray(item.colors) ? [...item.colors] : []);
+
+    if (bid) {
+      let list = await loadPhoneTypes(bid);
+
+      function displayNameForId(id: string): string {
+        if (Array.isArray(item.phoneTypes)) {
+          for (const pt of item.phoneTypes) {
+            if (typeof pt === "object" && pt !== null && "_id" in pt && (pt as PhoneTypeRow)._id === id) {
+              const n = (pt as PhoneTypeRow).name;
+              return `${n ?? id.slice(0, 8)} (محفوظ)`;
+            }
+          }
+        }
+        if (typeof item.phoneType === "object" && item.phoneType && "_id" in item.phoneType) {
+          const row = item.phoneType as PhoneTypeRow;
+          if (row._id === id) return `${row.name ?? id.slice(0, 8)} (محفوظ)`;
+        }
+        return `${id.slice(0, 8)}… (محفوظ)`;
+      }
+
+      const missing = storedIds.filter((id) => !list.some((p) => p._id === id));
+      for (const id of [...missing].reverse()) {
+        list = [{ _id: id, name: displayNameForId(id) }, ...list];
+      }
+
+      setPhoneTypes(list);
+      setSelectedBrand(bid);
+      setSelectedPhoneTypes(storedIds.filter((id) => list.some((p) => p._id === id)));
+    } else {
+      setPhoneTypes([]);
+      setSelectedBrand("");
+      setSelectedPhoneTypes([]);
     }
   }
 
@@ -328,6 +438,15 @@ export default function AccessoriesPage() {
   };
 
   const modelName = (a: Accessory) => {
+    if (Array.isArray(a.phoneTypes) && a.phoneTypes.length > 0) {
+      const names = a.phoneTypes.map((pt) =>
+        typeof pt === "object" && pt !== null && "name" in pt
+          ? (pt as PhoneTypeRow).name
+          : null
+      ).filter(Boolean) as string[];
+      if (names.length > 1) return `${names.slice(0, 2).join("، ")}${names.length > 2 ? ` +${names.length - 2}` : ""}`;
+      if (names.length === 1) return names[0]!;
+    }
     if (typeof a.phoneType === "object" && a.phoneType) {
       return (a.phoneType as PhoneTypeRow).name;
     }
@@ -338,9 +457,7 @@ export default function AccessoriesPage() {
     const hasBrand =
       (typeof a.brand === "object" && a.brand && "_id" in a.brand) ||
       (typeof a.brand === "string" && /^[a-f0-9]{24}$/i.test(a.brand));
-    const hasModel =
-      (typeof a.phoneType === "object" && a.phoneType && "_id" in a.phoneType) ||
-      (typeof a.phoneType === "string" && /^[a-f0-9]{24}$/i.test(a.phoneType));
+    const hasModel = getPhoneTypeIdsFromAccessory(a).length > 0;
     return !hasBrand || !hasModel;
   };
 
@@ -352,16 +469,39 @@ export default function AccessoriesPage() {
     currentPage * PAGE_SIZE
   );
 
+  const filteredPhoneModelsForPicker = useMemo(() => {
+    const q = modelPickerSearch.trim().toLowerCase();
+    if (!q) return phoneTypes;
+    return phoneTypes.filter((p) => p.name.toLowerCase().includes(q));
+  }, [phoneTypes, modelPickerSearch]);
+
+  function togglePhoneModel(id: string) {
+    setSelectedPhoneTypes((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <AdminPageHeader
         title="منتجات الأكسسوارات"
-        description="إضافة الأكسسوارات وربط كل منتج بماركة نوع هاتف وموديل (PhoneType) لعرضه في التصفح والماركات."
+        description="إضافة الأكسسوارات وربط كل منتج بماركة وبواحد أو أكثر من موديلات الهاتف لعرضه في صفحات الموديلات دون التكرار."
         icon={<Package className="h-5 w-5" />}
       />
 
       <AdminCard
-        title={editing ? "تعديل منتج أكسسوارات" : "إضافة منتج أكسسوارات جديد"}
+        title={
+          editing
+            ? "تعديل منتج أكسسوارات"
+            : copySnapshot
+              ? "إضافة أكسسوار (من نسخة)"
+              : "إضافة منتج أكسسوارات جديد"
+        }
+        description={
+          copySnapshot && !editing
+            ? "تم تعبئة الحقول من منتج موجود. عدّل حقلًا واحدًا على الأقل ثم احفظ."
+            : undefined
+        }
         icon={<Package className="h-5 w-5" />}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -411,7 +551,8 @@ export default function AccessoriesPage() {
                 value={selectedBrand}
                 onChange={async (e) => {
                   const v = e.target.value;
-                  setSelectedPhoneType("");
+                  setSelectedPhoneTypes([]);
+                  setModelPickerSearch("");
                   setSelectedBrand(v);
                   setPhoneTypes(v ? await loadPhoneTypes(v) : []);
                 }}
@@ -425,23 +566,78 @@ export default function AccessoriesPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">موديل الهاتف</label>
-              <select
-                value={selectedPhoneType}
-                onChange={(e) => setSelectedPhoneType(e.target.value)}
-                className="admin-select"
-                disabled={!selectedBrand}
-              >
-                <option value="">
-                  {selectedBrand ? "اختر الموديل" : "اختر الماركة أولاً"}
-                </option>
-                {phoneTypes.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                موديلات الهاتف{" "}
+                <span className="font-normal text-slate-500">(متعدّد، يمكن اختيار أكثر من موديل)</span>
+              </label>
+              {!selectedBrand ? (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                  اختر الماركة أولاً لعرض الموديلات.
+                </p>
+              ) : (
+                <>
+                  <input
+                    type="search"
+                    value={modelPickerSearch}
+                    onChange={(e) => setModelPickerSearch(e.target.value)}
+                    placeholder="بحث في الموديلات…"
+                    className="admin-input mb-2"
+                    dir="auto"
+                  />
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => setSelectedPhoneTypes(phoneTypes.map((p) => p._id))}
+                      disabled={!phoneTypes.length}
+                    >
+                      اختيار الكل ({phoneTypes.length})
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => setSelectedPhoneTypes([])}
+                    >
+                      إزالة الكل
+                    </button>
+                    <span className="mr-auto text-xs text-slate-600">
+                      مختار: {selectedPhoneTypes.length}{" "}
+                      {filteredPhoneModelsForPicker.length < phoneTypes.length
+                        ? `— معروض ${filteredPhoneModelsForPicker.length} بعد البحث`
+                        : ""}
+                    </span>
+                  </div>
+                  <div
+                    className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:max-h-60"
+                    role="group"
+                    aria-label="قائمة موديلات الهاتف"
+                  >
+                    {filteredPhoneModelsForPicker.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-slate-500">
+                        لا توجد موديلات مطابقة للبحث أو القائمة فارغة.
+                      </p>
+                    ) : (
+                      <div className="grid gap-1 sm:grid-cols-2">
+                        {filteredPhoneModelsForPicker.map((p) => (
+                          <label
+                            key={p._id}
+                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-transparent px-2 py-2 text-sm text-slate-700 hover:border-sky-100 hover:bg-sky-50/60"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedPhoneTypes.includes(p._id)}
+                              onChange={() => togglePhoneModel(p._id)}
+                              className="h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -534,40 +730,9 @@ export default function AccessoriesPage() {
             </div>
           </div>
 
-          {/* الألوان */}
-          <div>
+          <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-medium text-slate-700">الألوان المتوفرة</label>
-            <div className="flex flex-wrap gap-3">
-              {COLOR_OPTIONS.map((c) => (
-                <label
-                  key={c.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 transition hover:border-sky-300"
-                >
-                  <input
-                    type="checkbox"
-                    checked={colors.includes(c.id)}
-                    onChange={() => toggleColor(c.id)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span
-                    className="h-4 w-4 rounded-full border border-slate-200"
-                    style={{
-                      backgroundColor:
-                        c.id === "white"
-                          ? "#ffffff"
-                          : c.id === "black"
-                          ? "#1f2937"
-                          : c.id === "gold"
-                          ? "#d4af37"
-                          : c.id === "silver"
-                          ? "#c0c0c0"
-                          : "#7c3aed",
-                    }}
-                  />
-                  <span>{c.label}</span>
-                </label>
-              ))}
-            </div>
+            <AdminProductColorsPicker value={colors} onChange={setColors} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -640,9 +805,9 @@ export default function AccessoriesPage() {
           </div>
 
           <div className="flex gap-3">
-            {editing && (
+            {(editing || copySnapshot) && (
               <AdminButton type="button" variant="outline" onClick={resetForm}>
-                إلغاء
+                {editing ? "إلغاء" : "إلغاء النسخ"}
               </AdminButton>
             )}
             <AdminButton type="submit" variant="primary" disabled={uploadingImages}>
@@ -650,6 +815,8 @@ export default function AccessoriesPage() {
                 ? "جاري رفع الصور..."
                 : editing
                 ? "حفظ التعديلات"
+                : copySnapshot
+                ? "حفظ المنتج الجديد"
                 : "إضافة المنتج"}
             </AdminButton>
           </div>
@@ -666,11 +833,11 @@ export default function AccessoriesPage() {
             className="mb-4 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950"
             role="status"
           >
-            <p className="font-semibold">تنبيه: ماركة أو موديل غير مكتمل</p>
+            <p className="font-semibold">تنبيه: ماركة أو ربط موديل غير مكتمل</p>
             <p className="mt-1 text-amber-900/90">
               الصفوف التي تظهر «—» في الماركة أو الموديل (قد تكون أُنشئت قديماً) لا تظهر في الموقع تحت
-              موديل محدد. اضغط «تعديل» واختر <strong>الماركة</strong> ثم <strong>موديل الهاتف</strong>{" "}
-              ثم احفظ — بعدها يظهر المنتج فقط في صفحة: الماركة → الموديل → اكسسوارات.
+              أي موديل. اضغط «تعديل» واختر <strong>الماركة</strong> ثم واحدًا أو أكثر من{" "}
+              <strong>موديلات الهاتف</strong> ثم احفظ — يظهر نفس الأكسسوار في كل صفحة موديل مرتبط.
             </p>
           </div>
         )}
@@ -700,6 +867,15 @@ export default function AccessoriesPage() {
             stock: <span className="text-slate-600">{a.stock ?? 0}</span>,
             actions: (
               <div className="flex items-center gap-2">
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<Copy className="h-4 w-4" />}
+                  onClick={() => {
+                    void startCopyFrom(a);
+                  }}
+                  title="نسخ إلى نموذج إضافة جديد"
+                />
                 <AdminButton
                   variant="ghost"
                   size="sm"

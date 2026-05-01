@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BRAND_OFFICIAL_LOGOS } from "@/lib/brandLogos";
 import { getProductImageUrl } from "@/lib/productImage";
@@ -53,9 +54,19 @@ type BrandGridProps = {
   selectedBrandId: string | null;
   onSelectBrand: (brandId: string | null) => void;
   category?: "phones" | "accessories" | "spare-parts";
+  /** عنوان القسم (الافتراضي: نفس الصفحة الرئيسية) */
+  sectionTitle?: string;
+  /** وصف تحت العنوان */
+  sectionSubtitle?: string;
 };
 
-export function BrandGrid({ selectedBrandId, onSelectBrand, category }: BrandGridProps) {
+export function BrandGrid({
+  selectedBrandId,
+  onSelectBrand,
+  category,
+  sectionTitle,
+  sectionSubtitle,
+}: BrandGridProps) {
   const [brands, setBrands] = useState<BrandRow[]>(STATIC_BRANDS);
   const router = useRouter();
 
@@ -85,10 +96,12 @@ export function BrandGrid({ selectedBrandId, onSelectBrand, category }: BrandGri
       <div className="mb-10 text-center">
         <h2 className="mb-3 flex items-center justify-center gap-3 text-4xl font-bold text-gray-800">
           <Award className="h-8 w-8 text-yellow-500" />
-          <span>الماركات العالمية</span>
+          <span>{sectionTitle ?? "الماركات العالمية"}</span>
           <TrendingUp className="h-8 w-8 text-green-500" />
         </h2>
-        <p className="text-gray-500">أشهر الماركات في مكان واحد بأسعار تنافسية</p>
+        <p className="text-gray-500">
+          {sectionSubtitle ?? "أشهر الماركات في مكان واحد بأسعار تنافسية"}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -107,11 +120,14 @@ export function BrandGrid({ selectedBrandId, onSelectBrand, category }: BrandGri
             {/* Shine Effect */}
             <div className="absolute inset-0 -translate-x-full transform bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             
-            <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center transition-all duration-300 group-hover:scale-110">
-              <img
+            <div className="relative mx-auto mb-3 flex h-20 w-20 items-center justify-center transition-all duration-300 group-hover:scale-110">
+              <Image
                 src={brand.image}
                 alt={brand.name}
-                className={`h-16 w-16 object-contain transition-all duration-300 ${
+                width={64}
+                height={64}
+                unoptimized
+                className={`object-contain transition-all duration-300 ${
                   selectedBrandId === brand.id ? "brightness-0 invert" : ""
                 }`}
               />

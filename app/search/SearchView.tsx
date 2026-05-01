@@ -30,7 +30,17 @@ type Grouped = {
   phones: SearchResult[];
   spareParts: SearchResult[];
   accessories: SearchResult[];
+  interpretedQuery?: string;
 };
+
+function collapseForCompare(s: string) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
 
 function categoryLabel(type: string) {
   if (type === "phone") return "هاتف";
@@ -52,6 +62,7 @@ function SearchBody() {
   const section = searchParams.get("section") || "";
   const [grouped, setGrouped] = useState<Grouped | null>(null);
   const [loading, setLoading] = useState(true);
+  const [interpretedQuery, setInterpretedQuery] = useState<string>("");
   const { account } = useAccount();
 
   const sectionApi =
@@ -65,6 +76,7 @@ function SearchBody() {
     async (query: string) => {
       if (!query.trim()) {
         setGrouped({ phones: [], spareParts: [], accessories: [] });
+        setInterpretedQuery("");
         setLoading(false);
         return;
       }
@@ -78,15 +90,21 @@ function SearchBody() {
         if (res.ok) {
           const data = await res.json();
           if (data && typeof data === "object" && Array.isArray(data.phones)) {
+            const iq =
+              typeof data.interpretedQuery === "string" ? data.interpretedQuery.trim() : "";
+            setInterpretedQuery(iq);
             setGrouped(data as Grouped);
           } else {
             setGrouped({ phones: [], spareParts: [], accessories: [] });
+            setInterpretedQuery("");
           }
         } else {
           setGrouped({ phones: [], spareParts: [], accessories: [] });
+          setInterpretedQuery("");
         }
       } catch {
         setGrouped({ phones: [], spareParts: [], accessories: [] });
+        setInterpretedQuery("");
       } finally {
         setLoading(false);
       }
@@ -110,6 +128,22 @@ function SearchBody() {
     grouped &&
     (grouped.phones.length > 0 || grouped.spareParts.length > 0 || grouped.accessories.length > 0);
 
+  const highlightSource = useMemo(() => {
+    const raw = q.trim();
+    if (
+      interpretedQuery &&
+      collapseForCompare(interpretedQuery) !== collapseForCompare(raw)
+    ) {
+      return interpretedQuery;
+    }
+    return raw;
+  }, [interpretedQuery, q]);
+
+  const showInterpretedLine =
+    Boolean(q.trim()) &&
+    Boolean(interpretedQuery) &&
+    collapseForCompare(interpretedQuery) !== collapseForCompare(q.trim());
+
   return (
     <div className="min-h-screen w-full bg-slate-50 antialiased">
       <Navbar />
@@ -124,6 +158,18 @@ function SearchBody() {
           </h1>
           {q.trim() && (
             <p className="text-sm text-slate-600">
+              {showInterpretedLine ? (
+                <span className="mr-3 inline-block leading-relaxed">
+                  <span className="font-semibold text-slate-700">بحث بتفسير المرونة: </span>
+                  <Link
+                    href={`/search?q=${encodeURIComponent(interpretedQuery)}`}
+                    className="font-semibold text-blue-600 hover:underline"
+                  >
+                    {interpretedQuery}
+                  </Link>
+                  <span className="mx-2 text-slate-400">·</span>
+                </span>
+              ) : null}
               <Link
                 href={`/search/categories?q=${encodeURIComponent(q)}`}
                 className="font-semibold text-blue-600 hover:underline"
@@ -149,7 +195,7 @@ function SearchBody() {
           </div>
         ) : sectionApi && grouped ? (
           <ResultGrid
-            q={q}
+            highlightQuery={highlightSource}
             items={listForSection}
             account={account}
             categoryLabel={categoryLabel}
@@ -165,7 +211,7 @@ function SearchBody() {
                     {sectionTitle(key)}
                   </h2>
                   <ResultGrid
-                    q={q}
+                    highlightQuery={highlightSource}
                     items={list}
                     account={account}
                     categoryLabel={categoryLabel}
@@ -182,12 +228,12 @@ function SearchBody() {
 }
 
 function ResultGrid({
-  q,
+  highlightQuery,
   items,
   account,
   categoryLabel,
 }: {
-  q: string;
+  highlightQuery: string;
   items: SearchResult[];
   account: AccountInfo | null;
   categoryLabel: (t: string) => string;
@@ -230,7 +276,7 @@ function ResultGrid({
 
             <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
               <h3 className="mb-1.5 min-h-[2.5rem] text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">
-                {highlightQueryInText(item.name, q)}
+                {highlightQueryInText(item.name, highlightQuery)}
               </h3>
 
               {effectivePrice != null && Number(effectivePrice) > 0 ? (
@@ -255,7 +301,13 @@ function ResultGrid({
                 image={item.image}
                 colors={(item as { colors?: string[] }).colors}
                 category={
-                  item.type === "phone" || item.type === "phoneType" ? "هواتف" : undefined
+                  item.type === "phone" || item.type === "phoneType"
+                    ? "هواتف"
+                    : item.type === "sparePart"
+                      ? "قطع غيار"
+                      : item.type === "accessory"
+                        ? "أكسسوارات"
+                        : "هواتف"
                 }
               />
             </div>

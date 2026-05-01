@@ -1,8 +1,8 @@
 "use client";
 
 import { ProductImage } from "@/components/ProductImage";
-import { Heart, ShoppingCart } from "lucide-react";
-import { AddToCartButton } from "@/components/AddToCartButton";
+import { Heart } from "lucide-react";
+import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd } from "@/lib/pricing";
 
@@ -15,6 +15,7 @@ type Accessory = {
   priceWholesale?: number;
   priceReparateur?: number;
   details?: string;
+  colors?: string[];
 };
 
 export function BrandAccessoriesList({ accessories }: { accessories: Accessory[] }) {
@@ -64,6 +65,10 @@ export function BrandAccessoriesList({ accessories }: { accessories: Accessory[]
                 {a.name}
               </h2>
 
+              <p className="mb-2 line-clamp-2 text-center text-xs text-slate-500 sm:text-sm">
+                {a.details || "أكسسوار متوفر للطلب."}
+              </p>
+
               {effectivePrice != null && effectivePrice > 0 ? (
                 <p className="mb-2 text-center">
                   <span className="text-xl font-black text-slate-900 sm:text-2xl">
@@ -75,22 +80,14 @@ export function BrandAccessoriesList({ accessories }: { accessories: Accessory[]
                 <p className="mb-2 text-center text-sm font-semibold text-slate-400">— DA</p>
               )}
 
-              <p className="mb-3 line-clamp-2 text-center text-xs text-slate-500 sm:text-sm">
-                {a.details || "أكسسوار متوفر للطلب."}
-              </p>
-
-              <div className="mt-auto flex flex-col gap-2">
-                <AddToCartButton
-                  id={a._id}
-                  name={a.name}
-                  price={effectivePrice ?? 0}
-                  image={a.image ?? ""}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                >
-                  <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2} />
-                  أضف للسلة
-                </AddToCartButton>
-              </div>
+              <ProductCardActions
+                id={a._id}
+                name={a.name}
+                price={effectivePrice ?? 0}
+                image={a.image ?? ""}
+                colors={Array.isArray(a.colors) ? a.colors : []}
+                category="أكسسوارات"
+              />
             </div>
           </article>
         );

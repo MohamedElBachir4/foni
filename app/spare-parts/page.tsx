@@ -1,15 +1,8 @@
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { SparePartsBrandGrid } from "@/components/SparePartsBrandGrid";
-import { SPARE_PARTS_STATIC_BRANDS } from "@/lib/sparePartsStaticBrands";
+import { SparePartsBrandsSection } from "@/components/SparePartsBrandsSection";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
-
-const brandsForGrid = SPARE_PARTS_STATIC_BRANDS.map((b) => ({
-  _id: b.slug,
-  name: b.name,
-  slug: b.slug,
-}));
 
 export const metadata: Metadata = buildMetadata({
   title: "قطع غيار الهواتف في الجزائر",
@@ -32,7 +25,7 @@ export default function SparePartsBrandsPage() {
           </p>
         </section>
 
-        <SparePartsBrandGrid brands={brandsForGrid} />
+        <SparePartsBrandsSection />
         <Footer />
       </main>
     </div>

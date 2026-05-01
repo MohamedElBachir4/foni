@@ -8,9 +8,11 @@ import { Footer } from "@/components/Footer";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft } from "lucide-react";
 import { getProductImageUrl } from "@/lib/productImage";
 import { formatDzd } from "@/lib/pricing";
+import { getProductColorLabelAr } from "@/lib/productColors";
+import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 
 export default function CartPage() {
-  const { items, removeFromCart, updateQuantity, totalItems, totalPrice } =
+  const { items, removeFromCart, updateQuantity, updateLineColor, totalItems, totalPrice } =
     useCart();
 
   return (
@@ -72,24 +74,24 @@ export default function CartPage() {
                     <h3 className="font-bold text-slate-900 line-clamp-2">
                       {item.name}
                     </h3>
-                    {item.color && (
+                    {item.availableColors && item.availableColors.length > 0 ? (
+                      <div className="mt-2">
+                        <p className="text-xs font-semibold text-slate-600">اللون</p>
+                        <ProductColorSwatches
+                          colorIds={item.availableColors}
+                          value={item.color || ""}
+                          onChange={(c) =>
+                            updateLineColor(item.color ? `${item.id}||${item.color}` : item.id, c)
+                          }
+                          size="sm"
+                          className="mt-1 justify-start"
+                        />
+                      </div>
+                    ) : item.color ? (
                       <p className="mt-0.5 text-sm text-slate-500">
-                        اللون: {
-                          {
-                            white: "أبيض",
-                            black: "أسود",
-                            gold: "ذهبي",
-                            silver: "فضي",
-                            purple: "بنفسجي",
-                            red: "أحمر",
-                            blue: "أزرق",
-                            green: "أخضر",
-                            gray: "رمادي",
-                            brown: "بني",
-                          }[item.color] || item.color
-                        }
+                        اللون: {getProductColorLabelAr(item.color)}
                       </p>
-                    )}
+                    ) : null}
                     <p className="mt-1 text-lg font-bold text-slate-700">
                       {formatDzd(item.price)}{" "}
                       <span className="text-sm font-medium text-slate-500">

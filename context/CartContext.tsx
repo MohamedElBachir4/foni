@@ -17,15 +17,23 @@ export type CartItem = {
   price: number;
   image: string;
   quantity: number;
-  color?: string; // لون المنتج (للهواتف فقط)
-  productType?: "phone" | "accessory" | "sparePart"; // نوع المنتج
+  color?: string;
+  /** ألوان المنتج المعروضة للزبون (للتحقق عند الطلب وتغيير اللون من السلة/الدفع) */
+  availableColors?: string[];
+  productType?: "phone" | "accessory" | "sparePart";
 };
+
+function cartLineKey(i: CartItem): string {
+  return i.color ? `${i.id}||${i.color}` : i.id;
+}
 
 type CartContextValue = {
   items: CartItem[];
   addToCart: (item: Omit<CartItem, "quantity"> | CartItem) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
+  /** تغيير لون سطر السلة (المفتاح: id أو id||اللون الحالي) */
+  updateLineColor: (lineKey: string, newColor: string) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -33,13 +41,26 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+function normalizeCartItemColors(list: CartItem[]): CartItem[] {
+  return list.map((i) => {
+    const ac = Array.isArray(i.availableColors)
+      ? i.availableColors.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
+      : [];
+    if (!ac.length) return i;
+    const col = String(i.color || "").trim().toLowerCase();
+    const colorOk = col && ac.includes(col) ? col : ac[0];
+    return { ...i, availableColors: ac, color: colorOk };
+  });
+}
+
 function loadFromStorage(): CartItem[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+    return normalizeCartItemColors(list);
   } catch {
     return [];
   }
@@ -73,21 +94,35 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const q = "quantity" in item ? item.quantity : 1;
       setItems((prev) => {
         // للهواتف مع الألوان، استخدم id + color كـ key فريد
-        const itemKey = item.color ? `${item.id}||${item.color}` : item.id;
-        const existing = prev.find((i) => {
-          const existingKey = i.color ? `${i.id}||${i.color}` : i.id;
-          return existingKey === itemKey;
-        });
-        
+        const acRaw = (item as CartItem).availableColors;
+        const ac = Array.isArray(acRaw)
+          ? acRaw.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
+          : undefined;
+        const rawCol = (item as CartItem).color
+          ? String((item as CartItem).color).trim().toLowerCase()
+          : "";
+        let nextColor: string | undefined;
+        let nextAc: string[] | undefined;
+        if (ac?.length) {
+          nextAc = ac;
+          nextColor = rawCol && ac.includes(rawCol) ? rawCol : ac[0];
+        } else {
+          nextAc = undefined;
+          nextColor = rawCol || undefined;
+        }
+
+        const itemKey = nextColor ? `${item.id}||${nextColor}` : item.id;
+        const existing = prev.find((i) => cartLineKey(i) === itemKey);
+
         if (existing) {
           return prev.map((i) => {
-            const existingKey = i.color ? `${i.id}||${i.color}` : i.id;
+            const existingKey = cartLineKey(i);
             return existingKey === itemKey
               ? { ...i, quantity: i.quantity + (q || 1) }
               : i;
           });
         }
-        
+
         return [
           ...prev,
           {
@@ -96,7 +131,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             price: item.price,
             image: item.image ?? "",
             quantity: q || 1,
-            color: item.color,
+            color: nextColor,
+            availableColors: nextAc,
             productType: (item as CartItem).productType,
           },
         ];
@@ -106,24 +142,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const removeFromCart = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => {
-      const itemKey = i.color ? `${i.id}||${i.color}` : i.id;
-      return itemKey !== id;
-    }));
+    setItems((prev) => prev.filter((i) => cartLineKey(i) !== id));
   }, []);
 
   const updateQuantity = useCallback((id: string, quantity: number) => {
     const n = Math.max(0, Math.floor(quantity));
     setItems((prev) => {
-      if (n === 0) return prev.filter((i) => {
-        const itemKey = i.color ? `${i.id}||${i.color}` : i.id;
-        return itemKey !== id;
-      });
-      return prev.map((i) => {
-        const itemKey = i.color ? `${i.id}||${i.color}` : i.id;
-        return itemKey === id ? { ...i, quantity: n } : i;
-      });
+      if (n === 0) return prev.filter((i) => cartLineKey(i) !== id);
+      return prev.map((i) => (cartLineKey(i) === id ? { ...i, quantity: n } : i));
     });
+  }, []);
+
+  const updateLineColor = useCallback((lineKey: string, newColor: string) => {
+    const nc = String(newColor || "").trim().toLowerCase();
+    setItems((prev) =>
+      prev.map((i) => {
+        if (cartLineKey(i) !== lineKey) return i;
+        const allowed = i.availableColors;
+        if (allowed?.length) {
+          const ok = allowed.some((a) => String(a).trim().toLowerCase() === nc);
+          if (!ok) return i;
+        }
+        return { ...i, color: nc || undefined };
+      })
+    );
   }, []);
 
   const clearCart = useCallback(() => {
@@ -145,6 +187,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       addToCart,
       removeFromCart,
       updateQuantity,
+      updateLineColor,
       clearCart,
       totalItems,
       totalPrice,
@@ -154,6 +197,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       addToCart,
       removeFromCart,
       updateQuantity,
+      updateLineColor,
       clearCart,
       totalItems,
       totalPrice,

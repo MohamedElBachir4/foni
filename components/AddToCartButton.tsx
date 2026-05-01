@@ -3,42 +3,22 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { ShoppingCart, Check, X } from "lucide-react";
+import { getProductColorLabelAr } from "@/lib/productColors";
+import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 
 type AddToCartButtonProps = {
   id: string;
   name: string;
   price: number;
   image?: string;
-  colors?: string[]; // الألوان المتوفرة (للهواتف فقط)
-  productType?: "phone" | "accessory" | "sparePart"; // نوع المنتج
+  colors?: string[];
+  /** عند true: إضافة مباشرة بلون محدّد من الأب (مثل صفحة المنتج بعد اختيار الدائرة) دون نافذة */
+  lockColorToSelection?: boolean;
+  /** اللون المستخدم مع lockColorToSelection (معرّف من القائمة) */
+  lockedColor?: string;
+  productType?: "phone" | "accessory" | "sparePart";
   className?: string;
   children?: React.ReactNode;
-};
-
-const COLOR_HEX: Record<string, string> = {
-  white: "#ffffff",
-  black: "#1f2937",
-  gold: "#d4af37",
-  silver: "#c0c0c0",
-  purple: "#7c3aed",
-  red: "#dc2626",
-  blue: "#2563eb",
-  green: "#16a34a",
-  gray: "#6b7280",
-  brown: "#92400e",
-};
-
-const COLOR_LABELS: Record<string, string> = {
-  white: "أبيض",
-  black: "أسود",
-  gold: "ذهبي",
-  silver: "فضي",
-  purple: "بنفسجي",
-  red: "أحمر",
-  blue: "أزرق",
-  green: "أخضر",
-  gray: "رمادي",
-  brown: "بني",
 };
 
 export function AddToCartButton({
@@ -47,6 +27,8 @@ export function AddToCartButton({
   price,
   image = "",
   colors = [],
+  lockColorToSelection = false,
+  lockedColor = "",
   productType = "phone",
   className,
   children,
@@ -54,7 +36,7 @@ export function AddToCartButton({
   const { addToCart } = useCart();
   const [added, setAdded] = useState(false);
   const [showColorModal, setShowColorModal] = useState(false);
-  const [selectedColor, setSelectedColor] = useState<string>("");
+  const [modalColor, setModalColor] = useState("");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -63,36 +45,56 @@ export function AddToCartButton({
     };
   }, []);
 
+  useEffect(() => {
+    if (showColorModal && colors.length) {
+      setModalColor((prev) =>
+        prev && colors.map((c) => String(c).toLowerCase()).includes(prev.toLowerCase())
+          ? prev
+          : String(colors[0])
+      );
+    }
+  }, [showColorModal, colors]);
+
   const handleAddToCart = useCallback(
     (color?: string) => {
       if (added) return;
-      
-      addToCart({ 
-        id, 
-        name, 
-        price, 
-        image, 
+
+      const hasColors = colors && colors.length > 0;
+      const c = color?.trim().toLowerCase();
+      addToCart({
+        id,
+        name,
+        price,
+        image,
         quantity: 1,
-        color: color,
+        color: hasColors && c ? c : undefined,
+        availableColors: hasColors ? colors.map((x) => String(x).toLowerCase()) : undefined,
         productType,
       });
-      
+
       setAdded(true);
       setShowColorModal(false);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => setAdded(false), 1800);
     },
-    [added, addToCart, id, name, price, image, productType]
+    [added, addToCart, id, name, price, image, productType, colors]
   );
 
   const handleClick = useCallback(() => {
-    // إذا كان المنتج هاتف وله ألوان، اعرض نافذة اختيار اللون
-    if (productType === "phone" && colors && colors.length > 0) {
+    if (lockColorToSelection && colors.length > 0) {
+      const want = String(lockedColor || colors[0] || "")
+        .trim()
+        .toLowerCase();
+      const ok = colors.some((c) => String(c).trim().toLowerCase() === want);
+      handleAddToCart(ok ? want : String(colors[0]).trim().toLowerCase());
+      return;
+    }
+    if (colors && colors.length > 0) {
       setShowColorModal(true);
     } else {
       handleAddToCart();
     }
-  }, [productType, colors, handleAddToCart]);
+  }, [colors, handleAddToCart, lockColorToSelection, lockedColor]);
 
   const baseClass =
     "inline-flex w-full items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-medium transition-all duration-500 ease-out focus:outline-none focus:ring-2 focus:ring-offset-1 ";
@@ -102,6 +104,52 @@ export function AddToCartButton({
   const successClass =
     baseClass +
     "scale-[0.97] bg-slate-900 text-white focus:ring-slate-500 pointer-events-none";
+
+  const colorModal = showColorModal && colors.length > 0 && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-900">اختر اللون</h3>
+          <button
+            type="button"
+            onClick={() => setShowColorModal(false)}
+            className="rounded-lg p-1 transition hover:bg-slate-100"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mb-5">
+          <p className="mb-3 text-sm text-slate-600">اختر لوناً من الدوائر ثم أكّد الإضافة.</p>
+          <div className="flex justify-center">
+            <ProductColorSwatches colorIds={colors} value={modalColor} onChange={setModalColor} size="md" />
+          </div>
+          <p className="mt-3 text-center text-sm font-semibold text-slate-800">
+            {getProductColorLabelAr(modalColor)}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (modalColor) handleAddToCart(modalColor);
+          }}
+          className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-bold text-white transition hover:bg-blue-500"
+        >
+          <ShoppingCart className="h-4 w-4" />
+          أضف للسلة بهذا اللون
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowColorModal(false)}
+          className="w-full rounded-lg border border-slate-300 py-2 font-medium text-slate-700 transition hover:bg-slate-50"
+        >
+          إلغاء
+        </button>
+      </div>
+    </div>
+  );
 
   if (children) {
     return (
@@ -124,53 +172,7 @@ export function AddToCartButton({
             children
           )}
         </button>
-        
-        {/* Color Modal */}
-        {showColorModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900">اختر اللون</h3>
-                <button
-                  onClick={() => setShowColorModal(false)}
-                  className="p-1 hover:bg-slate-100 rounded-lg transition"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              
-              <div className="mb-6 grid gap-2">
-                {colors.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => handleAddToCart(color)}
-                    className="flex items-center gap-3 rounded-lg border-2 p-3 transition hover:bg-slate-50"
-                    style={{
-                      borderColor: selectedColor === color ? "#2563eb" : "#e2e8f0",
-                    }}
-                  >
-                    <div
-                      className="h-6 w-6 rounded-full border-2 border-slate-200"
-                      style={{
-                        backgroundColor: COLOR_HEX[color] || "#" + Math.random().toString(16).slice(2, 8),
-                      }}
-                    />
-                    <span className="font-medium text-slate-800">
-                      {COLOR_LABELS[color] || color}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              
-              <button
-                onClick={() => setShowColorModal(false)}
-                className="w-full rounded-lg border border-slate-300 py-2 font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                إلغاء
-              </button>
-            </div>
-          </div>
-        )}
+        {colorModal}
       </>
     );
   }
@@ -196,53 +198,7 @@ export function AddToCartButton({
           </>
         )}
       </button>
-      
-      {/* Color Modal */}
-      {showColorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">اختر اللون</h3>
-              <button
-                onClick={() => setShowColorModal(false)}
-                className="p-1 hover:bg-slate-100 rounded-lg transition"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <div className="mb-6 grid gap-2">
-              {colors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => handleAddToCart(color)}
-                  className="flex items-center gap-3 rounded-lg border-2 p-3 transition hover:bg-slate-50"
-                  style={{
-                    borderColor: selectedColor === color ? "#2563eb" : "#e2e8f0",
-                  }}
-                >
-                  <div
-                    className="h-6 w-6 rounded-full border-2 border-slate-200"
-                    style={{
-                      backgroundColor: COLOR_HEX[color] || "#" + Math.random().toString(16).slice(2, 8),
-                    }}
-                  />
-                  <span className="font-medium text-slate-800">
-                    {COLOR_LABELS[color] || color}
-                  </span>
-                </button>
-              ))}
-            </div>
-            
-            <button
-              onClick={() => setShowColorModal(false)}
-              className="w-full rounded-lg border border-slate-300 py-2 font-medium text-slate-700 transition hover:bg-slate-50"
-            >
-              إلغاء
-            </button>
-          </div>
-        </div>
-      )}
+      {colorModal}
     </>
   );
 }

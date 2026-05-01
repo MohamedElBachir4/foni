@@ -2,7 +2,25 @@
 
 import { useState, useEffect, useCallback, useLayoutEffect } from "react";
 import { API_URL, getAuthHeaders, getToken } from "@/lib/adminAuth";
-import { Package, CheckCircle, AlertCircle, Pencil, Trash2, FileSpreadsheet, X, Download, RefreshCw, Search } from "lucide-react";
+import {
+  ADMIN_COPY_UNCHANGED_MESSAGE,
+  buildSparePartManualCreateComparePayload,
+  snapshotCreatePayload,
+  snapshotFromSparePartForCopy,
+} from "@/lib/adminCopyProduct";
+import {
+  Package,
+  CheckCircle,
+  AlertCircle,
+  Pencil,
+  Trash2,
+  FileSpreadsheet,
+  X,
+  Download,
+  RefreshCw,
+  Search,
+  Copy,
+} from "lucide-react";
 import {
   AdminButton,
   AdminCard,
@@ -11,7 +29,9 @@ import {
   AdminTable,
   AdminTableCellImage,
   AdminPagination,
+  AdminProductColorsPicker,
 } from "@/components/admin";
+import { getProductColorHex } from "@/lib/productColors";
 
 const PAGE_SIZE = 15;
 
@@ -27,15 +47,17 @@ type PhoneType = {
 type SparePart = {
   _id: string;
   name: string;
+  creationSource?: "manual" | "excel";
   details?: string;
   image?: string;
   extraImages?: string[];
+  colors?: string[];
   price: number;
   priceRetail?: number;
   priceWholesale?: number;
   priceReparateur?: number;
-  brand: Brand | string;
-  phoneType: PhoneType | string;
+  brand?: Brand | string | null;
+  phoneType?: PhoneType | string | null;
 };
 
 type ImportReportError = { productName: string; reason: string };
@@ -62,6 +84,7 @@ export default function AdminSparePartsPage() {
   const [brandFilter, setBrandFilter] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [editing, setEditing] = useState<SparePart | null>(null);
+  const [copySnapshot, setCopySnapshot] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -87,6 +110,7 @@ export default function AdminSparePartsPage() {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedSpareColors, setSelectedSpareColors] = useState<string[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 400);
@@ -194,7 +218,9 @@ export default function AdminSparePartsPage() {
     setSelectedBrand("");
     setSelectedPhoneType("");
     setNewPhoneTypeName("");
+    setSelectedSpareColors([]);
     setEditing(null);
+    setCopySnapshot(null);
   }
 
   function parseExtraImages(): string[] {
@@ -225,14 +251,16 @@ export default function AdminSparePartsPage() {
 
   function getBrandName(item: SparePart): string {
     const b = item.brand;
+    if (b == null) return "—";
     if (typeof b === "object" && b?.name) return b.name;
-    return brands.find((x) => x._id === b)?.name ?? "-";
+    return brands.find((x) => x._id === b)?.name ?? "—";
   }
 
   function getPhoneTypeName(item: SparePart): string {
     const pt = item.phoneType;
+    if (pt == null) return "—";
     if (typeof pt === "object" && pt?.name) return pt.name;
-    return phoneTypes.find((x) => x._id === pt)?.name ?? "-";
+    return phoneTypes.find((x) => x._id === pt)?.name ?? "—";
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -243,23 +271,19 @@ export default function AdminSparePartsPage() {
       return;
     }
     const normalizedDetails = details.trim();
-    if (normalizedDetails.length < 20) {
-      setMessage({
-        type: "error",
-        text: "أضف وصفاً واضحاً للمنتج (20 حرفاً على الأقل)",
-      });
-      return;
-    }
-    if (!selectedBrand) {
+    const strictExcelForm =
+      !!editing && editing.creationSource === "excel";
+
+    if (strictExcelForm && !selectedBrand) {
       setMessage({ type: "error", text: "اختر الماركة" });
       return;
     }
-    if (!selectedPhoneType && !newPhoneTypeName.trim()) {
+    if (strictExcelForm && !selectedPhoneType && !newPhoneTypeName.trim()) {
       setMessage({ type: "error", text: "اختر الهاتف أو أدخل موديل جديد" });
       return;
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: name.trim(),
       details: normalizedDetails,
       description: normalizedDetails,
@@ -269,10 +293,52 @@ export default function AdminSparePartsPage() {
       priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
       priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
-      brand: selectedBrand,
-      phoneType: selectedPhoneType || undefined,
-      phoneTypeName: selectedPhoneType ? undefined : newPhoneTypeName.trim() || undefined,
+      colors: selectedSpareColors,
     };
+
+    /** إنشاء يدوي فقط يُطبَّق عبر هذا النموذج — المصدر لا يصل من واجهة الاستيراد */
+    const isCreating = !editing?._id;
+    if (isCreating) {
+      payload.creationSource = "manual";
+      payload.brand = selectedBrand || null;
+      if (selectedPhoneType) payload.phoneType = selectedPhoneType;
+      else payload.phoneType = null;
+      if (!selectedPhoneType && newPhoneTypeName.trim())
+        payload.phoneTypeName = newPhoneTypeName.trim();
+    } else if (strictExcelForm) {
+      payload.brand = selectedBrand;
+      payload.phoneType = selectedPhoneType || undefined;
+      payload.phoneTypeName = selectedPhoneType ? undefined : newPhoneTypeName.trim() || undefined;
+    } else {
+      payload.brand = selectedBrand || null;
+      if (selectedPhoneType) payload.phoneType = selectedPhoneType;
+      else payload.phoneType = null;
+      if (!selectedPhoneType && newPhoneTypeName.trim())
+        payload.phoneTypeName = newPhoneTypeName.trim();
+    }
+
+    if (isCreating && copySnapshot) {
+      const current = snapshotCreatePayload(
+        buildSparePartManualCreateComparePayload({
+          name,
+          details,
+          image,
+          extraImagesText,
+          price,
+          priceRetail,
+          priceWholesale,
+          priceReparateur,
+          selectedBrand,
+          selectedPhoneType,
+          newPhoneTypeName,
+          selectedSpareColors,
+        })
+      );
+      if (current === copySnapshot) {
+        setMessage({ type: "error", text: ADMIN_COPY_UNCHANGED_MESSAGE });
+        return;
+      }
+    }
 
     try {
       const isEdit = !!editing?._id;
@@ -300,7 +366,37 @@ export default function AdminSparePartsPage() {
     }
   }
 
+  function startCopyFrom(item: SparePart) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setEditing(null);
+    setCopySnapshot(snapshotFromSparePartForCopy(item));
+    setMessage(null);
+    setName(item.name || "");
+    setDetails(item.details || "");
+    setImage((item.image as string) || "");
+    setExtraImagesText((item.extraImages || []).join("\n"));
+    setPrice(String(item.price ?? ""));
+    setPriceRetail(
+      item.priceRetail != null ? String(item.priceRetail) : ""
+    );
+    setPriceWholesale(
+      item.priceWholesale != null ? String(item.priceWholesale) : ""
+    );
+    setPriceReparateur(
+      item.priceReparateur != null ? String(item.priceReparateur) : ""
+    );
+    const brandId = typeof item.brand === "string" ? item.brand : item.brand?._id;
+    const phoneTypeId = typeof item.phoneType === "string" ? item.phoneType : item.phoneType?._id;
+    setSelectedBrand(brandId || "");
+    setSelectedPhoneType(phoneTypeId || "");
+    setNewPhoneTypeName("");
+    setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
+    if (brandId) fetchPhoneTypesForBrand(brandId);
+  }
+
   function startEdit(item: SparePart) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCopySnapshot(null);
     setEditing(item);
     setName(item.name || "");
     setDetails(item.details || "");
@@ -321,6 +417,7 @@ export default function AdminSparePartsPage() {
     setSelectedBrand(brandId || "");
     setSelectedPhoneType(phoneTypeId || "");
     setNewPhoneTypeName("");
+    setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
     if (brandId) fetchPhoneTypesForBrand(brandId);
   }
 
@@ -468,11 +565,13 @@ export default function AdminSparePartsPage() {
 
   // Pagination is now server-side - parts array IS the current page
 
+  const excelOriginEdit = !!(editing && editing.creationSource === "excel");
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <AdminPageHeader
         title="قطع الغيار"
-        description="إنشاء قطع الغيار وربطها بالماركة والموديل. الماركة أولاً ثم اختيار الهاتف (الموديل) التابع لها."
+        description="الإدخال اليدوي: اسم حر، والماركة والموديل اختياريان. استيراد Excel يفرض ربط الماركة والموديل وقواعد التحقق السابقة دون أي تعديل على مسار الملف."
         icon={<Package className="h-5 w-5" />}
         actions={
           <>
@@ -681,7 +780,18 @@ export default function AdminSparePartsPage() {
       )}
 
       <AdminCard
-        title={editing ? "تعديل قطعة الغيار" : "إضافة قطعة غيار جديدة"}
+        title={
+          editing
+            ? "تعديل قطعة الغيار"
+            : copySnapshot
+              ? "إضافة قطعة (من نسخة)"
+              : "إضافة قطعة غيار جديدة"
+        }
+        description={
+          copySnapshot && !editing
+            ? "تم تعبئة الحقول من منتج موجود. عدّل حقلًا واحدًا على الأقل ثم احفظ."
+            : undefined
+        }
         icon={<Package className="h-5 w-5" />}
       >
         {message && (
@@ -702,8 +812,19 @@ export default function AdminSparePartsPage() {
         )}
 
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
+          {excelOriginEdit ? (
+            <p className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              هذه القطعة من استيراد Excel: حافظ على ربط الماركة والموديل عند التعديل.
+            </p>
+          ) : (
+            <p className="sm:col-span-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-950">
+              إنشاء أو تعديل يدوي: يمكن تعبئة أي اسم للقطعة؛ الماركة والموديل غير إلزاميين ولن يُتحقَّق الاسم ضد قائمة الهواتف.
+            </p>
+          )}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">الماركة</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              الماركة{excelOriginEdit ? "" : " (اختياري)"}
+            </label>
             <select
               value={selectedBrand}
               onChange={(e) => {
@@ -723,7 +844,9 @@ export default function AdminSparePartsPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">الهاتف (الموديل)</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              الهاتف (الموديل){excelOriginEdit ? "" : " (اختياري)"}
+            </label>
             <select
               value={selectedPhoneType}
               onChange={(e) => setSelectedPhoneType(e.target.value)}
@@ -767,11 +890,12 @@ export default function AdminSparePartsPage() {
             <textarea
               value={details}
               onChange={(e) => setDetails(e.target.value)}
-              className="admin-input min-h-[110px]"
+              className="admin-input min-h-[140px] resize-y"
+              rows={8}
               placeholder="اكتب وصفاً واضحاً يشرح وظيفة القطعة، جودتها، والتوافق مع الموديلات..."
             />
             <p className="mt-1 text-xs text-slate-500">
-              اجعل الوصف عملياً وواضحاً ليسهّل على العميل اتخاذ القرار.
+              بلا حد لطول النص. يظهر الوصف كاملاً في صفحة «التفاصيل» للزبون وليس في بطاقة القائمة.
             </p>
           </div>
 
@@ -909,10 +1033,18 @@ export default function AdminSparePartsPage() {
             />
           </div>
 
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">الألوان المتوفرة (اختياري)</label>
+            <p className="mb-2 text-xs text-slate-500">
+              إن وُجدت ألوان، يختار الزبون اللون عند الشراء من الموقع.
+            </p>
+            <AdminProductColorsPicker value={selectedSpareColors} onChange={setSelectedSpareColors} />
+          </div>
+
           <div className="flex items-center justify-end gap-3 sm:col-span-2">
-            {editing && (
+            {(editing || copySnapshot) && (
               <AdminButton type="button" variant="outline" onClick={resetForm}>
-                إلغاء التعديل
+                {editing ? "إلغاء التعديل" : "إلغاء النسخ"}
               </AdminButton>
             )}
             <AdminButton type="submit" variant="success" disabled={uploadingImages}>
@@ -920,6 +1052,8 @@ export default function AdminSparePartsPage() {
                 ? "جاري رفع الصور..."
                 : editing
                 ? "حفظ التعديلات"
+                : copySnapshot
+                ? "حفظ القطعة الجديدة"
                 : "إضافة قطعة الغيار"}
             </AdminButton>
           </div>
@@ -958,6 +1092,7 @@ export default function AdminSparePartsPage() {
           columns={[
             { key: "image", label: "الصورة" },
             { key: "name", label: "الاسم" },
+            { key: "colors", label: "الألوان" },
             { key: "price", label: "السعر" },
             { key: "brand", label: "الماركة" },
             { key: "phone", label: "الهاتف" },
@@ -967,6 +1102,25 @@ export default function AdminSparePartsPage() {
             _id: p._id,
             image: <AdminTableCellImage src={p.image} alt={p.name} />,
             name: <span className="font-medium text-slate-800">{p.name}</span>,
+            colors: (
+              <div className="flex flex-wrap gap-1">
+                {(Array.isArray(p.colors) ? p.colors : []).map((c) => (
+                  <span
+                    key={c}
+                    className="inline-block h-5 w-5 rounded-full border border-slate-200"
+                    style={{
+                      backgroundColor: getProductColorHex(c),
+                      boxShadow:
+                        String(c).toLowerCase() === "white" || String(c).toLowerCase() === "cream"
+                          ? "inset 0 0 0 1px rgba(0,0,0,0.12)"
+                          : undefined,
+                    }}
+                    title={c}
+                  />
+                ))}
+                {(!p.colors || p.colors.length === 0) && <span className="text-xs text-slate-400">—</span>}
+              </div>
+            ),
             price: (
               <span className="text-slate-700">
                 {p.price != null ? Number(p.price).toLocaleString() : "—"} دج
@@ -976,6 +1130,13 @@ export default function AdminSparePartsPage() {
             phone: <span className="text-slate-600">{getPhoneTypeName(p)}</span>,
             actions: (
               <div className="flex items-center gap-2">
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<Copy className="h-4 w-4" />}
+                  onClick={() => startCopyFrom(p)}
+                  title="نسخ إلى نموذج إضافة جديد"
+                />
                 <AdminButton
                   variant="ghost"
                   size="sm"

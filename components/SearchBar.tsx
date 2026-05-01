@@ -25,6 +25,7 @@ type Grouped = {
   phones: SearchSuggestion[];
   spareParts: SearchSuggestion[];
   accessories: SearchSuggestion[];
+  interpretedQuery?: string;
 };
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -46,10 +47,20 @@ function typeLabel(t: string) {
   return "";
 }
 
+function collapseForCompare(s: string) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
 export function SearchBar() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [grouped, setGrouped] = useState<Grouped>(emptyGrouped);
+  const [interpretedQuery, setInterpretedQuery] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -57,6 +68,11 @@ export function SearchBar() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const debouncedQuery = useDebounce(query.trim(), DEBOUNCE_MS);
+
+  const highlightSource =
+    interpretedQuery && collapseForCompare(interpretedQuery) !== collapseForCompare(debouncedQuery)
+      ? interpretedQuery
+      : debouncedQuery;
 
   const flatList = (g: Grouped) => {
     const out: { item: SearchSuggestion; section: keyof Grouped }[] = [];
@@ -69,6 +85,7 @@ export function SearchBar() {
   const fetchSuggestions = useCallback(async (q: string) => {
     if (!q) {
       setGrouped(emptyGrouped);
+      setInterpretedQuery(null);
       return;
     }
     setLoading(true);
@@ -80,20 +97,27 @@ export function SearchBar() {
       if (res.ok) {
         const data = await res.json();
         if (data && data.phones && data.spareParts && data.accessories) {
+          const iq =
+            typeof data.interpretedQuery === "string" ? data.interpretedQuery.trim() : "";
+          setInterpretedQuery(iq || null);
           setGrouped({
             phones: Array.isArray(data.phones) ? data.phones : [],
             spareParts: Array.isArray(data.spareParts) ? data.spareParts : [],
             accessories: Array.isArray(data.accessories) ? data.accessories : [],
+            interpretedQuery: iq || undefined,
           });
         } else {
           setGrouped(emptyGrouped);
+          setInterpretedQuery(null);
         }
         setHighlightIndex(0);
       } else {
         setGrouped(emptyGrouped);
+        setInterpretedQuery(null);
       }
     } catch {
       setGrouped(emptyGrouped);
+      setInterpretedQuery(null);
     } finally {
       setLoading(false);
     }
@@ -122,6 +146,9 @@ export function SearchBar() {
   const list = flatList(grouped);
   const total = list.length;
   const showPanel = open && Boolean(query.trim());
+  const showInterpretedHint =
+    Boolean(interpretedQuery) &&
+    collapseForCompare(interpretedQuery || "") !== collapseForCompare(debouncedQuery);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!open && e.key === "Enter" && query.trim()) {
@@ -200,16 +227,30 @@ export function SearchBar() {
         <div
           className="absolute right-0 left-0 z-[1300] mt-2 max-h-[min(72vh,520px)] overflow-hidden overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl"
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">اقتراحات</span>
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/search/categories?q=${encodeURIComponent(query.trim())}`}
-                className="text-xs font-semibold text-slate-600 hover:text-blue-600 sm:text-sm"
-                onClick={() => setOpen(false)}
-              >
-                اختر القسم
-              </Link>
+          <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-2.5">
+            {showInterpretedHint ? (
+              <p className="text-right text-[13px] leading-relaxed text-slate-600" dir="auto">
+                <span className="font-semibold text-slate-700">التفسير المرن للبحث: </span>
+                <Link
+                  href={`/search?q=${encodeURIComponent(interpretedQuery || "")}`}
+                  className="font-semibold text-blue-600 underline decoration-blue-600/40 underline-offset-2 hover:text-blue-700"
+                  onClick={() => setOpen(false)}
+                >
+                  {interpretedQuery}
+                </Link>
+              </p>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-semibold text-slate-700">اقتراحات</span>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/search/categories?q=${encodeURIComponent(query.trim())}`}
+                  className="text-xs font-semibold text-slate-600 hover:text-blue-600 sm:text-sm"
+                  onClick={() => setOpen(false)}
+                >
+                  اختر القسم
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -260,7 +301,7 @@ export function SearchBar() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-sm font-semibold text-slate-900 sm:line-clamp-1 sm:text-[15px]">
-                                {highlightQueryInText(item.name, debouncedQuery)}
+                                {highlightQueryInText(item.name, highlightSource)}
                               </p>
                               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                 <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
@@ -311,7 +352,7 @@ export function SearchBar() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-sm font-semibold text-slate-900">
-                                {highlightQueryInText(item.name, debouncedQuery)}
+                                {highlightQueryInText(item.name, highlightSource)}
                               </p>
                               <div className="mt-1 text-xs text-slate-500">
                                 <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
@@ -356,7 +397,7 @@ export function SearchBar() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-sm font-semibold text-slate-900">
-                                {highlightQueryInText(item.name, debouncedQuery)}
+                                {highlightQueryInText(item.name, highlightSource)}
                               </p>
                               <div className="mt-1 text-xs text-slate-500">
                                 <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-800">

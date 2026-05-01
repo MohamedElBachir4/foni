@@ -3,7 +3,15 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { getAuthHeaders, API_URL } from "@/lib/adminAuth";
-import { Smartphone, CheckCircle, AlertCircle, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { AdminProductColorsPicker } from "@/components/admin";
+import { getProductColorHex } from "@/lib/productColors";
+import {
+  ADMIN_COPY_UNCHANGED_MESSAGE,
+  buildPhoneCreateComparePayload,
+  snapshotCreatePayload,
+  snapshotFromPhoneForCopy,
+} from "@/lib/adminCopyProduct";
+import { Smartphone, CheckCircle, AlertCircle, Pencil, Trash2, ExternalLink, Copy } from "lucide-react";
 
 type Brand = { _id: string; name: string; slug?: string };
 type Phone = {
@@ -21,14 +29,6 @@ type Phone = {
   colors?: string[];
 };
 
-const COLOR_OPTIONS = [
-  { id: "white", label: "أبيض", hex: "#ffffff" },
-  { id: "black", label: "أسود", hex: "#1f2937" },
-  { id: "gold", label: "ذهبي", hex: "#d4af37" },
-  { id: "silver", label: "فضي", hex: "#c0c0c0" },
-  { id: "purple", label: "بنفسجي", hex: "#7c3aed" },
-];
-
 export default function CreatePhonePage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [phones, setPhones] = useState<Phone[]>([]);
@@ -45,6 +45,7 @@ export default function CreatePhonePage() {
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [editing, setEditing] = useState<Phone | null>(null);
+  const [copySnapshot, setCopySnapshot] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [uploadingImages, setUploadingImages] = useState(false);
 
@@ -89,12 +90,7 @@ export default function CreatePhonePage() {
     setDetails("");
     setSelectedColors([]);
     setEditing(null);
-  }
-
-  function toggleColor(id: string) {
-    setSelectedColors((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    );
+    setCopySnapshot(null);
   }
 
   function parseExtraImages(): string[] {
@@ -165,6 +161,26 @@ export default function CreatePhonePage() {
       }
       return;
     }
+    if (copySnapshot) {
+      const current = snapshotCreatePayload(
+        buildPhoneCreateComparePayload({
+          phoneName,
+          selectedBrand,
+          image,
+          extraImagesText,
+          price,
+          priceRetail,
+          priceWholesale,
+          priceReparateur,
+          details,
+          selectedColors,
+        })
+      );
+      if (current === copySnapshot) {
+        setMessage({ type: "error", text: ADMIN_COPY_UNCHANGED_MESSAGE });
+        return;
+      }
+    }
     try {
       const res = await fetch(`${API_URL}/api/phones`, {
         method: "POST",
@@ -195,7 +211,34 @@ export default function CreatePhonePage() {
     }
   }
 
+  function startCopyFrom(phone: Phone) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setEditing(null);
+    setCopySnapshot(snapshotFromPhoneForCopy(phone));
+    setMessage(null);
+    setPhoneName(phone.name);
+    setSelectedBrand(
+      typeof phone.brand === "string" ? phone.brand : phone.brand?._id || ""
+    );
+    setImage(phone.image || "");
+    setExtraImagesText((phone.extraImages || []).join("\n"));
+    setPrice(phone.price != null ? String(phone.price) : "");
+    setPriceRetail(
+      phone.priceRetail != null ? String(phone.priceRetail) : ""
+    );
+    setPriceWholesale(
+      phone.priceWholesale != null ? String(phone.priceWholesale) : ""
+    );
+    setPriceReparateur(
+      phone.priceReparateur != null ? String(phone.priceReparateur) : ""
+    );
+    setDetails(phone.details || "");
+    setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
+  }
+
   function startEdit(phone: Phone) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setCopySnapshot(null);
     setEditing(phone);
     setPhoneName(phone.name);
     setSelectedBrand(
@@ -257,10 +300,12 @@ export default function CreatePhonePage() {
           </div>
           <div>
             <h2 className="text-2xl font-extrabold text-slate-800">
-              {editing ? "تعديل بيانات الهاتف" : "نموذج إضافة هاتف جديد"}
+              {editing ? "تعديل بيانات الهاتف" : copySnapshot ? "إضافة هاتف (من نسخة)" : "نموذج إضافة هاتف جديد"}
             </h2>
             <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
-              يُرجى ملء جميع الحقول المطلوبة لضمان دقة معلومات المنتج
+              {copySnapshot
+                ? "تم تعبئة الحقول من منتج موجود. عدّل حقلًا واحدًا على الأقل ثم احفظ كمنتج جديد."
+                : "يُرجى ملء جميع الحقول المطلوبة لضمان دقة معلومات المنتج"}
             </p>
           </div>
         </div>
@@ -428,37 +473,10 @@ export default function CreatePhonePage() {
 
             <div className="lg:col-span-2">
               <label className={labelClass}>الألوان المتوفرة</label>
-              <div className="flex flex-wrap gap-4">
-                {COLOR_OPTIONS.map((c) => {
-                  const isSelected = selectedColors.includes(c.id);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => toggleColor(c.id)}
-                      className={`group relative flex items-center gap-3 rounded-2xl border-2 px-5 py-3.5 transition-all duration-300 ${isSelected
-                          ? "border-emerald-500 bg-emerald-50/60 shadow-md shadow-emerald-500/10"
-                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                        }`}
-                    >
-                      <span
-                        className={`block h-6 w-6 rounded-full border border-slate-200 shadow-inner transition-transform duration-300 ${isSelected ? "scale-110" : "group-hover:scale-110"
-                          }`}
-                        style={{ backgroundColor: c.hex }}
-                      />
-                      <span className={`font-bold ${isSelected ? "text-emerald-700" : "text-slate-600"}`}>
-                        {c.label}
-                      </span>
-                      {isSelected && (
-                        <CheckCircle className="absolute -top-2 -start-2 h-6 w-6 rounded-full bg-white text-emerald-500" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <AdminProductColorsPicker value={selectedColors} onChange={setSelectedColors} />
               <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <AlertCircle className="h-4 w-4" />
-                يمكنك اختيار أكثر من لون واحد والنقر مرة أخرى للإلغاء
+                يمكنك اختيار عدة ألوان؛ يظهر للزبون اختيار اللون عند الشراء.
               </p>
             </div>
 
@@ -485,18 +503,20 @@ export default function CreatePhonePage() {
                   ? "جاري رفع الصور..."
                   : editing
                   ? "حفظ التعديلات المطبقة"
+                  : copySnapshot
+                  ? "حفظ الهاتف الجديد"
                   : "تسجيل الهاتف الجديد"}
                 <CheckCircle className="h-5 w-5 opacity-80" />
               </span>
               <div className="absolute inset-0 z-0 bg-gradient-to-r from-teal-500 to-emerald-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             </button>
-            {editing && (
+            {(editing || copySnapshot) && (
               <button
                 type="button"
                 onClick={resetForm}
                 className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-8 py-4 font-bold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] sm:flex-none"
               >
-                إلغاء التعديل
+                {editing ? "إلغاء التعديل" : "إلغاء النسخ"}
               </button>
             )}
           </div>
@@ -534,10 +554,13 @@ export default function CreatePhonePage() {
                             key={c}
                             className="inline-block h-5 w-5 rounded-full border border-slate-200"
                             style={{
-                              backgroundColor: COLOR_OPTIONS.find((o) => o.id === c)?.hex ?? "#9ca3af",
-                              boxShadow: c === "white" ? "inset 0 0 0 1px rgba(0,0,0,0.15)" : undefined,
+                              backgroundColor: getProductColorHex(c),
+                              boxShadow:
+                                String(c).toLowerCase() === "white" || String(c).toLowerCase() === "cream"
+                                  ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
+                                  : undefined,
                             }}
-                            title={COLOR_OPTIONS.find((o) => o.id === c)?.label ?? c}
+                            title={c}
                           />
                         ))}
                         {(!p.colors || p.colors.length === 0) && (
@@ -560,6 +583,14 @@ export default function CreatePhonePage() {
                         >
                           <ExternalLink className="h-4 w-4" />
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => startCopyFrom(p)}
+                          className="rounded-lg p-2 text-slate-600 hover:bg-violet-100 hover:text-violet-700"
+                          title="نسخ إلى نموذج إضافة جديد"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => startEdit(p)}

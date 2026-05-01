@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { Heart, ShoppingCart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { ProductImage } from "@/components/ProductImage";
-import { AddToCartButton } from "@/components/AddToCartButton";
+import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd } from "@/lib/pricing";
 import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
-import { slugifyProductName } from "@/lib/seo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -20,6 +18,7 @@ type SparePart = {
   name: string;
   details?: string;
   image?: string;
+  colors?: string[];
   price: number;
   priceRetail?: number;
   priceWholesale?: number;
@@ -250,24 +249,14 @@ export default function SparePartsListPage() {
                         <p className="mb-2 text-center text-sm font-semibold text-slate-400">— DA</p>
                       )}
 
-                      <div className="mt-auto flex flex-col gap-2">
-                        <AddToCartButton
-                          id={part._id}
-                          name={part.name}
-                          price={effectivePrice}
-                          image={part.image ?? ""}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                        >
-                          <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2} />
-                          أضف للسلة
-                        </AddToCartButton>
-                        <Link
-                          href={`/product/${part._id}/${slugifyProductName(part.name)}`}
-                          className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1"
-                        >
-                          التفاصيل
-                        </Link>
-                      </div>
+                      <ProductCardActions
+                        id={part._id}
+                        name={part.name}
+                        price={effectivePrice ?? 0}
+                        image={part.image ?? ""}
+                        colors={Array.isArray(part.colors) ? part.colors : []}
+                        category="قطع غيار"
+                      />
                     </div>
                   </div>
                   );

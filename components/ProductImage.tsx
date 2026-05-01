@@ -12,6 +12,10 @@ type ProductImageProps = {
   priority?: boolean;
   /** أحجام العرض المتوقعة (لتقليل حجم التحميل) */
   sizes?: string;
+  /**
+   * جودة ضغط محسنة Next (1–100). الافتراضي أعلى للصور الأولى وظهور أفضل على الشاشات عالية الدقة.
+   */
+  quality?: number;
 };
 
 const BLUR_DATA =
@@ -26,9 +30,11 @@ export function ProductImage({
   className,
   priority = false,
   sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
+  quality: qualityProp,
 }: ProductImageProps) {
   const [useFallback, setUseFallback] = useState(false);
   const resolvedSrc = getProductImageUrl(src);
+  const jpegQuality = qualityProp ?? (priority ? 92 : 88);
   /** مسارات نسبية من جذر الموقع (مثل /uploads) تمر عبر Next Image؛ أي رابط مطلق أو data: يعرض tag img */
   const isLocalPathForOptimizer =
     resolvedSrc.startsWith("/") &&
@@ -57,7 +63,8 @@ export function ProductImage({
         alt={alt}
         className={className}
         loading={priority ? "eager" : "lazy"}
-        decoding="async"
+        fetchPriority={priority ? "high" : "auto"}
+        decoding={priority ? "sync" : "async"}
         style={{ width: "100%", height: "100%", objectFit: "contain" }}
         onError={() => setUseFallback(true)}
       />
@@ -74,9 +81,9 @@ export function ProductImage({
         className={className}
         priority={priority}
         loading={priority ? undefined : "lazy"}
-        quality={75}
         placeholder="blur"
         blurDataURL={BLUR_DATA}
+        quality={jpegQuality}
         onError={() => setUseFallback(true)}
       />
     );

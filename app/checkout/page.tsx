@@ -10,6 +10,12 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { formatDzd } from "@/lib/pricing";
+import { getProductColorLabelAr } from "@/lib/productColors";
+import { ProductColorSwatches } from "@/components/ProductColorSwatches";
+import {
+  loadGuestCheckoutShippingPrefs,
+  saveGuestCheckoutShippingPrefs,
+} from "@/lib/guestCheckoutPrefs";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -31,10 +37,33 @@ type FeesResponse = {
   >;
 };
 
+type PendingCommuneRestore = { name: string; id: number | null };
+
+function normalizeCommuneKey(s: string): string {
+  return String(s || "")
+    .normalize("NFC")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function findCommuneInList(list: Commune[], pending: PendingCommuneRestore): Commune | undefined {
+  if (pending.id != null && Number.isFinite(pending.id)) {
+    const byId = list.find((c) => c.id === pending.id);
+    if (byId) return byId;
+  }
+  const raw = pending.name.trim();
+  if (!raw) return undefined;
+  const exact = list.find((c) => c.name === raw);
+  if (exact) return exact;
+  const key = normalizeCommuneKey(raw);
+  return list.find((c) => normalizeCommuneKey(c.name) === key);
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, totalPrice, clearCart } = useCart();
-  const { account, getAuthToken } = useAccount();
+  const { items, totalPrice, clearCart, updateLineColor } = useCart();
+  const { account, getAuthToken, token, hydrated } = useAccount();
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -54,12 +83,13 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const pendingStopdeskRestore = useRef<number | null>(null);
+  /** يُستهلك عند استلام قائمة البلديات (بعد ضبط الولاية)، لا يعتمد على setCommuneName من /me */
+  const pendingCommuneRestoreRef = useRef<PendingCommuneRestore | null>(null);
   const [restoredShippingHint, setRestoredShippingHint] = useState(false);
 
   useEffect(() => {
-    if (!account) return;
-    const token = getAuthToken();
-    if (!token) return;
+    if (!hydrated) return;
+    if (!account || !token) return;
     let cancelled = false;
     pendingStopdeskRestore.current = null;
     fetch(`${API_URL}/api/accounts/me`, {
@@ -80,26 +110,78 @@ export default function CheckoutPage() {
         const addrVal = checkoutAddr || String(a.address || "").trim();
         if (addrVal) setAddress(addrVal);
         const wid = a.checkoutWilayaId;
+        const commune = String(a.checkoutCommune || "").trim();
+        const cidRaw = a.checkoutCommuneId;
+        const communeIdStored =
+          cidRaw != null && cidRaw !== "" && Number.isFinite(Number(cidRaw)) ? Number(cidRaw) : null;
+        pendingCommuneRestoreRef.current =
+          commune || communeIdStored != null ? { name: commune, id: communeIdStored } : null;
+
         if (wid != null && wid !== "" && Number.isFinite(Number(wid))) {
           setWilayaId(Number(wid));
         }
-        const commune = String(a.checkoutCommune || "").trim();
-        if (commune) setCommuneName(commune);
         const dt = a.checkoutDeliveryType;
         if (dt === "home" || dt === "stopdesk") setDeliveryType(dt);
         const sid = a.checkoutStopdeskId;
         if (dt === "stopdesk" && sid != null && sid !== "" && Number.isFinite(Number(sid))) {
           pendingStopdeskRestore.current = Number(sid);
         }
-        const hadSavedCheckout =
-          !!(checkoutName || checkoutPhone || checkoutAddr || commune || (wid != null && wid !== ""));
+        const hadSavedCheckout = !!(
+          checkoutName ||
+          checkoutPhone ||
+          checkoutAddr ||
+          commune ||
+          communeIdStored != null ||
+          (wid != null && wid !== "")
+        );
         if (hadSavedCheckout) setRestoredShippingHint(true);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [account, getAuthToken]);
+  }, [hydrated, account, token]);
+
+  /** زوار غير مسجّلي الدخول: ملء النموذج من التخزين المحلي بعد آخر طلب ناجح */
+  useEffect(() => {
+    if (!hydrated) return;
+    if (token) return;
+    pendingCommuneRestoreRef.current = null;
+    pendingStopdeskRestore.current = null;
+
+    const prefs = loadGuestCheckoutShippingPrefs();
+    if (!prefs) return;
+
+    if (prefs.fullName) setFullName(prefs.fullName);
+    if (prefs.phone) setPhone(prefs.phone);
+    if (prefs.address) setAddress(prefs.address);
+
+    const dt = prefs.deliveryType === "stopdesk" ? "stopdesk" : "home";
+    setDeliveryType(dt);
+
+    const cname = prefs.communeName.trim();
+    const cid =
+      prefs.communeId != null && Number.isFinite(Number(prefs.communeId)) ? Number(prefs.communeId) : null;
+    pendingCommuneRestoreRef.current = cname || cid != null ? { name: cname, id: cid } : null;
+
+    if (prefs.wilayaId && Number.isFinite(prefs.wilayaId)) {
+      setWilayaId(prefs.wilayaId);
+    }
+
+    if (dt === "stopdesk" && prefs.stopdeskId != null && Number.isFinite(Number(prefs.stopdeskId))) {
+      pendingStopdeskRestore.current = Number(prefs.stopdeskId);
+    }
+
+    const hadAny = Boolean(
+      prefs.fullName?.trim() ||
+        prefs.phone?.trim() ||
+        prefs.address?.trim() ||
+        prefs.communeName?.trim() ||
+        (prefs.communeId != null && Number.isFinite(prefs.communeId)) ||
+        (prefs.wilayaId != null && Number.isFinite(prefs.wilayaId))
+    );
+    if (hadAny) setRestoredShippingHint(true);
+  }, [hydrated, token]);
 
   useEffect(() => {
     if (deliveryType !== "stopdesk") return;
@@ -152,15 +234,27 @@ export default function CheckoutPage() {
           : Array.isArray(data?.data)
           ? data.data
           : [];
-        setCommunes(
-          list.map((c: any) => ({
-            id: Number(c.id),
-            name: String(c.name || ""),
-            wilaya_id: Number(c.wilaya_id ?? 0),
-          }))
-        );
+        const mapped = list.map((c: any) => ({
+          id: Number(c.id),
+          name: String(c.name || ""),
+          wilaya_id: Number(c.wilaya_id ?? 0),
+        }));
+        let nextCommune = "";
+        const pending = pendingCommuneRestoreRef.current;
+        if (pending && mapped.length) {
+          const match = findCommuneInList(mapped, pending);
+          pendingCommuneRestoreRef.current = null;
+          if (match?.name) nextCommune = match.name;
+        } else if (pending && mapped.length === 0) {
+          pendingCommuneRestoreRef.current = null;
+        }
+        setCommunes(mapped);
+        setCommuneName(nextCommune);
       })
-      .catch(() => setCommunes([]));
+      .catch(() => {
+        pendingCommuneRestoreRef.current = null;
+        setCommunes([]);
+      });
 
     setFeesLoading(true);
     fetch(`${API_URL}/api/yalidine/fees?to_wilaya_id=${wilayaId}`)
@@ -246,12 +340,21 @@ export default function CheckoutPage() {
       setError("اختر مركز التسليم");
       return;
     }
+    for (const i of items) {
+      if (i.availableColors?.length && !String(i.color || "").trim()) {
+        setError(`اختر لوناً لمنتج: ${i.name}`);
+        return;
+      }
+    }
 
     setLoading(true);
     try {
       const headers: HeadersInit = { "Content-Type": "application/json" };
       const authToken = getAuthToken();
       if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+      const communeRowMatch = communes.find((c) => c.name === communeName.trim());
+      const communeIdForOrder =
+        communeRowMatch != null && Number.isFinite(communeRowMatch.id) ? communeRowMatch.id : null;
       const res = await fetch(`${API_URL}/api/orders`, {
         method: "POST",
         headers,
@@ -261,6 +364,7 @@ export default function CheckoutPage() {
           wilaya: selectedWilayaName,
           wilayaId: Number(wilayaId),
           commune: communeName,
+          communeId: communeIdForOrder,
           deliveryType,
           stopdeskId: deliveryType === "stopdesk" ? Number(stopdeskId) : null,
           deliveryFee,
@@ -279,6 +383,18 @@ export default function CheckoutPage() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "فشل في حفظ الطلب");
+      }
+      if (!authToken) {
+        saveGuestCheckoutShippingPrefs({
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          wilayaId: Number(wilayaId),
+          communeName: communeName.trim(),
+          communeId: communeIdForOrder,
+          deliveryType,
+          stopdeskId: deliveryType === "stopdesk" ? Number(stopdeskId) : null,
+        });
       }
       clearCart();
       router.push("/checkout/success");
@@ -343,7 +459,7 @@ export default function CheckoutPage() {
               <ul className="max-h-64 space-y-3 overflow-y-auto sm:max-h-80">
                 {items.map((item) => (
                   <li
-                    key={item.id}
+                    key={item.color ? `${item.id}||${item.color}` : item.id}
                     className="flex gap-3 rounded-xl bg-slate-50/80 p-3"
                   >
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white">
@@ -361,6 +477,30 @@ export default function CheckoutPage() {
                       <p className="text-xs text-slate-500">
                         {item.quantity} × {formatDzd(item.price)} DA
                       </p>
+                      {item.availableColors && item.availableColors.length > 0 ? (
+                        <div className="mt-2 border-t border-slate-200/80 pt-2">
+                          <p className="mb-1 text-[10px] font-semibold text-slate-500">اللون</p>
+                          <ProductColorSwatches
+                            colorIds={item.availableColors}
+                            value={item.color || ""}
+                            onChange={(c) =>
+                              updateLineColor(item.color ? `${item.id}||${item.color}` : item.id, c)
+                            }
+                            size="sm"
+                          />
+                          {item.color ? (
+                            <p className="mt-1 text-[10px] text-slate-600">
+                              {getProductColorLabelAr(item.color)}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-[10px] text-amber-700">اختر لوناً للمتابعة</p>
+                          )}
+                        </div>
+                      ) : item.color ? (
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          اللون: {getProductColorLabelAr(item.color)}
+                        </p>
+                      ) : null}
                     </div>
                     <p className="shrink-0 text-sm font-bold text-slate-800">
                       {formatDzd(item.price * item.quantity)} DA
@@ -406,22 +546,26 @@ export default function CheckoutPage() {
             className="rounded-2xl border-0 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8"
           >
             {account && (
-              <>
-                <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-                  أنت مسجّل الدخول كـ{" "}
-                  <span className="font-bold">
-                    {account.role === "grossiste" ? "بائع جملة" : "مصلح"}
-                  </span>
-                  {" — "}
-                  سيُسجّل الطلب تلقائياً بهذا النوع.
-                </p>
-                {restoredShippingHint && (
-                  <p className="mb-4 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-emerald-900">
-                    تم ملء بيانات التوصيل من آخر طلب سجّلته في حسابك. يمكنك تعديلها قبل الإرسال.
-                  </p>
-                )}
-              </>
+              <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+                أنت مسجّل الدخول كـ{" "}
+                <span className="font-bold">
+                  {account.role === "grossiste" ? "بائع جملة" : "مصلح"}
+                </span>
+                {" — "}
+                سيُسجّل الطلب تلقائياً بهذا النوع.
+              </p>
             )}
+            {!account && restoredShippingHint && token == null ? (
+              <p className="mb-4 rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-sky-950">
+                تم ملء بيانات التوصيل تلقائياً من آخر طلب ناجِح على هذا الجهاز. يمكنك تعديل أي
+                حقل قبل الإرسال.
+              </p>
+            ) : null}
+            {account && restoredShippingHint ? (
+              <p className="mb-4 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-emerald-900">
+                تم ملء بيانات التوصيل من آخر طلب مرتبط بحسابك. يمكنك تعديلها قبل الإرسال.
+              </p>
+            ) : null}
             <h2 className="mb-6 text-lg font-bold text-slate-800">
               بيانات التوصيل
             </h2>
@@ -472,9 +616,10 @@ export default function CheckoutPage() {
                   <select
                     id="wilaya"
                     value={wilayaId}
-                    onChange={(e) =>
-                      setWilayaId(e.target.value ? Number(e.target.value) : "")
-                    }
+                    onChange={(e) => {
+                      pendingCommuneRestoreRef.current = null;
+                      setWilayaId(e.target.value ? Number(e.target.value) : "");
+                    }}
                     required
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   >

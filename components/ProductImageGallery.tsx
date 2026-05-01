@@ -32,7 +32,7 @@ export function ProductImageGallery({
         src={selectedImage}
         alt={name}
         priority
-        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 45vw"
+        sizes="(max-width: 1024px) 95vw, min(640px, 45vw)"
         className="object-contain p-0"
       />
       <div className="absolute right-2 top-2 rounded-lg bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600 shadow-md sm:right-3 sm:top-3 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs sm:shadow-lg">

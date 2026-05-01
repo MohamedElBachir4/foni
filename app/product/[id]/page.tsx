@@ -242,6 +242,7 @@ export default async function ProductDetailPage({
               part.gallery_images
           ),
           details: pickFirstNonEmptyString(part.details, part.description, part.desc),
+          colors: Array.isArray(part.colors) ? part.colors : [],
         };
         source = "sparePart";
         sparePartContext = {

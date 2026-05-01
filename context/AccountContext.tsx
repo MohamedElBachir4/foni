@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { clearGuestCheckoutShippingPrefs } from "@/lib/guestCheckoutPrefs";
 
 export type AccountInfo = {
   id: string;
@@ -116,6 +117,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     setAccount(acc);
     setToken(payload.token ?? null);
     setUseWholesalePricingState(false);
+    clearGuestCheckoutShippingPrefs();
   }, []);
 
   const logout = useCallback(() => {

@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, ShoppingCart, ClipboardList } from "lucide-react";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 import { ProductImage } from "@/components/ProductImage";
 import { formatDzd } from "@/lib/pricing";
 import { useCart } from "@/context/CartContext";
@@ -36,13 +37,9 @@ type ProductDetailsModernProps = {
   relatedProducts: RelatedProduct[];
 };
 
-const COLOR_HEX: Record<string, string> = {
-  white: "#ffffff",
-  black: "#1f2937",
-  gold: "#d4af37",
-  silver: "#c0c0c0",
-  purple: "#7c3aed",
-};
+function cartProductType(category: string): "phone" | "sparePart" {
+  return category === "قطع غيار" ? "sparePart" : "phone";
+}
 
 function isHtml(value: string) {
   return /<\/?[a-z][\s\S]*>/i.test(value);
@@ -72,6 +69,22 @@ export function ProductDetailsModern({
   }, [product.image, product.extraImages]);
 
   const [selectedImage, setSelectedImage] = useState(images[0] || "");
+  const [selectedColorId, setSelectedColorId] = useState("");
+  const [orderHint, setOrderHint] = useState("");
+
+  useEffect(() => {
+    const cols = product.colors || [];
+    if (!cols.length) {
+      setSelectedColorId("");
+      return;
+    }
+    setSelectedColorId((prev) => {
+      const p = String(prev || "").trim().toLowerCase();
+      const hit = cols.find((c) => String(c).trim().toLowerCase() === p);
+      return hit != null ? String(hit) : String(cols[0]);
+    });
+  }, [product.id, product.colors]);
+
   /** الهواتف: في الـ API الافتراضي stock=0 ولا يعني «غير متوفر» حتى يُضبط تتبع المخزون. */
   const isAvailable =
     product.category === "هواتف"
@@ -83,13 +96,22 @@ export function ProductDetailsModern({
   const hasHtmlDescription = isHtml(sanitizedDescription);
 
   function handleOrderNow() {
+    const cols = product.colors || [];
+    if (cols.length > 0 && !String(selectedColorId || "").trim()) {
+      setOrderHint("اختر لوناً قبل إتمام الطلب.");
+      return;
+    }
+    setOrderHint("");
+    const colorNorm = cols.length ? String(selectedColorId).trim().toLowerCase() : undefined;
     addToCart({
       id: product.id,
       name: product.name,
       price: product.price,
       image: product.image,
       quantity: 1,
-      productType: product.category === "هواتف" ? "phone" : "sparePart",
+      color: colorNorm,
+      availableColors: cols.length ? cols.map((c) => String(c).trim().toLowerCase()) : undefined,
+      productType: cartProductType(product.category),
     });
     router.push("/checkout");
   }
@@ -113,7 +135,7 @@ export function ProductDetailsModern({
                 src={selectedImage}
                 alt={product.name}
                 priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
+                sizes="(max-width: 1024px) 95vw, min(640px, 45vw)"
                 className="object-contain p-2 sm:p-4"
               />
             </div>
@@ -166,6 +188,23 @@ export function ProductDetailsModern({
               </p>
             </div>
 
+            {product.colors && product.colors.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="mb-2 text-sm font-extrabold text-slate-800">الألوان المتوفرة</p>
+                <ProductColorSwatches
+                  colorIds={product.colors}
+                  value={selectedColorId}
+                  onChange={(id) => {
+                    setSelectedColorId(id);
+                    setOrderHint("");
+                  }}
+                  size="md"
+                  className="justify-start"
+                />
+                <p className="mt-2 text-xs text-slate-500">يُستخدم اللون المحدّد عند «أضف للسلة» أو «اطلب الآن».</p>
+              </div>
+            )}
+
             <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
               <p className="mb-2 text-sm font-extrabold tracking-wide text-slate-700">
                 الوصف
@@ -213,13 +252,22 @@ export function ProductDetailsModern({
               )}
             </div>
 
+            {orderHint ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {orderHint}
+              </p>
+            ) : null}
+
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <AddToCartButton
                 id={product.id}
                 name={product.name}
                 price={product.price}
                 image={product.image}
-                productType={product.category === "هواتف" ? "phone" : undefined}
+                colors={product.colors || []}
+                lockColorToSelection={!!(product.colors && product.colors.length > 0)}
+                lockedColor={selectedColorId}
+                productType={cartProductType(product.category)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500"
               >
                 <ShoppingCart className="h-5 w-5" />
@@ -283,6 +331,8 @@ export function ProductDetailsModern({
                       name={item.name}
                       price={item.price ?? 0}
                       image={item.image ?? ""}
+                      colors={Array.isArray(item.colors) ? item.colors : []}
+                      productType={cartProductType(product.category)}
                       className="flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
                     >
                       أضف

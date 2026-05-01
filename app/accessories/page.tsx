@@ -1,13 +1,16 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Metadata } from "next";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { buildMetadata } from "@/lib/seo";
+import { getProductImageUrl } from "@/lib/productImage";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 type AccessoryType = { _id: string; name: string; image?: string };
+
+const FALLBACK_TYPE_IMAGE =
+  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80";
 
 export const dynamic = "force-dynamic";
 
@@ -57,16 +60,15 @@ export default async function AccessoriesTypesPage() {
                 href={`/accessories/${t._id}`}
                 className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-md"
               >
-                <div className="aspect-square w-full overflow-hidden bg-slate-100">
-                  <Image
-                    src={
-                      t.image ||
-                      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80"
-                    }
+                <div className="relative aspect-square w-full overflow-hidden bg-slate-100">
+                  {/* روابط الصور من الـ API قد تكون من أي نطاق؛ التحميل المباشر بالمتصفح يتجنب فشل /_next/image */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getProductImageUrl(t.image || FALLBACK_TYPE_IMAGE)}
                     alt={t.name}
-                    fill
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                    decoding="async"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
                 <div className="p-3 text-center">

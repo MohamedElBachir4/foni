@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Heart, ShoppingCart } from "lucide-react";
-import { AddToCartButton } from "@/components/AddToCartButton";
+import { Heart } from "lucide-react";
+import { ProductCardActions } from "@/components/ProductCardActions";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductImage } from "@/components/ProductImage";
@@ -18,6 +18,9 @@ type Accessory = {
   image?: string;
   price?: number;
   details?: string;
+  colors?: string[];
+  phoneType?: unknown;
+  phoneTypes?: unknown;
 };
 
 export const dynamic = "force-dynamic";
@@ -117,6 +120,10 @@ export default async function AccessoriesByTypePage({
                     {a.name}
                   </h2>
 
+                  <p className="mb-2 line-clamp-2 text-center text-xs text-slate-500 sm:text-sm">
+                    {a.details || "أكسسوار متوفر للطلب."}
+                  </p>
+
                   {a.price != null && a.price > 0 ? (
                     <p className="mb-2 text-center">
                       <span className="text-xl font-black text-slate-900 sm:text-2xl">
@@ -128,22 +135,14 @@ export default async function AccessoriesByTypePage({
                     <p className="mb-2 text-center text-sm font-semibold text-slate-400">— DA</p>
                   )}
 
-                  <p className="mb-3 line-clamp-2 text-center text-xs text-slate-500 sm:text-sm">
-                    {a.details || "أكسسوار متوفر للطلب."}
-                  </p>
-
-                  <div className="mt-auto flex flex-col gap-2">
-                    <AddToCartButton
-                      id={a._id}
-                      name={a.name}
-                      price={a.price ?? 0}
-                      image={a.image ?? ""}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                    >
-                      <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2} />
-                      أضف للسلة
-                    </AddToCartButton>
-                  </div>
+                  <ProductCardActions
+                    id={a._id}
+                    name={a.name}
+                    price={a.price ?? 0}
+                    image={a.image ?? ""}
+                    colors={Array.isArray(a.colors) ? a.colors : []}
+                    category="أكسسوارات"
+                  />
                 </div>
               </article>
             ))}
