@@ -2,8 +2,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { getAuthHeaders, API_URL } from "@/lib/adminAuth";
-import { AdminProductColorsPicker } from "@/components/admin";
+import { getAuthHeaders, API_URL, getToken } from "@/lib/adminAuth";
+import {
+  AdminButton,
+  AdminCard,
+  AdminModal,
+  AdminPageHeader,
+  AdminProductColorsPicker,
+  AdminTable,
+  AdminTableCellImage,
+} from "@/components/admin";
 import { getProductColorHex } from "@/lib/productColors";
 import {
   ADMIN_COPY_UNCHANGED_MESSAGE,
@@ -11,7 +19,16 @@ import {
   snapshotCreatePayload,
   snapshotFromPhoneForCopy,
 } from "@/lib/adminCopyProduct";
-import { Smartphone, CheckCircle, AlertCircle, Pencil, Trash2, ExternalLink, Copy } from "lucide-react";
+import {
+  Smartphone,
+  CheckCircle,
+  AlertCircle,
+  Pencil,
+  Trash2,
+  ExternalLink,
+  Copy,
+  Plus,
+} from "lucide-react";
 
 type Brand = { _id: string; name: string; slug?: string };
 type Phone = {
@@ -29,6 +46,11 @@ type Phone = {
   colors?: string[];
 };
 
+const fld =
+  "admin-input !h-7 !rounded-md !px-2 !py-1 text-[11px] text-slate-800 placeholder:text-slate-400";
+const fldNum = `${fld} font-mono tabular-nums`;
+const lbl = "mb-0.5 block text-[10px] font-medium text-slate-500";
+
 export default function CreatePhonePage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [phones, setPhones] = useState<Phone[]>([]);
@@ -44,6 +66,12 @@ export default function CreatePhonePage() {
   const [details, setDetails] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [phoneModalNotice, setPhoneModalNotice] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
   const [editing, setEditing] = useState<Phone | null>(null);
   const [copySnapshot, setCopySnapshot] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -51,7 +79,10 @@ export default function CreatePhonePage() {
 
   const fetchBrands = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/brands`, { headers: getAuthHeaders(), credentials: 'include',  });
+      const res = await fetch(`${API_URL}/api/brands`, {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       if (res.ok) setBrands(await res.json());
     } catch {
       setBrands([]);
@@ -93,10 +124,42 @@ export default function CreatePhonePage() {
     setCopySnapshot(null);
   }
 
+  function closePhoneModal() {
+    if (savingPhone || uploadingImages) return;
+    setPhoneModalOpen(false);
+    setPhoneModalNotice(null);
+    resetForm();
+  }
+
+  function openCreatePhoneModal() {
+    resetForm();
+    setPhoneModalNotice(null);
+    setPhoneModalOpen(true);
+  }
+
+  function openEditPhone(phone: Phone) {
+    setPhoneModalNotice(null);
+    setMessage(null);
+    startEdit(phone);
+    setPhoneModalOpen(true);
+  }
+
+  function openCopyPhone(phone: Phone) {
+    setPhoneModalNotice(null);
+    setMessage(null);
+    startCopyFrom(phone);
+    setPhoneModalOpen(true);
+  }
+
   function parseExtraImages(): string[] {
     return extraImagesText
       .split(/\r?\n/)
-      .map((line) => line.trim())
+      .flatMap((line) =>
+        line
+          .split(/,\s*/u)
+          .map((url) => url.trim())
+          .filter(Boolean)
+      )
       .filter(Boolean)
       .slice(0, 4);
   }
@@ -107,7 +170,7 @@ export default function CreatePhonePage() {
     Array.from(files)
       .slice(0, 5)
       .forEach((file) => formData.append("images", file));
-    const token = localStorage.getItem("foni_admin_token");
+    const token = getToken();
     const res = await fetch(`${API_URL}/api/uploads/images`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -121,47 +184,25 @@ export default function CreatePhonePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setPhoneModalNotice(null);
     setMessage(null);
     if (!phoneName.trim()) {
-      setMessage({ type: "error", text: "اسم الهاتف مطلوب" });
+      setPhoneModalNotice({ type: "error", text: "اسم الهاتف مطلوب" });
       return;
     }
     if (!selectedBrand) {
-      setMessage({ type: "error", text: "اختر الماركة" });
+      setPhoneModalNotice({ type: "error", text: "اختر الماركة" });
       return;
     }
-    if (editing) {
-      try {
-        const res = await fetch(`${API_URL}/api/phones/${editing._id}`, {
-          method: "PUT",
-          headers: getAuthHeaders(), credentials: 'include',
-          body: JSON.stringify({
-            name: phoneName.trim(),
-            brand: selectedBrand,
-            image: image.trim(),
-            extraImages: parseExtraImages(),
-            price: price.trim() ? Number(price) : 0,
-            priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
-            priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
-            priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
-            details: details.trim(),
-            colors: selectedColors,
-           }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-          setMessage({ type: "success", text: "تم تحديث الهاتف بنجاح" });
-          resetForm();
-          fetchPhones();
-        } else {
-          setMessage({ type: "error", text: data.error || "فشل التحديث" });
-        }
-      } catch {
-        setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
-      }
-      return;
-    }
-    if (copySnapshot) {
+
+    const effectivePrice =
+      price.trim().length > 0
+        ? Number(price)
+        : priceRetail.trim().length > 0
+          ? Number(priceRetail)
+          : 0;
+
+    if (!editing && copySnapshot) {
       const current = snapshotCreatePayload(
         buildPhoneCreateComparePayload({
           phoneName,
@@ -177,42 +218,59 @@ export default function CreatePhonePage() {
         })
       );
       if (current === copySnapshot) {
-        setMessage({ type: "error", text: ADMIN_COPY_UNCHANGED_MESSAGE });
+        setPhoneModalNotice({ type: "error", text: ADMIN_COPY_UNCHANGED_MESSAGE });
         return;
       }
     }
+
+    const payload = {
+      name: phoneName.trim(),
+      brand: selectedBrand,
+      image: image.trim(),
+      extraImages: parseExtraImages(),
+      price: effectivePrice,
+      priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
+      priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
+      priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
+      details: details.trim(),
+      colors: selectedColors,
+    };
+
+    setSavingPhone(true);
     try {
-      const res = await fetch(`${API_URL}/api/phones`, {
-        method: "POST",
-        headers: getAuthHeaders(), credentials: 'include',
-        body: JSON.stringify({
-          name: phoneName.trim(),
-          brand: selectedBrand,
-          image: image.trim(),
-          extraImages: parseExtraImages(),
-          price: price.trim() ? Number(price) : 0,
-          priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
-          priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
-          priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
-          details: details.trim(),
-          colors: selectedColors,
-         }),
-      });
+      const isEdit = !!editing;
+      const res = await fetch(
+        isEdit ? `${API_URL}/api/phones/${editing._id}` : `${API_URL}/api/phones`,
+        {
+          method: isEdit ? "PUT" : "POST",
+          headers: getAuthHeaders(),
+          credentials: "include",
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setMessage({ type: "success", text: "تم إنشاء الهاتف بنجاح" });
+        setPhoneModalOpen(false);
         resetForm();
-        fetchPhones();
+        setMessage({
+          type: "success",
+          text: isEdit ? "تم تحديث الهاتف بنجاح" : "تم إنشاء الهاتف بنجاح",
+        });
+        await fetchPhones();
       } else {
-        setMessage({ type: "error", text: data.error || "فشل الإنشاء" });
+        setPhoneModalNotice({
+          type: "error",
+          text: data.error || (isEdit ? "فشل التحديث" : "فشل الإنشاء"),
+        });
       }
     } catch {
-      setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
+      setPhoneModalNotice({ type: "error", text: "تعذر الاتصال بالخادم" });
+    } finally {
+      setSavingPhone(false);
     }
   }
 
   function startCopyFrom(phone: Phone) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
     setEditing(null);
     setCopySnapshot(snapshotFromPhoneForCopy(phone));
     setMessage(null);
@@ -223,21 +281,14 @@ export default function CreatePhonePage() {
     setImage(phone.image || "");
     setExtraImagesText((phone.extraImages || []).join("\n"));
     setPrice(phone.price != null ? String(phone.price) : "");
-    setPriceRetail(
-      phone.priceRetail != null ? String(phone.priceRetail) : ""
-    );
-    setPriceWholesale(
-      phone.priceWholesale != null ? String(phone.priceWholesale) : ""
-    );
-    setPriceReparateur(
-      phone.priceReparateur != null ? String(phone.priceReparateur) : ""
-    );
+    setPriceRetail(phone.priceRetail != null ? String(phone.priceRetail) : "");
+    setPriceWholesale(phone.priceWholesale != null ? String(phone.priceWholesale) : "");
+    setPriceReparateur(phone.priceReparateur != null ? String(phone.priceReparateur) : "");
     setDetails(phone.details || "");
     setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
   }
 
   function startEdit(phone: Phone) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
     setCopySnapshot(null);
     setEditing(phone);
     setPhoneName(phone.name);
@@ -247,15 +298,9 @@ export default function CreatePhonePage() {
     setImage(phone.image || "");
     setExtraImagesText((phone.extraImages || []).join("\n"));
     setPrice(phone.price != null ? String(phone.price) : "");
-    setPriceRetail(
-      phone.priceRetail != null ? String(phone.priceRetail) : ""
-    );
-    setPriceWholesale(
-      phone.priceWholesale != null ? String(phone.priceWholesale) : ""
-    );
-    setPriceReparateur(
-      phone.priceReparateur != null ? String(phone.priceReparateur) : ""
-    );
+    setPriceRetail(phone.priceRetail != null ? String(phone.priceRetail) : "");
+    setPriceWholesale(phone.priceWholesale != null ? String(phone.priceWholesale) : "");
+    setPriceReparateur(phone.priceReparateur != null ? String(phone.priceReparateur) : "");
     setDetails(phone.details || "");
     setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
   }
@@ -264,8 +309,9 @@ export default function CreatePhonePage() {
     try {
       const res = await fetch(`${API_URL}/api/phones/${id}`, {
         method: "DELETE",
-        headers: getAuthHeaders(), credentials: 'include',
-       });
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       if (res.ok) {
         setMessage({ type: "success", text: "تم حذف الهاتف" });
         setDeleteConfirm(null);
@@ -281,365 +327,416 @@ export default function CreatePhonePage() {
 
   const brandName = (p: Phone) => (typeof p.brand === "object" && p.brand ? p.brand.name : "—");
 
-  const inputClass = "w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-5 py-3.5 text-slate-800 font-medium transition-all hover:bg-white focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400";
-  const labelClass = "mb-2 block text-sm font-bold text-slate-700";
-
   return (
-    <div className="mx-auto max-w-5xl pb-12">
-      <header className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">إدارة الهواتف</h1>
-        <p className="mt-2 text-sm font-medium text-slate-500">
-          إضافة هاتف جديد أو تعديل وحذف المنتجات الحالية بكل سهولة
-        </p>
-      </header>
+    <div className="mx-auto w-full max-w-[1600px] space-y-4 pb-8">
+      <AdminPageHeader
+        className="mb-0 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+        title="إدارة الهواتف"
+        description="إنشاء وتعديل الهاتف من نافذة منبثقة بنفس تدفّق قطع الغيار والأكسسوار."
+        icon={<Smartphone className="h-5 w-5" />}
+        actions={
+          <AdminButton
+            variant="primary"
+            size="md"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={openCreatePhoneModal}
+          >
+            إنشاء هاتف
+          </AdminButton>
+        }
+      />
 
-      <section className="rounded-[2.5rem] border border-slate-100/60 bg-white p-6 shadow-xl shadow-slate-200/40 sm:p-10">
-        <div className="mb-8 flex items-center gap-4 border-b border-slate-100 pb-6">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-50 text-emerald-600 shadow-inner">
-            <Smartphone className="h-7 w-7 stroke-[2.5]" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-extrabold text-slate-800">
-              {editing ? "تعديل بيانات الهاتف" : copySnapshot ? "إضافة هاتف (من نسخة)" : "نموذج إضافة هاتف جديد"}
-            </h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500 sm:text-sm">
-              {copySnapshot
-                ? "تم تعبئة الحقول من منتج موجود. عدّل حقلًا واحدًا على الأقل ثم احفظ كمنتج جديد."
-                : "يُرجى ملء جميع الحقول المطلوبة لضمان دقة معلومات المنتج"}
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {message && (
-            <div
-              className={`flex items-center gap-3 rounded-2xl px-5 py-4 text-sm font-bold shadow-sm ${message.type === "success"
-                  ? "border border-emerald-100 bg-emerald-50 text-emerald-700"
-                  : "border border-red-100 bg-red-50 text-red-700"
-                }`}
-            >
-              {message.type === "success" ? (
-                <CheckCircle className="h-6 w-6 shrink-0 text-emerald-500" />
-              ) : (
-                <AlertCircle className="h-6 w-6 shrink-0 text-red-500" />
-              )}
-              {message.text}
-            </div>
+      {message ? (
+        <div
+          role="status"
+          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
+            message.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-rose-200 bg-rose-50 text-rose-900"
+          }`}
+        >
+          {message.type === "success" ? (
+            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
           )}
+          {message.text}
+        </div>
+      ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="lg:col-span-2">
-              <label className={labelClass}>اسم الهاتف الكامل</label>
-              <input
-                type="text"
-                value={phoneName}
-                onChange={(e) => setPhoneName(e.target.value)}
-                className={inputClass}
-                placeholder="مثال: Apple iPhone 15 Pro Max 256GB"
-              />
-            </div>
+      <AdminModal
+        open={phoneModalOpen}
+        onClose={closePhoneModal}
+        size="md"
+        frameClassName="!p-3"
+        panelClassName="!max-w-[min(26rem,calc(100vw-1.75rem))] !w-full sm:!max-w-[min(32rem,calc(100vw-1.75rem))] lg:!max-w-[min(44rem,calc(100vw-1.75rem))] max-h-[min(92dvh,720px)]"
+        headerDense
+        bodyScroll
+        closeOnBackdrop={!savingPhone && !uploadingImages}
+        disableClose={savingPhone || uploadingImages}
+        icon={<Smartphone className="h-4 w-4 text-emerald-600 sm:h-[18px] sm:w-[18px]" />}
+        title={
+          editing
+            ? "تعديل هاتف"
+            : copySnapshot
+              ? "هاتف جديد من نسخة"
+              : "إنشاء هاتف"
+        }
+        description={
+          copySnapshot && !editing ? "عدّل حقلًا ثم احفظ." : "إلزامي: الاسم والماركة."
+        }
+        contentClassName="!px-3 !py-2 sm:!px-3.5 sm:!py-2.5"
+      >
+        {phoneModalNotice ? (
+          <div
+            className={`mb-1.5 flex shrink-0 items-start gap-1.5 rounded-md border px-2 py-1 text-[10px] leading-snug ${
+              phoneModalNotice.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-rose-200 bg-rose-50 text-rose-900"
+            }`}
+          >
+            {phoneModalNotice.type === "success" ? (
+              <CheckCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            )}
+            {phoneModalNotice.text}
+          </div>
+        ) : null}
 
-            <div className="lg:col-span-2">
-              <label className={labelClass}>الماركة (الشركة المصنعة)</label>
-              <select
-                value={selectedBrand}
-                onChange={(e) => setSelectedBrand(e.target.value)}
-                className={`${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2364748b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.5em] bg-[position:left_1rem_center] bg-no-repeat`}
-              >
-                <option value="">-- يرجى اختيار الماركة --</option>
-                {brands.map((b) => (
-                  <option key={b._id} value={b._id}>{b.name}</option>
-                ))}
-              </select>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-0">
+          <div className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="min-w-0 sm:col-span-2">
+                <label className={lbl} htmlFor="phone-name">
+                  اسم الهاتف <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="phone-name"
+                  type="text"
+                  value={phoneName}
+                  onChange={(e) => setPhoneName(e.target.value)}
+                  className={fld}
+                  placeholder="مثال: Apple iPhone 15 Pro Max 256GB"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="min-w-0 sm:col-span-2">
+                <label className={lbl} htmlFor="phone-brand-select">
+                  الماركة <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  id="phone-brand-select"
+                  value={selectedBrand}
+                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
+                >
+                  <option value="">اختر الماركة</option>
+                  {brands.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
-              <label className={labelClass}>سعر التجزئة (Retail) بالدينار</label>
-              <input
-                type="number"
-                min="0"
-                value={priceRetail}
-                onChange={(e) => setPriceRetail(e.target.value)}
-                className={inputClass}
-                placeholder="سعر الزبون العادي..."
+              <label className={lbl} htmlFor="phone-details">
+                التفاصيل والمواصفات
+              </label>
+              <textarea
+                id="phone-details"
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                rows={3}
+                className={`${fld} resize-none py-1.5 leading-snug`}
+                placeholder="موجز أو مواصفات للمتجر…"
               />
             </div>
 
-            <div>
-              <label className={labelClass}>سعر الجملة (Grossiste) بالدينار</label>
-              <input
-                type="number"
-                min="0"
-                value={priceWholesale}
-                onChange={(e) => setPriceWholesale(e.target.value)}
-                className={inputClass}
-                placeholder="سعر الكميات الكبيرة..."
-              />
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="min-w-0">
+                <label className={lbl}>تجزئة</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={priceRetail}
+                  onChange={(e) => setPriceRetail(e.target.value)}
+                  className={fldNum}
+                  placeholder="دج"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className={lbl}>جملة</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={priceWholesale}
+                  onChange={(e) => setPriceWholesale(e.target.value)}
+                  className={fldNum}
+                  placeholder="دج"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className={lbl}>Réparateur</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={priceReparateur}
+                  onChange={(e) => setPriceReparateur(e.target.value)}
+                  className={fldNum}
+                  placeholder="دج"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className={labelClass}>سعر المُصلّح (Réparateur) بالدينار</label>
-              <input
-                type="number"
-                min="0"
-                value={priceReparateur}
-                onChange={(e) => setPriceReparateur(e.target.value)}
-                className={inputClass}
-                placeholder="سعر الفني أو المصلح..."
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>رابط صورة المنتج</label>
+            <div className="border-t border-slate-100 pt-2">
+              <label className={lbl}>رابط الصورة الرئيسية</label>
               <input
                 type="text"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
-                className={inputClass}
+                className={fld}
+                placeholder="https://…"
                 dir="ltr"
-                placeholder="https:// أو //... — أي رابط صورة (حتى data:...)"
               />
-            </div>
-
-            <div>
-              <label className={labelClass}>رفع الصورة الرئيسية من الجهاز</label>
-              <input
-                type="file"
-                accept="image/*"
-                className={inputClass}
-                onChange={async (e) => {
-                  setMessage(null);
-                  try {
-                    setUploadingImages(true);
-                    const urls = await uploadImages(e.target.files);
-                    if (urls[0]) {
-                      setImage(urls[0]);
-                      setMessage({ type: "success", text: "تم رفع الصورة الرئيسية بنجاح" });
-                    }
-                  } catch (err) {
-                    setMessage({
-                      type: "error",
-                      text: err instanceof Error ? err.message : "فشل رفع الصورة",
-                    });
-                  } finally {
-                    setUploadingImages(false);
-                    e.currentTarget.value = "";
-                  }
-                }}
-              />
-            </div>
-
-            <div className="lg:col-span-2">
-              <label className={labelClass}>صور إضافية (حتى 4 روابط، كل رابط في سطر)</label>
-              <textarea
-                value={extraImagesText}
-                onChange={(e) => setExtraImagesText(e.target.value)}
-                rows={3}
-                className={`${inputClass} resize-none`}
-                placeholder="https://...\nhttps://..."
-              />
-            </div>
-
-            <div className="lg:col-span-2">
-              <label className={labelClass}>رفع صور إضافية من الجهاز (حتى 4)</label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className={inputClass}
-                onChange={async (e) => {
-                  setMessage(null);
-                  try {
-                    setUploadingImages(true);
-                    const uploaded = await uploadImages(e.target.files);
-                    if (uploaded.length > 0) {
-                      const current = parseExtraImages();
-                      const merged = [...current, ...uploaded].slice(0, 4);
-                      setExtraImagesText(merged.join("\n"));
-                      setMessage({ type: "success", text: `تم رفع ${uploaded.length} صورة إضافية` });
-                    }
-                  } catch (err) {
-                    setMessage({
-                      type: "error",
-                      text: err instanceof Error ? err.message : "فشل رفع الصور",
-                    });
-                  } finally {
-                    setUploadingImages(false);
-                    e.currentTarget.value = "";
-                  }
-                }}
-              />
-            </div>
-
-            <div className="lg:col-span-2">
-              <label className={labelClass}>الألوان المتوفرة</label>
-              <AdminProductColorsPicker value={selectedColors} onChange={setSelectedColors} />
-              <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                <AlertCircle className="h-4 w-4" />
-                يمكنك اختيار عدة ألوان؛ يظهر للزبون اختيار اللون عند الشراء.
-              </p>
-            </div>
-
-            <div className="lg:col-span-2">
-              <label className={labelClass}>تفاصيل ومواصفات إضافية (اختياري)</label>
-              <textarea
-                value={details}
-                onChange={(e) => setDetails(e.target.value)}
-                rows={4}
-                className={`${inputClass} resize-none`}
-                placeholder="المواصفات التقنية، الوصف العام، محتويات العلبة أو أي معلومات تهم الزبون..."
-              />
+              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                <div className="min-w-0">
+                  <label className={`${lbl} truncate`}>رفع رئيسية</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="admin-input h-7 cursor-pointer rounded-md px-1.5 py-0 text-[10px] file:me-1 file:rounded file:border-0 file:bg-sky-50 file:px-1.5 file:text-[10px] file:text-sky-800"
+                    onChange={async (e) => {
+                      setPhoneModalNotice(null);
+                      try {
+                        setUploadingImages(true);
+                        const urls = await uploadImages(e.target.files);
+                        if (urls[0]) {
+                          setImage(urls[0]);
+                          setPhoneModalNotice({
+                            type: "success",
+                            text: "تم رفع الصورة الرئيسية",
+                          });
+                        }
+                      } catch (err) {
+                        setPhoneModalNotice({
+                          type: "error",
+                          text: err instanceof Error ? err.message : "فشل رفع الصورة",
+                        });
+                      } finally {
+                        setUploadingImages(false);
+                        e.currentTarget.value = "";
+                      }
+                    }}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className={`${lbl} truncate`}>رفع حتى ٤</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="admin-input h-7 cursor-pointer rounded-md px-1.5 py-0 text-[10px] file:me-1 file:rounded file:border-0 file:bg-slate-50 file:px-1.5 file:text-[10px]"
+                    onChange={async (e) => {
+                      setPhoneModalNotice(null);
+                      try {
+                        setUploadingImages(true);
+                        const uploaded = await uploadImages(e.target.files);
+                        if (uploaded.length > 0) {
+                          const merged = [...parseExtraImages(), ...uploaded].slice(0, 4);
+                          setExtraImagesText(merged.join("\n"));
+                          setPhoneModalNotice({
+                            type: "success",
+                            text: `تم رفع ${uploaded.length} صورة إضافية`,
+                          });
+                        }
+                      } catch (err) {
+                        setPhoneModalNotice({
+                          type: "error",
+                          text: err instanceof Error ? err.message : "فشل رفع الصور",
+                        });
+                      } finally {
+                        setUploadingImages(false);
+                        e.currentTarget.value = "";
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="mt-1.5">
+                <label className={lbl}>روابط إضافية (٤)</label>
+                <textarea
+                  value={extraImagesText}
+                  onChange={(e) => setExtraImagesText(e.target.value)}
+                  rows={2}
+                  className={`${fld} !min-h-[2.25rem] resize-none py-1.5 leading-snug`}
+                  placeholder="سطر أو فاصلة"
+                  dir="ltr"
+                />
+              </div>
+              <div className="mt-2 border-t border-slate-100 pt-1.5">
+                <label className={`${lbl} mb-1`}>ألوان الاختيار</label>
+                <AdminProductColorsPicker
+                  variant="compact"
+                  value={selectedColors}
+                  onChange={setSelectedColors}
+                />
+                <p className="mt-1 flex items-start gap-1 text-[10px] text-slate-500">
+                  <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                  يظهر للزبون اختيار اللون عند الشراء عند وجود أكثر من لون.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-4 border-t border-slate-100 pt-8">
-            <button
-              type="submit"
-              disabled={uploadingImages}
-              className="group relative flex flex-1 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 px-8 py-4 font-bold text-white shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] sm:flex-none sm:hover:scale-[1.02] sm:hover:shadow-xl sm:hover:shadow-emerald-500/30"
+          <div className="mt-2 flex shrink-0 flex-wrap items-center justify-end gap-1.5 border-t border-slate-100/90 pt-2">
+            <AdminButton
+              type="button"
+              variant="outline"
+              onClick={closePhoneModal}
+              disabled={savingPhone || uploadingImages}
+              size="sm"
             >
-              <span className="relative z-10 flex items-center gap-2">
-                {uploadingImages
-                  ? "جاري رفع الصور..."
-                  : editing
-                  ? "حفظ التعديلات المطبقة"
-                  : copySnapshot
-                  ? "حفظ الهاتف الجديد"
-                  : "تسجيل الهاتف الجديد"}
-                <CheckCircle className="h-5 w-5 opacity-80" />
-              </span>
-              <div className="absolute inset-0 z-0 bg-gradient-to-r from-teal-500 to-emerald-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            </button>
-            {(editing || copySnapshot) && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white px-8 py-4 font-bold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] sm:flex-none"
-              >
-                {editing ? "إلغاء التعديل" : "إلغاء النسخ"}
-              </button>
-            )}
+              إغلاق
+            </AdminButton>
+            <AdminButton
+              type="submit"
+              variant="success"
+              disabled={uploadingImages}
+              loading={savingPhone}
+              className="min-w-[100px]"
+              size="sm"
+            >
+              {uploadingImages ? "رفع الصور…" : "حفظ"}
+            </AdminButton>
           </div>
         </form>
-      </section>
+      </AdminModal>
 
-      <section className="mt-12 rounded-[2.5rem] border border-slate-100/60 bg-white p-6 shadow-xl shadow-slate-200/40 sm:p-10">
-        <h2 className="mb-4 text-lg font-bold text-slate-800">الهواتف المُنشأة</h2>
-        {loading ? (
-          <p className="py-8 text-center text-slate-500">جاري التحميل...</p>
-        ) : phones.length === 0 ? (
-          <p className="py-8 text-center text-slate-500">لا توجد هواتف مسجّلة بعد.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-right">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80">
-                  <th className="p-3 text-sm font-semibold text-slate-600">الاسم</th>
-                  <th className="p-3 text-sm font-semibold text-slate-600">الماركة</th>
-                  <th className="p-3 text-sm font-semibold text-slate-600">الألوان</th>
-                  <th className="p-3 text-sm font-semibold text-slate-600">السعر</th>
-                  <th className="p-3 text-sm font-semibold text-slate-600">التفاصيل</th>
-                  <th className="p-3 text-sm font-semibold text-slate-600">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {phones.map((p) => (
-                  <tr key={p._id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                    <td className="p-3 font-medium text-slate-800">{p.name}</td>
-                    <td className="p-3 text-slate-600">{brandName(p)}</td>
-                    <td className="p-3">
-                      <div className="flex flex-wrap gap-1">
-                        {(Array.isArray(p.colors) ? p.colors : []).map((c) => (
-                          <span
-                            key={c}
-                            className="inline-block h-5 w-5 rounded-full border border-slate-200"
-                            style={{
-                              backgroundColor: getProductColorHex(c),
-                              boxShadow:
-                                String(c).toLowerCase() === "white" || String(c).toLowerCase() === "cream"
-                                  ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
-                                  : undefined,
-                            }}
-                            title={c}
-                          />
-                        ))}
-                        {(!p.colors || p.colors.length === 0) && (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-3 text-slate-600">{(p.price ?? 0).toLocaleString()} دج</td>
-                    <td className="max-w-[200px] truncate p-3 text-sm text-slate-500" title={p.details || ""}>
-                      {p.details || "—"}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/product/${p._id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-lg p-2 text-slate-600 hover:bg-blue-100 hover:text-blue-600"
-                          title="عرض في الموقع"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => startCopyFrom(p)}
-                          className="rounded-lg p-2 text-slate-600 hover:bg-violet-100 hover:text-violet-700"
-                          title="نسخ إلى نموذج إضافة جديد"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startEdit(p)}
-                          className="rounded-lg p-2 text-slate-600 hover:bg-blue-100 hover:text-blue-600"
-                          title="تعديل"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirm(p._id)}
-                          className="rounded-lg p-2 text-slate-600 hover:bg-red-100 hover:text-red-600"
-                          title="حذف"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+      <AdminCard
+        title="الهواتف المُنشأة"
+        description={`المجموع: ${phones.length}`}
+        icon={<Smartphone className="h-5 w-5" />}
+      >
+        <AdminTable
+          columns={[
+            { key: "image", label: "الصورة" },
+            { key: "name", label: "الاسم" },
+            { key: "brand", label: "الماركة" },
+            { key: "colors", label: "الألوان" },
+            { key: "price", label: "السعر" },
+            { key: "details", label: "التفاصيل" },
+            { key: "actions", label: "إجراءات", className: "w-[9rem]" },
+          ]}
+          rows={phones.map((p) => ({
+            _id: p._id,
+            image: <AdminTableCellImage src={p.image} alt={p.name} />,
+            name: <span className="font-medium text-slate-800">{p.name}</span>,
+            brand: <span className="text-slate-600">{brandName(p)}</span>,
+            colors: (
+              <div className="flex flex-wrap gap-1">
+                {(Array.isArray(p.colors) ? p.colors : []).map((c) => (
+                  <span
+                    key={c}
+                    className="inline-block h-5 w-5 rounded-full border border-slate-200"
+                    style={{
+                      backgroundColor: getProductColorHex(c),
+                      boxShadow:
+                        String(c).toLowerCase() === "white" ||
+                        String(c).toLowerCase() === "cream"
+                          ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
+                          : undefined,
+                    }}
+                    title={c}
+                  />
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                {(!p.colors || p.colors.length === 0) && (
+                  <span className="text-[11px] text-slate-400">—</span>
+                )}
+              </div>
+            ),
+            price: (
+              <span className="text-slate-700">{(p.price ?? 0).toLocaleString()} دج</span>
+            ),
+            details: (
+              <span className="line-clamp-2 max-w-[14rem] text-[11px] text-slate-500" title={p.details}>
+                {p.details || "—"}
+              </span>
+            ),
+            actions: (
+              <div className="flex flex-wrap items-center gap-1">
+                <Link
+                  href={`/product/${p._id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="عرض في الموقع"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100/80 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-slate-400/20"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Link>
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<Copy className="h-4 w-4" />}
+                  onClick={() => openCopyPhone(p)}
+                  title="نسخ إلى نموذج جديد"
+                />
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<Pencil className="h-4 w-4" />}
+                  onClick={() => openEditPhone(p)}
+                  title="تعديل"
+                />
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<Trash2 className="h-4 w-4" />}
+                  className="hover:bg-rose-50 hover:text-rose-600"
+                  onClick={() => setDeleteConfirm(p._id)}
+                  title="حذف"
+                />
+              </div>
+            ),
+          }))}
+          keyExtractor={(r) => r._id as string}
+          emptyMessage="لا توجد هواتف مسجلة بعد."
+          loading={loading}
+        />
+      </AdminCard>
 
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteConfirm(null)}>
-          <div className="rounded-2xl bg-white p-6 shadow-xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <p className="text-slate-800 font-medium">هل تريد حذف هذا الهاتف؟</p>
-            <div className="mt-4 flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirm(null)}
-                className="rounded-xl border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50"
-              >
-                إلغاء
-              </button>
-              <button
-                type="button"
-                onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
-                className="rounded-xl bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-500"
-              >
-                حذف
-              </button>
-            </div>
-          </div>
+      <AdminModal
+        open={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        title="حذف هاتف"
+        description="لا يمكن التراجع بعد التأكيد."
+        icon={<Trash2 className="h-4 w-4 text-rose-600" />}
+        size="sm"
+        headerDense
+      >
+        <p className="text-sm text-slate-700">هل تريد حذف هذا الهاتف؟</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <AdminButton type="button" variant="outline" size="sm" onClick={() => setDeleteConfirm(null)}>
+            إلغاء
+          </AdminButton>
+          <AdminButton
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={() => deleteConfirm && void handleDelete(deleteConfirm)}
+          >
+            حذف
+          </AdminButton>
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 }

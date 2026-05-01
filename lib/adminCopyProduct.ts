@@ -178,11 +178,12 @@ export function buildSparePartManualCreateComparePayload(args: {
   priceWholesale: string;
   priceReparateur: string;
   selectedBrand: string;
-  selectedPhoneType: string;
+  selectedPhoneTypes: string[];
   newPhoneTypeName: string;
   selectedSpareColors: string[];
 }): Record<string, unknown> {
   const normalizedDetails = args.details.trim();
+  const phoneTypesSorted = [...args.selectedPhoneTypes].slice().sort();
   const payload: Record<string, unknown> = {
     name: args.name.trim(),
     details: normalizedDetails,
@@ -196,9 +197,9 @@ export function buildSparePartManualCreateComparePayload(args: {
     colors: [...args.selectedSpareColors],
     creationSource: "manual",
     brand: args.selectedBrand || null,
-    phoneType: args.selectedPhoneType || null,
+    phoneTypes: phoneTypesSorted,
   };
-  if (!args.selectedPhoneType && args.newPhoneTypeName.trim()) {
+  if (phoneTypesSorted.length === 0 && args.newPhoneTypeName.trim()) {
     payload.phoneTypeName = args.newPhoneTypeName.trim();
   }
   return payload;
@@ -215,16 +216,35 @@ export function snapshotFromSparePartForCopy(p: {
   priceReparateur?: number;
   brand?: { _id?: string } | string | null;
   phoneType?: { _id?: string } | string | null;
+  phoneTypes?: Array<{ _id?: string } | string>;
   colors?: string[];
 }): string {
   const brandId =
     typeof p.brand === "string" ? p.brand : p.brand && typeof p.brand === "object" ? String(p.brand._id || "") : "";
-  const ptId =
+  const phoneTypeIdsFromArray: string[] = [];
+  if (Array.isArray(p.phoneTypes)) {
+    for (const pt of p.phoneTypes) {
+      const id =
+        typeof pt === "string"
+          ? pt
+          : pt && typeof pt === "object"
+            ? String(pt._id || "")
+            : "";
+      if (id) phoneTypeIdsFromArray.push(id);
+    }
+  }
+  const fallbackSingle =
     typeof p.phoneType === "string"
       ? p.phoneType
       : p.phoneType && typeof p.phoneType === "object"
         ? String(p.phoneType._id || "")
         : "";
+  const selectedPhoneTypes =
+    phoneTypeIdsFromArray.length > 0
+      ? phoneTypeIdsFromArray
+      : fallbackSingle
+        ? [fallbackSingle]
+        : [];
   return snapshotCreatePayload(
     buildSparePartManualCreateComparePayload({
       name: p.name,
@@ -236,7 +256,7 @@ export function snapshotFromSparePartForCopy(p: {
       priceWholesale: p.priceWholesale != null ? String(p.priceWholesale) : "",
       priceReparateur: p.priceReparateur != null ? String(p.priceReparateur) : "",
       selectedBrand: brandId || "",
-      selectedPhoneType: ptId || "",
+      selectedPhoneTypes,
       newPhoneTypeName: "",
       selectedSpareColors: Array.isArray(p.colors) ? [...p.colors] : [],
     })

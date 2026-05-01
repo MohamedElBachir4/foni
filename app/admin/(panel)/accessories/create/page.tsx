@@ -1,26 +1,33 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getPhoneTypeIdsFromAccessory } from "@/lib/accessoryVisibility";
-import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
+import { API_URL, getAuthHeaders, getToken } from "@/lib/adminAuth";
 import {
   ADMIN_COPY_UNCHANGED_MESSAGE,
   buildAccessoryCreateComparePayload,
   snapshotAccessoryAfterModelsResolved,
   snapshotCreatePayload,
 } from "@/lib/adminCopyProduct";
-import { Package, CheckCircle, AlertCircle, Pencil, Trash2, Copy } from "lucide-react";
+import { Package, CheckCircle, AlertCircle, Pencil, Trash2, Copy, Plus } from "lucide-react";
 import {
   AdminButton,
   AdminCard,
+  AdminModal,
   AdminPageHeader,
   AdminTable,
   AdminTableCellImage,
   AdminPagination,
   AdminProductColorsPicker,
+  AdminSparePartModelPicker,
 } from "@/components/admin";
 
 const PAGE_SIZE = 12;
+
+const fld =
+  "admin-input !h-7 !rounded-md !px-2 !py-1 text-[11px] text-slate-800 placeholder:text-slate-400";
+const fldNum = `${fld} font-mono tabular-nums`;
+const lbl = "mb-0.5 block text-[10px] font-medium text-slate-500";
 
 type AccessoryType = { _id: string; name: string };
 type Brand = { _id: string; name: string; slug?: string };
@@ -54,7 +61,6 @@ export default function AccessoriesPage() {
   const [selectedType, setSelectedType] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
   const [selectedPhoneTypes, setSelectedPhoneTypes] = useState<string[]>([]);
-  const [modelPickerSearch, setModelPickerSearch] = useState("");
   const [image, setImage] = useState("");
   const [extraImagesText, setExtraImagesText] = useState("");
   const [price, setPrice] = useState("");
@@ -67,6 +73,12 @@ export default function AccessoriesPage() {
   const [editing, setEditing] = useState<Accessory | null>(null);
   const [copySnapshot, setCopySnapshot] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [accessoryModalNotice, setAccessoryModalNotice] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [accessoryModalOpen, setAccessoryModalOpen] = useState(false);
+  const [savingAccessory, setSavingAccessory] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [uploadingImages, setUploadingImages] = useState(false);
 
@@ -145,7 +157,6 @@ export default function AccessoriesPage() {
     setSelectedType("");
     setSelectedBrand("");
     setSelectedPhoneTypes([]);
-    setModelPickerSearch("");
     setPhoneTypes([]);
     setImage("");
     setExtraImagesText("");
@@ -163,9 +174,39 @@ export default function AccessoriesPage() {
   function parseExtraImages(): string[] {
     return extraImagesText
       .split(/\r?\n/)
-      .map((l) => l.trim())
+      .flatMap((line) =>
+        line
+          .split(/,\s*/u)
+          .map((url) => url.trim())
+          .filter(Boolean)
+      )
       .filter(Boolean)
       .slice(0, 4);
+  }
+
+  function closeAccessoryModal() {
+    if (savingAccessory || uploadingImages) return;
+    setAccessoryModalOpen(false);
+    setAccessoryModalNotice(null);
+    resetForm();
+  }
+
+  function openCreateAccessoryModal() {
+    resetForm();
+    setAccessoryModalNotice(null);
+    setAccessoryModalOpen(true);
+  }
+
+  async function openEditAccessory(item: Accessory) {
+    setAccessoryModalNotice(null);
+    await startEdit(item);
+    setAccessoryModalOpen(true);
+  }
+
+  async function openCopyAccessory(item: Accessory) {
+    setAccessoryModalNotice(null);
+    await startCopyFrom(item);
+    setAccessoryModalOpen(true);
   }
 
   async function uploadImages(files: FileList | null): Promise<string[]> {
@@ -174,8 +215,7 @@ export default function AccessoriesPage() {
     Array.from(files)
       .slice(0, 5)
       .forEach((file) => formData.append("images", file));
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("foni_admin_token") : null;
+    const token = getToken();
     const res = await fetch(`${API_URL}/api/uploads/images`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -189,22 +229,31 @@ export default function AccessoriesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setAccessoryModalNotice(null);
     setMessage(null);
     if (!name.trim()) {
-      setMessage({ type: "error", text: "اسم الأكسسوار مطلوب" });
+      setAccessoryModalNotice({ type: "error", text: "اسم الأكسسوار مطلوب" });
       return;
     }
     if (!selectedType) {
-      setMessage({ type: "error", text: "اختر نوع الأكسسوار" });
+      setAccessoryModalNotice({ type: "error", text: "اختر نوع الأكسسوار" });
       return;
     }
     if (!selectedBrand || selectedPhoneTypes.length === 0) {
-      setMessage({
+      setAccessoryModalNotice({
         type: "error",
         text: "اختر الماركة وموديل هاتف واحد على الأقل (يمكن اختيار عدة موديلات)",
       });
       return;
     }
+
+    const effectivePrice =
+      price.trim().length > 0
+        ? Number(price)
+        : priceRetail.trim().length > 0
+          ? Number(priceRetail)
+          : 0;
+
     const payload = {
       name: name.trim(),
       type: selectedType,
@@ -213,7 +262,7 @@ export default function AccessoriesPage() {
       image: image.trim(),
       extraImages: parseExtraImages(),
       colors,
-      price: price.trim() ? Number(price) : 0,
+      price: effectivePrice,
       priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
       priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
@@ -239,10 +288,11 @@ export default function AccessoriesPage() {
         })
       );
       if (current === copySnapshot) {
-        setMessage({ type: "error", text: ADMIN_COPY_UNCHANGED_MESSAGE });
+        setAccessoryModalNotice({ type: "error", text: ADMIN_COPY_UNCHANGED_MESSAGE });
         return;
       }
     }
+    setSavingAccessory(true);
     try {
       let res: Response;
       if (editing) {
@@ -260,27 +310,31 @@ export default function AccessoriesPage() {
       }
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        setAccessoryModalOpen(false);
+        resetForm();
         setMessage({
           type: "success",
           text: editing ? "تم تحديث الأكسسوار بنجاح" : "تم إنشاء الأكسسوار بنجاح",
         });
-        resetForm();
-        fetchItems();
+        await fetchItems();
       } else {
-        setMessage({ type: "error", text: data.error || "فشل العملية" });
+        setAccessoryModalNotice({
+          type: "error",
+          text: data.error || "فشل العملية",
+        });
       }
     } catch {
-      setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
+      setAccessoryModalNotice({ type: "error", text: "تعذر الاتصال بالخادم" });
+    } finally {
+      setSavingAccessory(false);
     }
   }
 
   async function startCopyFrom(item: Accessory) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
     setEditing(null);
     setCopySnapshot(null);
     setMessage(null);
     setName(item.name);
-    setModelPickerSearch("");
     setSelectedType(typeof item.type === "object" ? (item.type as AccessoryType)._id : "");
     const bid = String(
       typeof item.brand === "object" && item.brand && "_id" in item.brand
@@ -345,11 +399,9 @@ export default function AccessoriesPage() {
   }
 
   async function startEdit(item: Accessory) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
     setCopySnapshot(null);
     setEditing(item);
     setName(item.name);
-    setModelPickerSearch("");
     setSelectedType(typeof item.type === "object" ? (item.type as AccessoryType)._id : "");
     const bid = String(
       typeof item.brand === "object" && item.brand && "_id" in item.brand
@@ -469,359 +521,341 @@ export default function AccessoriesPage() {
     currentPage * PAGE_SIZE
   );
 
-  const filteredPhoneModelsForPicker = useMemo(() => {
-    const q = modelPickerSearch.trim().toLowerCase();
-    if (!q) return phoneTypes;
-    return phoneTypes.filter((p) => p.name.toLowerCase().includes(q));
-  }, [phoneTypes, modelPickerSearch]);
-
-  function togglePhoneModel(id: string) {
-    setSelectedPhoneTypes((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="mx-auto w-full max-w-[1600px] space-y-4">
       <AdminPageHeader
+        className="mb-0 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
         title="منتجات الأكسسوارات"
-        description="إضافة الأكسسوارات وربط كل منتج بماركة وبواحد أو أكثر من موديلات الهاتف لعرضه في صفحات الموديلات دون التكرار."
+        description="إنشاء وتعديل الأكسسوار من نافذة منبثقة وبنفس تدفّق قطع الغيار؛ الربط بماركة وعدة موديلات لهاتفك."
         icon={<Package className="h-5 w-5" />}
+        actions={
+          <AdminButton
+            variant="primary"
+            size="md"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={openCreateAccessoryModal}
+          >
+            إنشاء أكسسوار
+          </AdminButton>
+        }
       />
 
-      <AdminCard
+      {message ? (
+        <div
+          role="status"
+          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
+            message.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : "border-rose-200 bg-rose-50 text-rose-900"
+          }`}
+        >
+          {message.type === "success" ? (
+            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+          )}
+          {message.text}
+        </div>
+      ) : null}
+
+      <AdminModal
+        open={accessoryModalOpen}
+        onClose={closeAccessoryModal}
+        size="md"
+        frameClassName="!p-3"
+        panelClassName="!max-w-[min(26rem,calc(100vw-1.75rem))] !w-full sm:!max-w-[min(32rem,calc(100vw-1.75rem))] lg:!max-w-[min(44rem,calc(100vw-1.75rem))] max-h-[min(92dvh,720px)]"
+        headerDense
+        bodyScroll
+        closeOnBackdrop={!savingAccessory && !uploadingImages}
+        disableClose={savingAccessory || uploadingImages}
+        icon={<Package className="h-4 w-4 text-emerald-600 sm:h-[18px] sm:w-[18px]" />}
         title={
           editing
-            ? "تعديل منتج أكسسوارات"
+            ? "تعديل أكسسوار"
             : copySnapshot
-              ? "إضافة أكسسوار (من نسخة)"
-              : "إضافة منتج أكسسوارات جديد"
+              ? "أكسسوار جديد من نسخة"
+              : "إنشاء أكسسوار"
         }
         description={
-          copySnapshot && !editing
-            ? "تم تعبئة الحقول من منتج موجود. عدّل حقلًا واحدًا على الأقل ثم احفظ."
-            : undefined
+          copySnapshot && !editing ? "عدّل حقلًا ثم احفظ." : "الماركة + موديل واحد على الأقل."
         }
-        icon={<Package className="h-5 w-5" />}
+        contentClassName="!px-3 !py-2 sm:!px-3.5 sm:!py-2.5"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {message && (
-            <div
-              className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
-                message.type === "success" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
-              }`}
-            >
-              {message.type === "success" ? (
-                <CheckCircle className="h-5 w-5 shrink-0" />
-              ) : (
-                <AlertCircle className="h-5 w-5 shrink-0" />
-              )}
-              {message.text}
+        {accessoryModalNotice ? (
+          <div
+            className={`mb-1.5 flex shrink-0 items-start gap-1.5 rounded-md border px-2 py-1 text-[10px] leading-snug ${
+              accessoryModalNotice.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-rose-200 bg-rose-50 text-rose-900"
+            }`}
+          >
+            {accessoryModalNotice.type === "success" ? (
+              <CheckCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            )}
+            {accessoryModalNotice.text}
+          </div>
+        ) : null}
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-0">
+          <div className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="min-w-0">
+                <label className={lbl} htmlFor="accessory-name">
+                  اسم الأكسسوار <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="accessory-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={fld}
+                  placeholder="مثال: شاحن سريع 25W"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className={lbl} htmlFor="accessory-type-select">
+                  نوع الأكسسوار <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  id="accessory-type-select"
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
+                >
+                  <option value="">اختر النوع</option>
+                  {types.map((t) => (
+                    <option key={t._id} value={t._id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2">
+
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">اسم الأكسسوار</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="admin-input"
-                placeholder="مثال: شاحن سريع 25W"
+              <label className={lbl} htmlFor="accessory-details">
+                الوصف
+              </label>
+              <textarea
+                id="accessory-details"
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                rows={2}
+                className={`${fld} !h-[3.25rem] resize-none py-1.5 leading-snug`}
+                placeholder="موجز للمعروض في المتجر"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">نوع الأكسسوار</label>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="admin-select"
-              >
-                <option value="">اختر النوع</option>
-                {types.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">الماركة (الهاتف)</label>
-              <select
-                value={selectedBrand}
-                onChange={async (e) => {
-                  const v = e.target.value;
-                  setSelectedPhoneTypes([]);
-                  setModelPickerSearch("");
-                  setSelectedBrand(v);
-                  setPhoneTypes(v ? await loadPhoneTypes(v) : []);
-                }}
-                className="admin-select"
-              >
-                <option value="">اختر الماركة</option>
-                {brands.map((b) => (
-                  <option key={b._id} value={b._id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                موديلات الهاتف{" "}
-                <span className="font-normal text-slate-500">(متعدّد، يمكن اختيار أكثر من موديل)</span>
-              </label>
-              {!selectedBrand ? (
-                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                  اختر الماركة أولاً لعرض الموديلات.
-                </p>
-              ) : (
-                <>
-                  <input
-                    type="search"
-                    value={modelPickerSearch}
-                    onChange={(e) => setModelPickerSearch(e.target.value)}
-                    placeholder="بحث في الموديلات…"
-                    className="admin-input mb-2"
-                    dir="auto"
-                  />
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                      onClick={() => setSelectedPhoneTypes(phoneTypes.map((p) => p._id))}
-                      disabled={!phoneTypes.length}
-                    >
-                      اختيار الكل ({phoneTypes.length})
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                      onClick={() => setSelectedPhoneTypes([])}
-                    >
-                      إزالة الكل
-                    </button>
-                    <span className="mr-auto text-xs text-slate-600">
-                      مختار: {selectedPhoneTypes.length}{" "}
-                      {filteredPhoneModelsForPicker.length < phoneTypes.length
-                        ? `— معروض ${filteredPhoneModelsForPicker.length} بعد البحث`
-                        : ""}
-                    </span>
-                  </div>
-                  <div
-                    className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:max-h-60"
-                    role="group"
-                    aria-label="قائمة موديلات الهاتف"
-                  >
-                    {filteredPhoneModelsForPicker.length === 0 ? (
-                      <p className="py-6 text-center text-sm text-slate-500">
-                        لا توجد موديلات مطابقة للبحث أو القائمة فارغة.
-                      </p>
-                    ) : (
-                      <div className="grid gap-1 sm:grid-cols-2">
-                        {filteredPhoneModelsForPicker.map((p) => (
-                          <label
-                            key={p._id}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-transparent px-2 py-2 text-sm text-slate-700 hover:border-sky-100 hover:bg-sky-50/60"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedPhoneTypes.includes(p._id)}
-                              onChange={() => togglePhoneModel(p._id)}
-                              className="h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                            <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">الصورة الرئيسية</label>
+            <div className="grid gap-2 sm:grid-cols-2 sm:items-start">
+              <div className="min-w-0 space-y-1">
+                <label className={lbl}>الماركة (الهاتف)</label>
+                <select
+                  value={selectedBrand}
+                  onChange={async (e) => {
+                    const v = e.target.value;
+                    setSelectedPhoneTypes([]);
+                    setSelectedBrand(v);
+                    setPhoneTypes(v ? await loadPhoneTypes(v) : []);
+                  }}
+                  className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
+                >
+                  <option value="">اختر الماركة</option>
+                  {brands.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="min-w-0">
+                <label className={lbl}>الموديلات</label>
+                <AdminSparePartModelPicker
+                  brandSelected={!!selectedBrand}
+                  phoneTypes={phoneTypes}
+                  selectedIds={selectedPhoneTypes}
+                  onChangeIds={setSelectedPhoneTypes}
+                  newModelName=""
+                  onNewModelNameChange={() => {}}
+                  blockedNewBecauseSelection={false}
+                  showNewModelRow={false}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="min-w-0">
+                <label className={lbl}>تجزئة</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={priceRetail}
+                  onChange={(e) => setPriceRetail(e.target.value)}
+                  className={fldNum}
+                  placeholder="دج"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className={lbl}>جملة</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={priceWholesale}
+                  onChange={(e) => setPriceWholesale(e.target.value)}
+                  className={fldNum}
+                  placeholder="دج"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className={lbl}>Réparateur</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={priceReparateur}
+                  onChange={(e) => setPriceReparateur(e.target.value)}
+                  className={fldNum}
+                  placeholder="دج"
+                />
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <label className={lbl}>المخزون</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                className={fldNum}
+                placeholder="0"
+              />
+            </div>
+
+            <div className="border-t border-slate-100 pt-2">
+              <label className={lbl}>رابط الصورة الرئيسية</label>
               <input
                 type="text"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
-                className="admin-input"
+                className={fld}
+                placeholder="https://…"
                 dir="ltr"
-                placeholder="أي رابط صورة (https، //، ipfs:، data:...)"
               />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                صور إضافية (رابط في كل سطر)
-              </label>
-              <textarea
-                value={extraImagesText}
-                onChange={(e) => setExtraImagesText(e.target.value)}
-                rows={3}
-                className="admin-input"
-                placeholder="رابط لكل سطر — أي تنسيق صورة"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                رفع الصورة الرئيسية من الجهاز
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                className="admin-input"
-                onChange={async (e) => {
-                  setMessage(null);
-                  try {
-                    setUploadingImages(true);
-                    const urls = await uploadImages(e.target.files);
-                    if (urls[0]) {
-                      setImage(urls[0]);
-                      setMessage({ type: "success", text: "تم رفع الصورة الرئيسية" });
-                    }
-                  } catch (err) {
-                    setMessage({
-                      type: "error",
-                      text: err instanceof Error ? err.message : "فشل رفع الصورة",
-                    });
-                  } finally {
-                    setUploadingImages(false);
-                    e.currentTarget.value = "";
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                رفع صور إضافية من الجهاز (حتى 4)
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="admin-input"
-                onChange={async (e) => {
-                  setMessage(null);
-                  try {
-                    setUploadingImages(true);
-                    const uploaded = await uploadImages(e.target.files);
-                    if (uploaded.length > 0) {
-                      const merged = [...parseExtraImages(), ...uploaded].slice(0, 4);
-                      setExtraImagesText(merged.join("\n"));
-                      setMessage({ type: "success", text: `تم رفع ${uploaded.length} صورة إضافية` });
-                    }
-                  } catch (err) {
-                    setMessage({
-                      type: "error",
-                      text: err instanceof Error ? err.message : "فشل رفع الصور",
-                    });
-                  } finally {
-                    setUploadingImages(false);
-                    e.currentTarget.value = "";
-                  }
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">الألوان المتوفرة</label>
-            <AdminProductColorsPicker value={colors} onChange={setColors} />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                سعر التجزئة (Retail) دج
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={priceRetail}
-                onChange={(e) => setPriceRetail(e.target.value)}
-                className="admin-input"
-                placeholder="سعر الزبون العادي"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                سعر تاجر الجملة (Grossiste) دج
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={priceWholesale}
-                onChange={(e) => setPriceWholesale(e.target.value)}
-                className="admin-input"
-                placeholder="سعر الكميات الكبيرة"
-              />
+              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                <div className="min-w-0">
+                  <label className={`${lbl} truncate`}>رفع رئيسية</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="admin-input h-7 cursor-pointer rounded-md px-1.5 py-0 text-[10px] file:me-1 file:rounded file:border-0 file:bg-sky-50 file:px-1.5 file:text-[10px] file:text-sky-800"
+                    onChange={async (e) => {
+                      setAccessoryModalNotice(null);
+                      try {
+                        setUploadingImages(true);
+                        const urls = await uploadImages(e.target.files);
+                        if (urls[0]) {
+                          setImage(urls[0]);
+                          setAccessoryModalNotice({
+                            type: "success",
+                            text: "تم رفع الصورة الرئيسية",
+                          });
+                        }
+                      } catch (err) {
+                        setAccessoryModalNotice({
+                          type: "error",
+                          text: err instanceof Error ? err.message : "فشل رفع الصورة",
+                        });
+                      } finally {
+                        setUploadingImages(false);
+                        e.currentTarget.value = "";
+                      }
+                    }}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className={`${lbl} truncate`}>رفع حتى ٤</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="admin-input h-7 cursor-pointer rounded-md px-1.5 py-0 text-[10px] file:me-1 file:rounded file:border-0 file:bg-slate-50 file:px-1.5 file:text-[10px]"
+                    onChange={async (e) => {
+                      setAccessoryModalNotice(null);
+                      try {
+                        setUploadingImages(true);
+                        const uploaded = await uploadImages(e.target.files);
+                        if (uploaded.length > 0) {
+                          const merged = [...parseExtraImages(), ...uploaded].slice(0, 4);
+                          setExtraImagesText(merged.join("\n"));
+                          setAccessoryModalNotice({
+                            type: "success",
+                            text: `تم رفع ${uploaded.length} صورة إضافية`,
+                          });
+                        }
+                      } catch (err) {
+                        setAccessoryModalNotice({
+                          type: "error",
+                          text: err instanceof Error ? err.message : "فشل رفع الصور",
+                        });
+                      } finally {
+                        setUploadingImages(false);
+                        e.currentTarget.value = "";
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="mt-1.5">
+                <label className={lbl}>روابط إضافية (٤)</label>
+                <textarea
+                  value={extraImagesText}
+                  onChange={(e) => setExtraImagesText(e.target.value)}
+                  rows={2}
+                  className={`${fld} !min-h-[2.25rem] resize-none py-1.5 leading-snug`}
+                  placeholder="سطر أو فاصلة"
+                  dir="ltr"
+                />
+              </div>
+              <div className="mt-2 border-t border-slate-100 pt-1.5">
+                <label className={`${lbl} mb-1`}>ألوان الاختيار</label>
+                <AdminProductColorsPicker variant="compact" value={colors} onChange={setColors} />
+              </div>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                سعر Réparateur دج
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={priceReparateur}
-                onChange={(e) => setPriceReparateur(e.target.value)}
-                className="admin-input"
-                placeholder="سعر الفني / مركز الصيانة"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">الكمية في المخزون</label>
-              <input
-                type="number"
-                min="0"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                className="admin-input"
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              الوصف / التفاصيل (اختياري)
-            </label>
-            <textarea
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              rows={3}
-              className="admin-input"
-              placeholder="وصف المنتج، المميزات، الضمان..."
-            />
-          </div>
-
-          <div className="flex gap-3">
-            {(editing || copySnapshot) && (
-              <AdminButton type="button" variant="outline" onClick={resetForm}>
-                {editing ? "إلغاء" : "إلغاء النسخ"}
-              </AdminButton>
-            )}
-            <AdminButton type="submit" variant="primary" disabled={uploadingImages}>
-              {uploadingImages
-                ? "جاري رفع الصور..."
-                : editing
-                ? "حفظ التعديلات"
-                : copySnapshot
-                ? "حفظ المنتج الجديد"
-                : "إضافة المنتج"}
+          <div className="mt-2 flex shrink-0 flex-wrap items-center justify-end gap-1.5 border-t border-slate-100/90 pt-2">
+            <AdminButton
+              type="button"
+              variant="outline"
+              onClick={closeAccessoryModal}
+              disabled={savingAccessory || uploadingImages}
+              size="sm"
+            >
+              إغلاق
+            </AdminButton>
+            <AdminButton
+              type="submit"
+              variant="success"
+              disabled={uploadingImages}
+              loading={savingAccessory}
+              className="min-w-[100px]"
+              size="sm"
+            >
+              {uploadingImages ? "رفع الصور…" : "حفظ"}
             </AdminButton>
           </div>
         </form>
-      </AdminCard>
+      </AdminModal>
 
       <AdminCard
         title="منتجات الأكسسوارات المُضافة"
@@ -872,7 +906,7 @@ export default function AccessoriesPage() {
                   size="sm"
                   icon={<Copy className="h-4 w-4" />}
                   onClick={() => {
-                    void startCopyFrom(a);
+                    void openCopyAccessory(a);
                   }}
                   title="نسخ إلى نموذج إضافة جديد"
                 />
@@ -881,7 +915,7 @@ export default function AccessoriesPage() {
                   size="sm"
                   icon={<Pencil className="h-4 w-4" />}
                   onClick={() => {
-                    void startEdit(a);
+                    void openEditAccessory(a);
                   }}
                   title="تعديل"
                 />

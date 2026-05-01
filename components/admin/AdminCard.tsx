@@ -7,6 +7,10 @@ interface AdminCardProps {
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  /** يُطبَّق على حاوية المحتوى (تحت الهيدر) — مثل flex-1 و min-h-0 للتخطيط المرن داخل الشاشة */
+  contentClassName?: string;
+  /** تخصييس شريط العنوان (مثلاً تقليل الهوامش) */
+  headerClassName?: string;
 }
 
 export function AdminCard({
@@ -16,17 +20,21 @@ export function AdminCard({
   actions,
   children,
   className = "",
+  contentClassName = "",
+  headerClassName = "",
 }: AdminCardProps) {
   return (
     <section
       className={`group relative overflow-hidden rounded-3xl border border-white bg-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] ${className}`}
     >
       {(title || icon || actions) && (
-        <div className="border-b border-white/50 bg-white/40 px-6 py-5">
+        <div
+          className={`shrink-0 border-b border-white/50 bg-white/40 px-5 py-4 sm:px-6 ${headerClassName}`}
+        >
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               {icon && (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 transition-transform group-hover:scale-110">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition-transform group-hover:scale-110 sm:h-12 sm:w-12 sm:rounded-2xl">
                   {icon}
                 </div>
               )}
@@ -41,7 +49,7 @@ export function AdminCard({
           </div>
         </div>
       )}
-      <div className="p-6 relative z-10">{children}</div>
+      <div className={`relative z-10 p-6 ${contentClassName}`}>{children}</div>
     </section>
   );
 }
