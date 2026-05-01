@@ -6,7 +6,7 @@ import { type Product } from "@/lib/productsData";
 import { ProductImage } from "@/components/ProductImage";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
-import { getEffectivePrice, formatDzd } from "@/lib/pricing";
+import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 import { sortPhoneTypesForAppleIphone } from "@/lib/iphoneModelOrder";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -76,6 +76,7 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
   >([]);
   const [apiLoading, setApiLoading] = useState(false);
   const { account } = useAccount();
+  const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
@@ -221,7 +222,7 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
                     priceWholesale: tiered.priceWholesale,
                     priceReparateur: tiered.priceReparateur,
                   },
-                  account
+                  pricingAccount
                 );
                 return (
                   <div

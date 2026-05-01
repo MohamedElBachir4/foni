@@ -7,7 +7,14 @@ import { CheckCircle2, XCircle, ShoppingCart, ClipboardList } from "lucide-react
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 import { ProductImage } from "@/components/ProductImage";
-import { formatDzd } from "@/lib/pricing";
+import {
+  formatDzd,
+  getEffectivePrice,
+  getPricingAccount,
+  describeActivePriceTier,
+  type TieredPrice,
+} from "@/lib/pricing";
+import { useAccount } from "@/context/AccountContext";
 import { useCart } from "@/context/CartContext";
 import { slugifyProductName } from "@/lib/seo";
 
@@ -15,6 +22,9 @@ type RelatedProduct = {
   _id: string;
   name: string;
   price?: number;
+  priceRetail?: number;
+  priceWholesale?: number;
+  priceReparateur?: number;
   image?: string;
   colors?: string[];
 };
@@ -26,6 +36,9 @@ type ProductDetailsModernProps = {
     id: string;
     name: string;
     price: number;
+    priceRetail?: number;
+    priceWholesale?: number;
+    priceReparateur?: number;
     brandLabel: string;
     category: string;
     image: string;
@@ -61,6 +74,24 @@ export function ProductDetailsModern({
 }: ProductDetailsModernProps) {
   const router = useRouter();
   const { addToCart } = useCart();
+  const { account } = useAccount();
+
+  const tiered: TieredPrice = useMemo(
+    () => ({
+      price: product.price,
+      priceRetail: product.priceRetail ?? product.price,
+      priceWholesale: product.priceWholesale,
+      priceReparateur: product.priceReparateur,
+    }),
+    [product.price, product.priceRetail, product.priceWholesale, product.priceReparateur]
+  );
+
+  const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
+
+  const effectivePrice = useMemo(
+    () => getEffectivePrice(tiered, pricingAccount),
+    [tiered, pricingAccount]
+  );
   const images = useMemo(() => {
     const merged = [product.image, ...(product.extraImages || [])]
       .map((x) => String(x || "").trim())
@@ -106,7 +137,7 @@ export function ProductDetailsModern({
     addToCart({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: effectivePrice,
       image: product.image,
       quantity: 1,
       color: colorNorm,
@@ -183,8 +214,11 @@ export function ProductDetailsModern({
                 السعر
               </p>
               <p className="mt-1 text-3xl font-black text-blue-600">
-                {formatDzd(product.price)}
+                {formatDzd(effectivePrice)}
                 <span className="ms-1 text-lg font-semibold text-blue-400">DA</span>
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                {describeActivePriceTier(account)}
               </p>
             </div>
 
@@ -233,7 +267,7 @@ export function ProductDetailsModern({
                   الحالة: {isAvailable ? "متوفر" : "غير متوفر"}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-800">
-                  السعر: {formatDzd(product.price)} DA
+                  السعر: {formatDzd(effectivePrice)} DA
                 </p>
               </div>
             </div>
@@ -262,7 +296,7 @@ export function ProductDetailsModern({
               <AddToCartButton
                 id={product.id}
                 name={product.name}
-                price={product.price}
+                price={effectivePrice}
                 image={product.image}
                 colors={product.colors || []}
                 lockColorToSelection={!!(product.colors && product.colors.length > 0)}
@@ -291,7 +325,17 @@ export function ProductDetailsModern({
           <h2 className="text-xl font-extrabold text-slate-900 sm:text-2xl">منتجات مشابهة</h2>
           <div className="overflow-hidden">
           <div className="grid grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4">
-            {relatedProducts.map((item) => (
+            {relatedProducts.map((item) => {
+              const relatedEffective = getEffectivePrice(
+                {
+                  price: item.price,
+                  priceRetail: item.priceRetail ?? item.price,
+                  priceWholesale: item.priceWholesale,
+                  priceReparateur: item.priceReparateur,
+                },
+                pricingAccount
+              );
+              return (
               <article
                 key={item._id}
                 className="group min-w-0 flex h-full min-h-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:border-slate-200 hover:shadow-xl sm:min-h-[360px] sm:rounded-[1.25rem]"
@@ -314,7 +358,7 @@ export function ProductDetailsModern({
 
                   <p className="mb-1.5 text-center">
                     <span className="text-xl font-black text-slate-900 sm:text-2xl">
-                      {formatDzd(item.price ?? 0)}
+                      {formatDzd(relatedEffective)}
                     </span>
                     <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
                   </p>
@@ -329,7 +373,7 @@ export function ProductDetailsModern({
                     <AddToCartButton
                       id={item._id}
                       name={item.name}
-                      price={item.price ?? 0}
+                      price={relatedEffective}
                       image={item.image ?? ""}
                       colors={Array.isArray(item.colors) ? item.colors : []}
                       productType={cartProductType(product.category)}
@@ -340,7 +384,8 @@ export function ProductDetailsModern({
                   </div>
                 </div>
               </article>
-            ))}
+            );
+            })}
           </div>
           </div>
         </section>

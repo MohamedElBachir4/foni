@@ -1,10 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { ProductImage } from "@/components/ProductImage";
 import { Heart } from "lucide-react";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
-import { getEffectivePrice, formatDzd } from "@/lib/pricing";
+import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 
 type Accessory = {
   _id: string;
@@ -20,6 +21,8 @@ type Accessory = {
 
 export function BrandAccessoriesList({ accessories }: { accessories: Accessory[] }) {
   const { account } = useAccount();
+  const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
+
   return (
     <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
       {accessories.map((a) => {
@@ -30,7 +33,7 @@ export function BrandAccessoriesList({ accessories }: { accessories: Accessory[]
             priceWholesale: a.priceWholesale,
             priceReparateur: a.priceReparateur,
           },
-          account
+          pricingAccount
         );
         return (
           <article

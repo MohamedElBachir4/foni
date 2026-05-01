@@ -9,7 +9,7 @@ import { ProductImage } from "@/components/ProductImage";
 import { Heart, Search } from "lucide-react";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount, type AccountInfo } from "@/context/AccountContext";
-import { getEffectivePrice, formatDzd } from "@/lib/pricing";
+import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 import { highlightQueryInText } from "@/lib/highlightSearch";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -238,6 +238,8 @@ function ResultGrid({
   account: AccountInfo | null;
   categoryLabel: (t: string) => string;
 }) {
+  const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
+
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4">
       {items.map((item) => {
@@ -248,7 +250,7 @@ function ResultGrid({
             priceWholesale: item.priceWholesale,
             priceReparateur: item.priceReparateur,
           },
-          account
+          pricingAccount
         );
         return (
           <div

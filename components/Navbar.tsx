@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Menu,
   ShoppingBag,
@@ -17,6 +17,7 @@ import {
 import { SearchBar } from "@/components/SearchBar";
 import { useCart } from "@/context/CartContext";
 import { useAccount } from "@/context/AccountContext";
+import { getPricingAccount } from "@/lib/pricing";
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -25,6 +26,7 @@ export function Navbar() {
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const { totalItems } = useCart();
   const { account, logout, setUseWholesalePricing } = useAccount();
+  const approvedB2B = useMemo(() => getPricingAccount(account), [account]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -44,7 +46,7 @@ export function Navbar() {
 
   return (
     <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible rounded-b-3xl border-y border-white/30 shadow-2xl">
-      {account?.role === "reparateur" && !account.useWholesalePricing && (
+      {approvedB2B?.role === "reparateur" && !approvedB2B.useWholesalePricing && (
         <div className="border-b border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2.5 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)] sm:px-4">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[11px] text-amber-950 sm:text-sm">

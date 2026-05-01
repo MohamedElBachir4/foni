@@ -39,6 +39,9 @@ type RelatedPhone = {
   _id: string;
   name: string;
   price?: number;
+  priceRetail?: number;
+  priceWholesale?: number;
+  priceReparateur?: number;
   image?: string;
   colors?: string[];
 };
@@ -132,6 +135,9 @@ export default async function ProductDetailPage({
     id: string;
     name: string;
     price: number;
+    priceRetail?: number;
+    priceWholesale?: number;
+    priceReparateur?: number;
     brand: string;
     category: string;
     image: string;
@@ -164,10 +170,25 @@ export default async function ProductDetailPage({
         const brand = phone.brand;
         brandLabel = typeof brand === "object" && brand?.name ? String(brand.name) : "";
 
+        const phoneRetail = Number(phone.priceRetail ?? phone.price ?? 0);
         product = {
           id: String(phone._id),
           name: String(phone.name || ""),
-          price: Number(phone.priceRetail ?? phone.price ?? 0),
+          price: phoneRetail,
+          priceRetail:
+            typeof phone.priceRetail === "number" && !Number.isNaN(phone.priceRetail)
+              ? phone.priceRetail
+              : typeof phone.price === "number"
+                ? phone.price
+                : undefined,
+          priceWholesale:
+            typeof phone.priceWholesale === "number" && !Number.isNaN(phone.priceWholesale)
+              ? phone.priceWholesale
+              : undefined,
+          priceReparateur:
+            typeof phone.priceReparateur === "number" && !Number.isNaN(phone.priceReparateur)
+              ? phone.priceReparateur
+              : undefined,
           brand:
             typeof brand === "object" && brand?.slug
               ? String(brand.slug)
@@ -222,10 +243,25 @@ export default async function ProductDetailPage({
         const brandId = typeof brand === "object" && brand?._id ? String(brand._id) : "";
         brandLabel = typeof brand === "object" && brand?.name ? String(brand.name) : "";
 
+        const partRetail = Number(part.priceRetail ?? part.price ?? 0);
         product = {
           id: String(part._id),
           name: String(part.name || ""),
-          price: Number(part.priceRetail ?? part.price ?? 0),
+          price: partRetail,
+          priceRetail:
+            typeof part.priceRetail === "number" && !Number.isNaN(part.priceRetail as number)
+              ? (part.priceRetail as number)
+              : typeof part.price === "number"
+                ? (part.price as number)
+                : undefined,
+          priceWholesale:
+            typeof part.priceWholesale === "number" && !Number.isNaN(part.priceWholesale as number)
+              ? (part.priceWholesale as number)
+              : undefined,
+          priceReparateur:
+            typeof part.priceReparateur === "number" && !Number.isNaN(part.priceReparateur as number)
+              ? (part.priceReparateur as number)
+              : undefined,
           brand: brandId,
           category: "قطع غيار",
           image: pickFirstNonEmptyString(
@@ -284,13 +320,27 @@ export default async function ProductDetailPage({
         relatedProducts = list
           .filter((item: { _id?: string }) => item?._id && item._id !== product.id)
           .slice(0, 4)
-          .map((item: { _id: string; name: string; price?: number; image?: string; colors?: string[] }) => ({
-            _id: item._id,
-            name: item.name,
-            price: item.price,
-            image: item.image,
-            colors: Array.isArray(item.colors) ? item.colors : [],
-          }));
+          .map(
+            (item: {
+              _id: string;
+              name: string;
+              price?: number;
+              priceRetail?: number;
+              priceWholesale?: number;
+              priceReparateur?: number;
+              image?: string;
+              colors?: string[];
+            }) => ({
+              _id: item._id,
+              name: item.name,
+              price: Number(item.priceRetail ?? item.price ?? 0),
+              priceRetail: item.priceRetail,
+              priceWholesale: item.priceWholesale,
+              priceReparateur: item.priceReparateur,
+              image: item.image,
+              colors: Array.isArray(item.colors) ? item.colors : [],
+            })
+          );
       }
     } catch {
       // ignore
@@ -320,12 +370,17 @@ export default async function ProductDetailPage({
               name: string;
               price?: number;
               priceRetail?: number;
+              priceWholesale?: number;
+              priceReparateur?: number;
               image?: string;
               colors?: string[];
             }) => ({
               _id: item._id,
               name: item.name,
-              price: item.priceRetail ?? item.price ?? 0,
+              price: Number(item.priceRetail ?? item.price ?? 0),
+              priceRetail: item.priceRetail,
+              priceWholesale: item.priceWholesale,
+              priceReparateur: item.priceReparateur,
               image: item.image,
               colors: Array.isArray(item.colors) ? item.colors : [],
             })
@@ -370,6 +425,9 @@ export default async function ProductDetailPage({
             id: product.id,
             name: product.name,
             price: product.price,
+            priceRetail: product.priceRetail,
+            priceWholesale: product.priceWholesale,
+            priceReparateur: product.priceReparateur,
             brandLabel,
             category: product.category,
             image: product.image,

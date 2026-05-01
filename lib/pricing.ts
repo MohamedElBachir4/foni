@@ -7,6 +7,21 @@ export type TieredPrice = {
   priceReparateur?: number | null;
 };
 
+/** لا يُطبَّق سوى سعر التجزئة قبل موافقة الأدمن على الحساب (أو بعد الرفض). */
+export function getPricingAccount(account: AccountInfo | null): AccountInfo | null {
+  if (!account) return null;
+  const s = account.approvalStatus;
+  if (s === "pending" || s === "rejected") return null;
+  return account;
+}
+
+/**
+ * سعر الواجهة حسب نوع الحساب:
+ * - بدون حساب B2B معتمد ← تجزئة (priceRetail ثم price)
+ * - Grossiste معتمد ← جملة
+ * - Réparateur معتمد بدون شراء بالجملة ← Réparateur
+ * - Réparateur مع تفعيل «الشراء بالجملة» ← جملة
+ */
 export function getEffectivePrice(
   tiered: TieredPrice,
   account: AccountInfo | null
@@ -41,11 +56,24 @@ export function getEffectivePrice(
       typeof tiered.priceReparateur === "number" &&
       !Number.isNaN(tiered.priceReparateur)
         ? tiered.priceReparateur
-        : null;
+      : null;
     return v ?? baseRetail;
   }
 
   return baseRetail;
+}
+
+/** وصف قصير لما يعرض تحت السعر (شفافية للمستخدم). */
+export function describeActivePriceTier(account: AccountInfo | null): string {
+  const acc = getPricingAccount(account);
+  if (!acc) return "سعر التجزئة — العرض العام";
+  if (acc.role === "grossiste") return "سعر الجملة لحسابك";
+  if (acc.role === "reparateur") {
+    return acc.useWholesalePricing
+      ? "سعر الجملة — بعد تفعيل الشراء بالجملة"
+      : "سعر Réparateur — حساب مصلّح";
+  }
+  return "سعر التجزئة — العرض العام";
 }
 
 /**

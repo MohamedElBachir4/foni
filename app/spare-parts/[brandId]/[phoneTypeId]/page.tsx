@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -8,7 +8,7 @@ import { Heart } from "lucide-react";
 import { ProductImage } from "@/components/ProductImage";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
-import { getEffectivePrice, formatDzd } from "@/lib/pricing";
+import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -41,6 +41,7 @@ export default function SparePartsListPage() {
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const { account } = useAccount();
+  const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
@@ -204,7 +205,7 @@ export default function SparePartsListPage() {
                       priceWholesale: (part as any).priceWholesale,
                       priceReparateur: (part as any).priceReparateur,
                     },
-                    account
+                    pricingAccount
                   );
                   return (
                   <div
