@@ -74,8 +74,13 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
     })[]
   >([]);
   const [apiLoading, setApiLoading] = useState(false);
+  const [hasHydratedCache, setHasHydratedCache] = useState(false);
   const { account } = useAccount();
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
+  const queryKey = useMemo(
+    () => `${selectedBrandId || "all"}|${phoneTypeId || "all"}`,
+    [selectedBrandId, phoneTypeId]
+  );
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
@@ -86,8 +91,23 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
   }, []);
 
   useEffect(() => {
+    setHasHydratedCache(false);
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem(`phones:grid:${queryKey}`);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setApiProducts(parsed as (Product & { colors?: string[] })[]);
+        setHasHydratedCache(true);
+      }
+    } catch {
+      // ignore corrupted cache
+    }
+  }, [queryKey]);
+
+  useEffect(() => {
     let cancelled = false;
-    // eslint-disable-next-line
     setApiLoading(true);
 
     const q = new URLSearchParams();
@@ -97,7 +117,12 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
     if (phoneTypeId) q.set("phoneType", phoneTypeId);
     const query = q.toString() ? `?${q.toString()}` : "";
 
-    publicFetch(`/api/phones${query}`)
+    publicFetch(`/api/phones${query}`, {
+      // LTE: avoid very long blocking spinner on home page.
+      timeoutMs: 18_000,
+      maxRetries: 1,
+      cache: "no-store",
+    })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (cancelled) return;
@@ -117,10 +142,21 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
             })()
           : [];
         setApiProducts(mapped);
+        if (typeof window !== "undefined") {
+          try {
+            window.sessionStorage.setItem(
+              `phones:grid:${queryKey}`,
+              JSON.stringify(mapped)
+            );
+          } catch {
+            // ignore storage quota errors
+          }
+        }
       })
       .catch(() => {
         if (cancelled) return;
-        setApiProducts([]);
+        // Keep stale data (if any) instead of replacing UI with empty state on flaky LTE.
+        setApiProducts((prev) => prev);
       })
       .finally(() => {
         if (cancelled) return;
@@ -130,7 +166,7 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
     return () => {
       cancelled = true;
     };
-  }, [selectedBrandId, phoneTypeId]);
+  }, [selectedBrandId, phoneTypeId, queryKey]);
 
   const isBrandPage = !!(selectedBrandId && selectedBrandId !== "all");
 
@@ -182,7 +218,7 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
         )}
 
         <div className={isBrandPage ? "" : "min-w-0 flex-1"}>
-          {apiLoading ? (
+          {apiLoading && !hasHydratedCache && filteredProducts.length === 0 ? (
             <div className="py-20 text-center">
               <div className="rounded-[40px] bg-white/80 p-12 shadow-2xl backdrop-blur-sm">
                 <div className="mb-4 text-2xl font-medium text-slate-500">جاري التحميل...</div>
