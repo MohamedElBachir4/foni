@@ -49,6 +49,7 @@ type PhoneType = {
 type SparePart = {
   _id: string;
   name: string;
+  supplier?: string;
   creationSource?: "manual" | "excel";
   details?: string;
   image?: string;
@@ -64,6 +65,11 @@ type SparePart = {
 };
 
 type ImportReportError = { productName: string; reason: string };
+type InlinePriceDraft = {
+  priceRetail: string;
+  priceWholesale: string;
+  priceReparateur: string;
+};
 
 const fld =
   "admin-input !h-7 !rounded-md !px-2 !py-1 text-[11px] text-slate-800 placeholder:text-slate-400";
@@ -128,6 +134,8 @@ export default function AdminSparePartsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedSpareColors, setSelectedSpareColors] = useState<string[]>([]);
+  const [inlinePriceDrafts, setInlinePriceDrafts] = useState<Record<string, InlinePriceDraft>>({});
+  const [inlineSavingIds, setInlineSavingIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 400);
@@ -333,6 +341,110 @@ export default function AdminSparePartsPage() {
     if (pt == null) return "—";
     if (typeof pt === "object" && pt?.name) return pt.name;
     return phoneTypes.find((x) => x._id === pt)?.name ?? "—";
+  }
+
+  function getAdminDisplayName(item: SparePart): string {
+    const baseName = String(item.name || "").trim();
+    const supplier = String(item.supplier || "").trim();
+    if (!supplier) return baseName;
+    return `${baseName} ${supplier}`.trim();
+  }
+
+  function retailValueOf(item: SparePart): number {
+    const v = item.priceRetail ?? item.price ?? 0;
+    return Number.isFinite(Number(v)) ? Number(v) : 0;
+  }
+
+  function getInlineDraft(item: SparePart): InlinePriceDraft {
+    const existing = inlinePriceDrafts[item._id];
+    if (existing) return existing;
+    return {
+      priceRetail: String(retailValueOf(item)),
+      priceWholesale: String(item.priceWholesale ?? 0),
+      priceReparateur: String(item.priceReparateur ?? 0),
+    };
+  }
+
+  function setInlineDraftValue(
+    item: SparePart,
+    field: keyof InlinePriceDraft,
+    value: string
+  ) {
+    setInlinePriceDrafts((prev) => {
+      const current = prev[item._id] ?? getInlineDraft(item);
+      return {
+        ...prev,
+        [item._id]: { ...current, [field]: value },
+      };
+    });
+  }
+
+  async function saveInlinePrices(item: SparePart) {
+    const draft = getInlineDraft(item);
+    const parseOrKeep = (raw: string, fallback: number) => {
+      const t = String(raw ?? "").trim();
+      if (t === "") return fallback;
+      const n = Number(t);
+      return Number.isFinite(n) ? n : NaN;
+    };
+    const priceRetailNum = parseOrKeep(draft.priceRetail, retailValueOf(item));
+    const priceWholesaleNum = parseOrKeep(
+      draft.priceWholesale,
+      Number(item.priceWholesale ?? 0)
+    );
+    const priceReparateurNum = parseOrKeep(
+      draft.priceReparateur,
+      Number(item.priceReparateur ?? 0)
+    );
+
+    if (
+      !Number.isFinite(priceRetailNum) ||
+      !Number.isFinite(priceWholesaleNum) ||
+      !Number.isFinite(priceReparateurNum)
+    ) {
+      setMessage({ type: "error", text: "تحقق من الأسعار: يجب أن تكون أرقامًا صالحة" });
+      return;
+    }
+
+    setInlineSavingIds((prev) => ({ ...prev, [item._id]: true }));
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_URL}/api/spare-parts/${item._id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          price: priceRetailNum,
+          priceRetail: priceRetailNum,
+          priceWholesale: priceWholesaleNum,
+          priceReparateur: priceReparateurNum,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "فشل حفظ الأسعار" });
+        return;
+      }
+
+      setParts((prev) =>
+        prev.map((p) =>
+          p._id === item._id
+            ? {
+                ...p,
+                price: priceRetailNum,
+                priceRetail: priceRetailNum,
+                priceWholesale: priceWholesaleNum,
+                priceReparateur: priceReparateurNum,
+              }
+            : p
+        )
+      );
+      setMessage({ type: "success", text: "تم حفظ الأسعار بسرعة" });
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم أثناء حفظ الأسعار" });
+    } finally {
+      setInlineSavingIds((prev) => ({ ...prev, [item._id]: false }));
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1288,16 +1400,75 @@ export default function AdminSparePartsPage() {
           columns={[
             { key: "image", label: "الصورة" },
             { key: "name", label: "الاسم" },
+            { key: "priceRetail", label: "سعر التجزئة" },
+            { key: "priceWholesale", label: "سعر الجملة" },
+            { key: "priceReparateur", label: "سعر المصلحين" },
             { key: "colors", label: "الألوان" },
-            { key: "price", label: "السعر" },
             { key: "brand", label: "الماركة" },
             { key: "phone", label: "الهاتف" },
             { key: "actions", label: "إجراءات", className: "w-24" },
           ]}
           rows={parts.map((p: SparePart) => ({
             _id: p._id,
-            image: <AdminTableCellImage src={p.image} alt={p.name} />,
-            name: <span className="font-medium text-slate-800">{p.name}</span>,
+            image: <AdminTableCellImage src={p.image} alt={getAdminDisplayName(p)} />,
+            name: <span className="font-medium text-slate-800">{getAdminDisplayName(p)}</span>,
+            priceRetail: (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={getInlineDraft(p).priceRetail}
+                  onChange={(e) => setInlineDraftValue(p, "priceRetail", e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void saveInlinePrices(p);
+                    }
+                  }}
+                  className="admin-input h-8 w-24 px-2 py-1 text-xs"
+                />
+              </div>
+            ),
+            priceWholesale: (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={getInlineDraft(p).priceWholesale}
+                  onChange={(e) => setInlineDraftValue(p, "priceWholesale", e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void saveInlinePrices(p);
+                    }
+                  }}
+                  className="admin-input h-8 w-24 px-2 py-1 text-xs"
+                />
+              </div>
+            ),
+            priceReparateur: (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={getInlineDraft(p).priceReparateur}
+                  onChange={(e) => setInlineDraftValue(p, "priceReparateur", e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void saveInlinePrices(p);
+                    }
+                  }}
+                  className="admin-input h-8 w-24 px-2 py-1 text-xs"
+                />
+              </div>
+            ),
             colors: (
               <div className="flex flex-wrap gap-1">
                 {(Array.isArray(p.colors) ? p.colors : []).map((c) => (
@@ -1317,15 +1488,20 @@ export default function AdminSparePartsPage() {
                 {(!p.colors || p.colors.length === 0) && <span className="text-xs text-slate-400">—</span>}
               </div>
             ),
-            price: (
-              <span className="text-slate-700">
-                {p.price != null ? Number(p.price).toLocaleString() : "—"} دج
-              </span>
-            ),
             brand: <span className="text-slate-600">{getBrandName(p)}</span>,
             phone: <span className="text-slate-600">{getPhoneTypeName(p)}</span>,
             actions: (
               <div className="flex items-center gap-2">
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void saveInlinePrices(p)}
+                  loading={!!inlineSavingIds[p._id]}
+                  disabled={!!inlineSavingIds[p._id]}
+                  title="حفظ الأسعار بسرعة"
+                >
+                  حفظ
+                </AdminButton>
                 <AdminButton
                   variant="ghost"
                   size="sm"
