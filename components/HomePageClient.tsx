@@ -9,6 +9,8 @@ import { ProductGrid } from "@/components/ProductGrid";
 import { Footer } from "@/components/Footer";
 
 const BANNER_IMAGES = [
+  "/hero/foni-hero-1.png",
+  "/hero/foni-hero-2.png",
   "https://i.pinimg.com/1200x/b0/62/7d/b0627d443e0a15f72fd0d50088e9770d.jpg",
   "https://i.pinimg.com/736x/fc/7d/03/fc7d035abeb24f90fc3479fc23125c0c.jpg",
   "https://i.pinimg.com/736x/18/c1/f6/18c1f6927373620f36712cf4c547b386.jpg",

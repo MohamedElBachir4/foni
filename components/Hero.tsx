@@ -6,6 +6,14 @@ import { Crown, Tag, Truck, UserPlus, Package, ChevronLeft } from "lucide-react"
 
 const HERO_IMAGES = [
   {
+    src: "/hero/foni-hero-1.png",
+    alt: "Foni brand banner",
+  },
+  {
+    src: "/hero/foni-hero-2.png",
+    alt: "Foni logo",
+  },
+  {
     src: "https://i.pinimg.com/736x/4d/eb/00/4deb0070c186156633bd7888d3b8337b.jpg",
     alt: "iPhone Pro Max",
   },
