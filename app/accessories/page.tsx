@@ -5,7 +5,7 @@ import { Footer } from "@/components/Footer";
 import { buildMetadata } from "@/lib/seo";
 import { getProductImageUrl } from "@/lib/productImage";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 
 type AccessoryType = { _id: string; name: string; image?: string };
 
@@ -23,7 +23,7 @@ export const metadata: Metadata = buildMetadata({
 
 async function fetchTypes(): Promise<AccessoryType[]> {
   try {
-    const res = await fetch(`${API_URL}/api/accessory-types`, { cache: "no-store" });
+    const res = await publicFetch("/api/accessory-types", { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];

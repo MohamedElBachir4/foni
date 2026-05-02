@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { BRAND_OFFICIAL_LOGOS } from "@/lib/brandLogos";
 import { getProductImageUrl } from "@/lib/productImage";
 import { Award, TrendingUp } from "lucide-react";
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+import { publicFetch } from "@/lib/publicFetch";
 
 const STATIC_BRANDS = [
   { id: "apple", name: "Apple", image: BRAND_OFFICIAL_LOGOS.apple, popularity: 100 },
@@ -71,8 +70,7 @@ export function BrandGrid({
   const router = useRouter();
 
   useEffect(() => {
-    const url = API_BASE ? `${API_BASE}/api/brands` : "/api/brands";
-    fetch(url, { cache: "no-store" })
+    publicFetch("/api/brands", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {

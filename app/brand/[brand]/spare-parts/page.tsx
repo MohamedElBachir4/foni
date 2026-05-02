@@ -7,7 +7,8 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { IphoneOrPlainModelGrid } from "@/components/brand/IphoneModelSections";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { getBrowserApiBase } from "@/lib/apiUrl";
+import { formatPublicFetchError, publicFetch } from "@/lib/publicFetch";
 
 type Brand = {
   _id: string;
@@ -40,7 +41,7 @@ export default function BrandSparePartsModelsPage() {
       setLoading(true);
       setError(null);
       try {
-        const brandRes = await fetch(`${API_URL}/api/brands`, { cache: "no-store" });
+        const brandRes = await publicFetch("/api/brands", { cache: "no-store" });
         if (!brandRes.ok) throw new Error("تعذر جلب الماركات");
         const brands: Brand[] = await brandRes.json();
         const found =
@@ -59,8 +60,8 @@ export default function BrandSparePartsModelsPage() {
 
         if (!cancelled) setBrand(found);
 
-        const res = await fetch(
-          `${API_URL}/api/phone-types?brand=${encodeURIComponent(found._id)}`,
+        const res = await publicFetch(
+          `/api/phone-types?brand=${encodeURIComponent(found._id)}`,
           { cache: "no-store" }
         );
         if (!res.ok) throw new Error("فشل جلب موديلات الهواتف");
@@ -68,12 +69,9 @@ export default function BrandSparePartsModelsPage() {
         if (!cancelled) setModels(Array.isArray(data) ? data : []);
       } catch (err: unknown) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : "تعذر تحميل موديلات الهواتف";
-          const isNetwork =
-            msg.includes("fetch") ||
-            msg.includes("Failed to fetch") ||
-            msg.includes("NetworkError");
-          setError(isNetwork ? "لا يمكن الاتصال بالخادم. شغّل خادم الـ API." : msg);
+          setError(
+            formatPublicFetchError(err, "تعذر تحميل موديلات الهواتف")
+          );
           setModels([]);
         }
       } finally {
@@ -123,7 +121,9 @@ export default function BrandSparePartsModelsPage() {
         ) : error ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-6 text-center shadow-sm">
             <p className="font-medium text-amber-800">{error}</p>
-            <p className="mt-2 text-xs text-slate-500">{API_URL}</p>
+            <p className="mt-2 text-xs text-slate-500">
+              {getBrowserApiBase() || "نفس الموقع ← /api"}
+            </p>
           </div>
         ) : models.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/80 py-16 text-center shadow-sm">

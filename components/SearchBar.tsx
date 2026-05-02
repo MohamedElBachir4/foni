@@ -7,10 +7,10 @@ import { Search, Smartphone, Wrench, Headphones } from "lucide-react";
 import { getProductImageUrl } from "@/lib/productImage";
 import { formatDzd } from "@/lib/pricing";
 import { highlightQueryInText } from "@/lib/highlightSearch";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 const DEBOUNCE_MS = 300;
-const LIMIT = 8;
+/** لكل قسم (هواتف، قطع غيار، إكسسوارات) — الحد الفعلي يفرضه الخادم */
+const LIMIT = 24;
 
 export type SearchSuggestion = {
   type: string;
@@ -90,8 +90,8 @@ export function SearchBar() {
     }
     setLoading(true);
     try {
-      const res = await fetch(
-        `${API_URL}/api/search?q=${encodeURIComponent(q)}&limit=${LIMIT}`,
+      const res = await publicFetch(
+        `/api/search?q=${encodeURIComponent(q)}&limit=${LIMIT}`,
         { cache: "no-store" }
       );
       if (res.ok) {

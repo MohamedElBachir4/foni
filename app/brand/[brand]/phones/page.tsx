@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/Navbar";
 import { ProductGrid } from "@/components/ProductGrid";
 import { Footer } from "@/components/Footer";
+import { publicFetch } from "@/lib/publicFetch";
 
 const BRAND_LABELS: Record<string, string> = {
   apple: "Apple",
@@ -25,7 +26,6 @@ const BRAND_LABELS: Record<string, string> = {
   poco: "Poco",
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const MONGO_ID = /^[a-f0-9]{24}$/i;
 
 export default async function BrandPhonesPage({
@@ -45,7 +45,7 @@ export default async function BrandPhonesPage({
   const q = sp?.phoneType;
   if (q && MONGO_ID.test(q)) {
     try {
-      const res = await fetch(`${API_URL}/api/phone-types/${q}`, { cache: "no-store" });
+      const res = await publicFetch(`/api/phone-types/${q}`, { cache: "no-store" });
       if (res.ok) {
         const pt = (await res.json()) as {
           name?: string;

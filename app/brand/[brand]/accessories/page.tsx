@@ -2,8 +2,8 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { BrandAccessoriesList } from "@/components/BrandAccessoriesList";
 import { filterAccessoriesForBrandPage } from "@/lib/accessoryVisibility";
+import { publicFetch } from "@/lib/publicFetch";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const MONGO_ID = /^[a-f0-9]{24}$/i;
 
 type Accessory = {
@@ -51,7 +51,7 @@ async function fetchAccessories(brandSlug: string, phoneTypeId: string | null): 
     if (phoneTypeId && MONGO_ID.test(phoneTypeId)) {
       q.set("phoneType", phoneTypeId);
     }
-    const res = await fetch(`${API_URL}/api/accessories?${q.toString()}`, { cache: "no-store" });
+    const res = await publicFetch(`/api/accessories?${q.toString()}`, { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -63,7 +63,7 @@ async function fetchAccessories(brandSlug: string, phoneTypeId: string | null): 
 async function fetchPhoneTypeName(id: string): Promise<string | null> {
   if (!MONGO_ID.test(id)) return null;
   try {
-    const res = await fetch(`${API_URL}/api/phone-types/${id}`, { cache: "no-store" });
+    const res = await publicFetch(`/api/phone-types/${id}`, { cache: "no-store" });
     if (!res.ok) return null;
     const data = (await res.json()) as { name?: string; brand?: { slug?: string } | null };
     return data.name ?? null;

@@ -4,7 +4,7 @@ import { Smartphone, Headphones, Wrench, ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 
 const MONGO_ID = /^[a-f0-9]{24}$/i;
 
@@ -38,7 +38,7 @@ export default async function ModelHubPage({
 
   let pt: PhoneTypeOne | null = null;
   try {
-    const res = await fetch(`${API_URL}/api/phone-types/${phoneTypeId}`, {
+    const res = await publicFetch(`/api/phone-types/${phoneTypeId}`, {
       cache: "no-store",
     });
     if (!res.ok) notFound();

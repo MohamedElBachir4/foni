@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { apiUrl } from "@/lib/apiUrl";
+import { publicFetch } from "@/lib/publicFetch";
 import { useAccount } from "@/context/AccountContext";
 import { formatDzd } from "@/lib/pricing";
 
@@ -164,7 +165,7 @@ export function MyOrdersTab() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(apiUrl("/api/orders/mine?limit=50"), {
+      const res = await publicFetch(apiUrl("/api/orders/mine?limit=50"), {
         headers: { Authorization: `Bearer ${t}` },
       });
       const data = await res.json().catch(() => ({}));
@@ -201,7 +202,7 @@ export function MyOrdersTab() {
       setTrackingError("");
       setTrackingData(null);
       try {
-        const res = await fetch(apiUrl(`/api/orders/${order._id}/tracking`), {
+        const res = await publicFetch(apiUrl(`/api/orders/${order._id}/tracking`), {
           headers: { Authorization: `Bearer ${t}` },
         });
         const data = await res.json().catch(() => ({}));

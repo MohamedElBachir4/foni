@@ -8,8 +8,7 @@ import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 import { sortPhoneTypesForAppleIphone } from "@/lib/iphoneModelOrder";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 
 export type { Product };
 
@@ -98,7 +97,7 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
     if (phoneTypeId) q.set("phoneType", phoneTypeId);
     const query = q.toString() ? `?${q.toString()}` : "";
 
-    fetch(`${API_URL}/api/phones${query}`)
+    publicFetch(`/api/phones${query}`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (cancelled) return;

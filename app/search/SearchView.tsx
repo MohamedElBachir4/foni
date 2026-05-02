@@ -11,8 +11,7 @@ import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount, type AccountInfo } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 import { highlightQueryInText } from "@/lib/highlightSearch";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 
 type SearchResult = {
   type: string;
@@ -86,7 +85,9 @@ function SearchBody() {
         u.set("q", query.trim());
         u.set("limit", "24");
         if (sectionApi) u.set("section", sectionApi);
-        const res = await fetch(`${API_URL}/api/search?${u.toString()}`, { cache: "no-store" });
+        const res = await publicFetch(`/api/search?${u.toString()}`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const data = await res.json();
           if (data && typeof data === "object" && Array.isArray(data.phones)) {

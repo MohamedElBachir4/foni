@@ -16,8 +16,7 @@ import {
   loadGuestCheckoutShippingPrefs,
   saveGuestCheckoutShippingPrefs,
 } from "@/lib/guestCheckoutPrefs";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 
 type Wilaya = { id: number; name: string };
 type Commune = { id: number; name: string; wilaya_id?: number };
@@ -92,7 +91,7 @@ export default function CheckoutPage() {
     if (!account || !token) return;
     let cancelled = false;
     pendingStopdeskRestore.current = null;
-    fetch(`${API_URL}/api/accounts/me`, {
+    publicFetch("/api/accounts/me", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : null))
@@ -195,7 +194,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_URL}/api/yalidine/wilayas`)
+    publicFetch("/api/yalidine/wilayas")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         if (cancelled) return;
@@ -225,7 +224,7 @@ export default function CheckoutPage() {
     if (!wilayaId) return;
     let cancelled = false;
 
-    fetch(`${API_URL}/api/yalidine/communes?wilaya_id=${wilayaId}`)
+    publicFetch(`/api/yalidine/communes?wilaya_id=${wilayaId}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         if (cancelled) return;
@@ -257,7 +256,7 @@ export default function CheckoutPage() {
       });
 
     setFeesLoading(true);
-    fetch(`${API_URL}/api/yalidine/fees?to_wilaya_id=${wilayaId}`)
+    publicFetch(`/api/yalidine/fees?to_wilaya_id=${wilayaId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled) return;
@@ -280,7 +279,7 @@ export default function CheckoutPage() {
       return;
     }
     let cancelled = false;
-    fetch(`${API_URL}/api/yalidine/centers?wilaya_id=${wilayaId}`)
+    publicFetch(`/api/yalidine/centers?wilaya_id=${wilayaId}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         if (cancelled) return;
@@ -355,7 +354,7 @@ export default function CheckoutPage() {
       const communeRowMatch = communes.find((c) => c.name === communeName.trim());
       const communeIdForOrder =
         communeRowMatch != null && Number.isFinite(communeRowMatch.id) ? communeRowMatch.id : null;
-      const res = await fetch(`${API_URL}/api/orders`, {
+      const res = await publicFetch("/api/orders", {
         method: "POST",
         headers,
         body: JSON.stringify({

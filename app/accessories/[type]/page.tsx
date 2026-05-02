@@ -7,7 +7,7 @@ import { ProductImage } from "@/components/ProductImage";
 import { formatDzd } from "@/lib/pricing";
 import { filterAccessoriesForTypeListing } from "@/lib/accessoryVisibility";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 
 type AccessoryType = { _id: string; name: string };
 
@@ -27,9 +27,12 @@ export const dynamic = "force-dynamic";
 
 async function fetchAccessoriesByType(typeId: string): Promise<Accessory[]> {
   try {
-    const res = await fetch(`${API_URL}/api/accessories?type=${encodeURIComponent(typeId)}`, {
-      cache: "no-store",
-    });
+    const res = await publicFetch(
+      `/api/accessories?type=${encodeURIComponent(typeId)}`,
+      {
+        cache: "no-store",
+      }
+    );
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];

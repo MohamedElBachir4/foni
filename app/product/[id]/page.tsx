@@ -5,8 +5,7 @@ import { Footer } from "@/components/Footer";
 import { getProductById, getBrandLabel } from "@/lib/productsData";
 import { ProductDetailsModern } from "@/components/product/ProductDetailsModern";
 import { buildMetadata, getSiteUrl, slugifyProductName } from "@/lib/seo";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +66,7 @@ async function getProductSeoData(id: string) {
 
   if (/^[a-f0-9A-F]{24}$/.test(id)) {
     try {
-      const res = await fetch(`${API_URL}/api/phones/${id}`, { cache: "no-store" });
+      const res = await publicFetch(`/api/phones/${id}`, { cache: "no-store" });
       if (res.ok) {
         const phone = await res.json();
         const brandLabel =
@@ -164,7 +163,7 @@ export default async function ProductDetailPage({
 
   if (!product && /^[a-f0-9A-F]{24}$/.test(id)) {
     try {
-      const res = await fetch(`${API_URL}/api/phones/${id}`, { cache: "no-store" });
+      const res = await publicFetch(`/api/phones/${id}`, { cache: "no-store" });
       if (res.ok) {
         const phone = await res.json();
         const brand = phone.brand;
@@ -221,11 +220,11 @@ export default async function ProductDetailPage({
   if (!product && /^[a-f0-9A-F]{24}$/.test(id)) {
     try {
       let part: { _id?: string; [key: string]: unknown } | null = null;
-      const byIdRes = await fetch(`${API_URL}/api/spare-parts/${id}`, { cache: "no-store" });
+      const byIdRes = await publicFetch(`/api/spare-parts/${id}`, { cache: "no-store" });
       if (byIdRes.ok) {
         part = await byIdRes.json();
       } else {
-        const listRes = await fetch(`${API_URL}/api/spare-parts?limit=1000`, {
+        const listRes = await publicFetch(`/api/spare-parts?limit=1000`, {
           cache: "no-store",
         });
         if (listRes.ok) {
@@ -311,9 +310,12 @@ export default async function ProductDetailPage({
     product.brand || String(brandLabel || "").toLowerCase().trim().replace(/\s+/g, "-");
   if (source !== "sparePart" && brandForApi) {
     try {
-      const res = await fetch(`${API_URL}/api/phones?brand=${encodeURIComponent(brandForApi)}`, {
-        cache: "no-store",
-      });
+      const res = await publicFetch(
+        `/api/phones?brand=${encodeURIComponent(brandForApi)}`,
+        {
+          cache: "no-store",
+        }
+      );
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : [];
@@ -354,8 +356,8 @@ export default async function ProductDetailPage({
         : sparePartContext.brandId
         ? `brand=${encodeURIComponent(sparePartContext.brandId)}`
         : "";
-      const res = await fetch(
-        `${API_URL}/api/spare-parts${query ? `?${query}&limit=50` : "?limit=50"}`,
+      const res = await publicFetch(
+        `/api/spare-parts${query ? `?${query}&limit=50` : "?limit=50"}`,
         { cache: "no-store" }
       );
       if (res.ok) {

@@ -11,7 +11,7 @@ import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { publicFetch } from "@/lib/publicFetch";
 
 type SparePart = {
   _id: string;
@@ -63,11 +63,11 @@ export default function SparePartsListPage() {
       try {
         const ptId = String(phoneTypeId);
         const [partsRes, brandsRes, phoneTypeOneRes] = await Promise.all([
-          fetch(
-            `${API_URL}/api/spare-parts?phoneType=${encodeURIComponent(ptId)}&limit=500`
+          publicFetch(
+            `/api/spare-parts?phoneType=${encodeURIComponent(ptId)}&limit=500`
           ),
-          fetch(`${API_URL}/api/brands`),
-          fetch(`${API_URL}/api/phone-types/${encodeURIComponent(ptId)}`),
+          publicFetch("/api/brands"),
+          publicFetch(`/api/phone-types/${encodeURIComponent(ptId)}`),
         ]);
 
         if (!partsRes.ok) throw new Error("فشل جلب قطع الغيار");
@@ -115,8 +115,8 @@ export default function SparePartsListPage() {
             });
           }
           if (!cancelled && !list[0]?.phoneType && resolved.mongoId) {
-            const ptRes2 = await fetch(
-              `${API_URL}/api/phone-types?brand=${encodeURIComponent(
+            const ptRes2 = await publicFetch(
+              `/api/phone-types?brand=${encodeURIComponent(
                 resolved.mongoId
               )}`
             );

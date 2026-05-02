@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { API_URL } from "@/lib/adminAuth";
+import { publicFetch } from "@/lib/publicFetch";
 import { useAccount } from "@/context/AccountContext";
 import { MyOrdersTab } from "@/components/accounts/MyOrdersTab";
 
@@ -95,6 +95,7 @@ function AccountsPageContent() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [accountTab, setAccountTab] = useState<"profile" | "orders">("profile");
+  const registrationFormRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!account) return;
@@ -108,6 +109,18 @@ function AccountsPageContent() {
     const reg = searchParams.get("register");
     if (reg === "reparateur" || reg === "grossiste") setRole(reg);
   }, [account, searchParams]);
+
+  /** بعد اختيار نوع الحساب أو فتح ?register= — التمرير إلى نموذج المعلومات (مع هامش للشريط العلوي). */
+  useEffect(() => {
+    if (account || !role) return;
+    const id = requestAnimationFrame(() => {
+      registrationFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [account, role]);
 
   useEffect(() => {
     if (!successModalOpen) return;
@@ -152,7 +165,7 @@ function AccountsPageContent() {
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_URL}/api/accounts`, {
+      const res = await publicFetch("/api/accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -202,7 +215,7 @@ function AccountsPageContent() {
     }
     setLoginLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/accounts/login`, {
+      const res = await publicFetch("/api/accounts/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -456,7 +469,11 @@ function AccountsPageContent() {
             )}
 
             {!account && role && (
-              <div className="mt-6 space-y-3 border-t border-slate-100 pt-4">
+              <div
+                ref={registrationFormRef}
+                id="account-registration-form"
+                className="mt-6 scroll-mt-28 space-y-3 border-t border-slate-100 pt-4 sm:scroll-mt-32"
+              >
                 <h2 className="text-sm font-bold text-slate-900 sm:text-base">
                   {isReparateur ? "معلومات حساب Réparateur" : "معلومات حساب Grossiste"}
                 </h2>

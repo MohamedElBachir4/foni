@@ -7,6 +7,7 @@ import { ArrowRight, Package, RefreshCw, Truck } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { apiUrl } from "@/lib/apiUrl";
+import { publicFetch } from "@/lib/publicFetch";
 import { useAccount } from "@/context/AccountContext";
 import { formatDzd } from "@/lib/pricing";
 import type { CustomerOrder, CustomerOrderItem } from "@/components/accounts/MyOrdersTab";
@@ -110,7 +111,7 @@ export default function AccountOrderDetailPage() {
     }
     setError("");
     try {
-      const res = await fetch(apiUrl(`/api/orders/mine/${id}`), {
+      const res = await publicFetch(apiUrl(`/api/orders/mine/${id}`), {
         headers: { Authorization: `Bearer ${t}` },
       });
       const data = await res.json().catch(() => ({}));

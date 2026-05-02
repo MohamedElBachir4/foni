@@ -7,7 +7,8 @@ import { Footer } from "@/components/Footer";
 import { IphoneOrPlainModelGrid } from "@/components/brand/IphoneModelSections";
 import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { getBrowserApiBase } from "@/lib/apiUrl";
+import { formatPublicFetchError, publicFetch } from "@/lib/publicFetch";
 
 type PhoneType = {
   _id: string;
@@ -35,7 +36,7 @@ export default function SparePartsModelsPage() {
       setLoading(true);
       setError(null);
       try {
-        const brandRes = await fetch(`${API_URL}/api/brands`, { cache: "no-store" });
+        const brandRes = await publicFetch("/api/brands", { cache: "no-store" });
         const brands: Brand[] = brandRes.ok ? await brandRes.json() : [];
         const { mongoId, displayName } = resolveBrandRouteParam(brandId, brands);
         if (!cancelled) {
@@ -47,8 +48,8 @@ export default function SparePartsModelsPage() {
           return;
         }
 
-        const res = await fetch(
-          `${API_URL}/api/phone-types?brand=${encodeURIComponent(mongoId)}`,
+        const res = await publicFetch(
+          `/api/phone-types?brand=${encodeURIComponent(mongoId)}`,
           { cache: "no-store" }
         );
         if (!res.ok) {
@@ -60,9 +61,9 @@ export default function SparePartsModelsPage() {
         }
       } catch (err: unknown) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : "تعذر تحميل موديلات الهواتف";
-          const isNetwork = msg.includes("fetch") || msg.includes("Failed to fetch") || msg.includes("NetworkError");
-          setError(isNetwork ? "لا يمكن الاتصال بالخادم. شغّل خادم الـ API." : msg);
+          setError(
+            formatPublicFetchError(err, "تعذر تحميل موديلات الهواتف")
+          );
           setModels([]);
         }
       } finally {
@@ -106,7 +107,9 @@ export default function SparePartsModelsPage() {
             <p className="mt-3 text-sm text-slate-600">
               شغّل خادم الـ API: <code className="rounded bg-slate-200 px-1.5 py-0.5 text-xs">cd server</code> ثم <code className="rounded bg-slate-200 px-1.5 py-0.5 text-xs">npm start</code>
             </p>
-            <p className="mt-1 text-xs text-slate-500">{API_URL}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {getBrowserApiBase() || "نفس الموقع ← /api"}
+            </p>
           </div>
         ) : models.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/80 py-16 text-center shadow-sm">
