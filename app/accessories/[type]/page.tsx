@@ -19,6 +19,7 @@ type Accessory = {
   price?: number;
   details?: string;
   colors?: string[];
+  options?: string[];
   phoneType?: unknown;
   phoneTypes?: unknown;
 };
@@ -144,6 +145,7 @@ export default async function AccessoriesByTypePage({
                     price={a.price ?? 0}
                     image={a.image ?? ""}
                     colors={Array.isArray(a.colors) ? a.colors : []}
+                    options={Array.isArray(a.options) ? a.options : []}
                     category="أكسسوارات"
                   />
                 </div>

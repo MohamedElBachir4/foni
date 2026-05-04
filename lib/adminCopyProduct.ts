@@ -2,6 +2,10 @@
  * نسخ المنتج من لوحة التحكم: لقطة لمقارنة حمولة الإنشاء قبل الحفظ.
  */
 
+import type { PricedOptionCompare } from "./adminPricedOptionsForm";
+
+export type { PricedOptionCompare } from "./adminPricedOptionsForm";
+
 export const ADMIN_COPY_UNCHANGED_MESSAGE =
   "لا يمكن إنشاء المنتج لأن جميع المعلومات مطابقة لمنتج موجود بالفعل. يرجى تعديل حقل واحد على الأقل قبل الحفظ.";
 
@@ -34,8 +38,11 @@ export function buildPhoneCreateComparePayload(args: {
   priceReparateur: string;
   details: string;
   selectedColors: string[];
-  options: string[];
+  pricedOptions: PricedOptionCompare[];
 }): Record<string, unknown> {
+  const pricedOptions = [...args.pricedOptions]
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label, "ar"));
   return {
     name: args.phoneName.trim(),
     brand: args.selectedBrand,
@@ -47,7 +54,7 @@ export function buildPhoneCreateComparePayload(args: {
     priceReparateur: args.priceReparateur.trim() ? Number(args.priceReparateur) : undefined,
     details: args.details.trim(),
     colors: [...args.selectedColors],
-    options: args.options.map((x) => String(x || "").trim()).filter(Boolean),
+    pricedOptions,
   };
 }
 
@@ -63,9 +70,33 @@ export function snapshotFromPhoneForCopy(phone: {
   details?: string;
   colors?: string[];
   options?: string[];
+  pricedOptions?: Array<{
+    label?: string;
+    retailPrice?: number;
+    wholesalePrice?: number;
+    repairPrice?: number;
+  }>;
 }): string {
   const brandId =
     typeof phone.brand === "string" ? phone.brand : String(phone.brand?._id || "");
+  const poRaw = Array.isArray(phone.pricedOptions) ? phone.pricedOptions : [];
+  const pricedOptions: PricedOptionCompare[] = poRaw
+    .map((o) => ({
+      label: String(o?.label ?? "").trim(),
+      retailPrice: Number(o?.retailPrice),
+      wholesalePrice: Number(o?.wholesalePrice),
+      repairPrice: Number(o?.repairPrice),
+    }))
+    .filter(
+      (o) =>
+        o.label &&
+        Number.isFinite(o.retailPrice) &&
+        o.retailPrice > 0 &&
+        Number.isFinite(o.wholesalePrice) &&
+        o.wholesalePrice > 0 &&
+        Number.isFinite(o.repairPrice) &&
+        o.repairPrice > 0
+    );
   return snapshotCreatePayload(
     buildPhoneCreateComparePayload({
       phoneName: phone.name,
@@ -78,7 +109,7 @@ export function snapshotFromPhoneForCopy(phone: {
       priceReparateur: phone.priceReparateur != null ? String(phone.priceReparateur) : "",
       details: phone.details || "",
       selectedColors: Array.isArray(phone.colors) ? [...phone.colors] : [],
-      options: Array.isArray(phone.options) ? [...phone.options] : [],
+      pricedOptions,
     })
   );
 }
@@ -97,8 +128,11 @@ export function buildAccessoryCreateComparePayload(args: {
   priceReparateur: string;
   stock: string;
   details: string;
-  options: string[];
+  pricedOptions: PricedOptionCompare[];
 }): Record<string, unknown> {
+  const pricedOptions = [...args.pricedOptions]
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label, "ar"));
   return {
     name: args.name.trim(),
     type: args.selectedType,
@@ -113,7 +147,7 @@ export function buildAccessoryCreateComparePayload(args: {
     priceReparateur: args.priceReparateur.trim() ? Number(args.priceReparateur) : undefined,
     stock: args.stock.trim() ? Number(args.stock) : 0,
     details: args.details.trim(),
-    options: args.options.map((x) => String(x || "").trim()).filter(Boolean),
+    pricedOptions,
   };
 }
 
@@ -132,6 +166,12 @@ type AccessoryLike = {
   priceReparateur?: number;
   stock?: number;
   details?: string;
+  pricedOptions?: Array<{
+    label?: string;
+    retailPrice?: number;
+    wholesalePrice?: number;
+    repairPrice?: number;
+  }>;
 };
 
 function accessoryBrandId(item: AccessoryLike): string {
@@ -155,6 +195,24 @@ export function snapshotAccessoryAfterModelsResolved(
   selectedPhoneTypes: string[]
 ): string {
   const bid = accessoryBrandId(item);
+  const poRaw = Array.isArray(item.pricedOptions) ? item.pricedOptions : [];
+  const pricedOptions: PricedOptionCompare[] = poRaw
+    .map((o) => ({
+      label: String(o?.label ?? "").trim(),
+      retailPrice: Number(o?.retailPrice),
+      wholesalePrice: Number(o?.wholesalePrice),
+      repairPrice: Number(o?.repairPrice),
+    }))
+    .filter(
+      (o) =>
+        o.label &&
+        Number.isFinite(o.retailPrice) &&
+        o.retailPrice > 0 &&
+        Number.isFinite(o.wholesalePrice) &&
+        o.wholesalePrice > 0 &&
+        Number.isFinite(o.repairPrice) &&
+        o.repairPrice > 0
+    );
   return snapshotCreatePayload(
     buildAccessoryCreateComparePayload({
       name: item.name,
@@ -170,9 +228,7 @@ export function snapshotAccessoryAfterModelsResolved(
       stock: item.stock != null ? String(item.stock) : "",
       details: item.details || "",
       colors: Array.isArray(item.colors) ? [...item.colors] : [],
-      options: Array.isArray((item as { options?: string[] }).options)
-        ? [...((item as { options?: string[] }).options || [])]
-        : [],
+      pricedOptions,
     })
   );
 }
@@ -190,10 +246,13 @@ export function buildSparePartManualCreateComparePayload(args: {
   selectedPhoneTypes: string[];
   newPhoneTypeName: string;
   selectedSpareColors: string[];
-  options: string[];
+  pricedOptions: PricedOptionCompare[];
 }): Record<string, unknown> {
   const normalizedDetails = args.details.trim();
   const phoneTypesSorted = [...args.selectedPhoneTypes].slice().sort();
+  const pricedOptions = [...args.pricedOptions]
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label, "ar"));
   const payload: Record<string, unknown> = {
     name: args.name.trim(),
     details: normalizedDetails,
@@ -205,7 +264,7 @@ export function buildSparePartManualCreateComparePayload(args: {
     priceWholesale: args.priceWholesale.trim() ? Number(args.priceWholesale) : undefined,
     priceReparateur: args.priceReparateur.trim() ? Number(args.priceReparateur) : undefined,
     colors: [...args.selectedSpareColors],
-    options: args.options.map((x) => String(x || "").trim()).filter(Boolean),
+    pricedOptions,
     creationSource: "manual",
     brand: args.selectedBrand || null,
     phoneTypes: phoneTypesSorted,
@@ -227,8 +286,14 @@ export function snapshotFromSparePartForCopy(p: {
   priceReparateur?: number;
   brand?: { _id?: string } | string | null;
   phoneType?: { _id?: string } | string | null;
-  phoneTypes?: Array<{ _id?: string } | string>;
+  phoneTypes?: Array<{ _id?: string } | string> | null;
   colors?: string[];
+  pricedOptions?: Array<{
+    label?: string;
+    retailPrice?: number;
+    wholesalePrice?: number;
+    repairPrice?: number;
+  }>;
 }): string {
   const brandId =
     typeof p.brand === "string" ? p.brand : p.brand && typeof p.brand === "object" ? String(p.brand._id || "") : "";
@@ -256,6 +321,24 @@ export function snapshotFromSparePartForCopy(p: {
       : fallbackSingle
         ? [fallbackSingle]
         : [];
+  const poRaw = Array.isArray(p.pricedOptions) ? p.pricedOptions : [];
+  const pricedOptions: PricedOptionCompare[] = poRaw
+    .map((o) => ({
+      label: String(o?.label ?? "").trim(),
+      retailPrice: Number(o?.retailPrice),
+      wholesalePrice: Number(o?.wholesalePrice),
+      repairPrice: Number(o?.repairPrice),
+    }))
+    .filter(
+      (o) =>
+        o.label &&
+        Number.isFinite(o.retailPrice) &&
+        o.retailPrice > 0 &&
+        Number.isFinite(o.wholesalePrice) &&
+        o.wholesalePrice > 0 &&
+        Number.isFinite(o.repairPrice) &&
+        o.repairPrice > 0
+    );
   return snapshotCreatePayload(
     buildSparePartManualCreateComparePayload({
       name: p.name,
@@ -270,9 +353,7 @@ export function snapshotFromSparePartForCopy(p: {
       selectedPhoneTypes,
       newPhoneTypeName: "",
       selectedSpareColors: Array.isArray(p.colors) ? [...p.colors] : [],
-      options: Array.isArray((p as { options?: string[] }).options)
-        ? [...((p as { options?: string[] }).options || [])]
-        : [],
+      pricedOptions,
     })
   );
 }

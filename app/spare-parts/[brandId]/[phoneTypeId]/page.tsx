@@ -25,6 +25,7 @@ type SparePart = {
   priceReparateur?: number;
   brand?: { _id: string; name: string };
   phoneType?: { _id: string; name: string };
+  options?: string[];
 };
 
 type Brand = { _id: string; name: string };
@@ -256,6 +257,7 @@ export default function SparePartsListPage() {
                         price={effectivePrice ?? 0}
                         image={part.image ?? ""}
                         colors={Array.isArray(part.colors) ? part.colors : []}
+                        options={Array.isArray(part.options) ? part.options : []}
                         category="قطع غيار"
                       />
                     </div>

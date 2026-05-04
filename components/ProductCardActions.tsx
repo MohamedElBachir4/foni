@@ -28,6 +28,7 @@ export function ProductCardActions({
   price,
   image,
   colors,
+  options,
   category,
 }: {
   id: string;
@@ -35,6 +36,7 @@ export function ProductCardActions({
   price: number;
   image: string;
   colors?: string[];
+  options?: string[];
   category?: string;
 }) {
   const colorsFingerprint = useMemo(() => {
@@ -51,6 +53,7 @@ export function ProductCardActions({
   }, [colorsFingerprint]);
 
   const [selectedColor, setSelectedColor] = useState<string>(list[0] || "");
+  const [selectedOption, setSelectedOption] = useState<string>("");
 
   useEffect(() => {
     if (!list.length) {
@@ -63,6 +66,16 @@ export function ProductCardActions({
       return found != null ? String(found) : String(list[0]);
     });
   }, [id, colorsFingerprint, list]);
+
+  useEffect(() => {
+    const opts = Array.isArray(options)
+      ? options.map((x) => String(x || "").trim()).filter(Boolean)
+      : [];
+    setSelectedOption((prev) => {
+      if (!opts.length) return "";
+      return opts.includes(prev) ? prev : opts[0];
+    });
+  }, [id, options]);
 
   const pt = inferProductType(category);
   const selectedKey = colorKey(selectedColor);
@@ -113,6 +126,32 @@ export function ProductCardActions({
         </div>
       ) : null}
 
+      {Array.isArray(options) && options.length > 0 ? (
+        <div className="mb-2.5 flex flex-wrap items-center justify-center gap-1.5">
+          {options.map((opt) => {
+            const isActive = selectedOption === opt;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setSelectedOption(opt);
+                }}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                  isActive
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700"
+                }`}
+                aria-pressed={isActive}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       <div className="mt-auto flex w-full flex-col gap-2">
         <AddToCartButton
           id={id}
@@ -122,6 +161,9 @@ export function ProductCardActions({
           colors={list}
           lockColorToSelection={list.length > 0}
           lockedColor={selectedColor}
+          options={Array.isArray(options) ? options : []}
+          lockOptionToSelection={Array.isArray(options) && options.length > 0}
+          lockedOption={selectedOption}
           productType={pt}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-900/20 transition-all hover:from-blue-600 hover:to-blue-500 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
         >

@@ -17,6 +17,7 @@ type Accessory = {
   details?: string;
   brand?: { name?: string; slug?: string } | string;
   phoneType?: { name?: string } | string;
+  options?: string[];
 };
 
 const BRAND_LABELS: Record<string, string> = {

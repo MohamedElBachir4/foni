@@ -6,6 +6,10 @@ import { getProductById, getBrandLabel } from "@/lib/productsData";
 import { ProductDetailsModern } from "@/components/product/ProductDetailsModern";
 import { buildMetadata, getSiteUrl, slugifyProductName } from "@/lib/seo";
 import { publicFetch } from "@/lib/publicFetch";
+import {
+  parsePricedVariantsFromApi,
+  type PricedVariant,
+} from "@/lib/productPricedOptions";
 
 export const dynamic = "force-dynamic";
 
@@ -189,6 +193,7 @@ export default async function ProductDetailPage({
     details?: string;
     colors?: string[];
     options?: string[];
+    pricedOptions?: PricedVariant[];
     stock?: number;
   } | null = null;
   let source: "static" | "phone" | "sparePart" = "static";
@@ -215,11 +220,14 @@ export default async function ProductDetailPage({
         const brand = phone.brand;
         brandLabel = typeof brand === "object" && brand?.name ? String(brand.name) : "";
 
+        const priced = parsePricedVariantsFromApi(phone.pricedOptions);
         const phoneRetail = Number(phone.priceRetail ?? phone.price ?? 0);
+        const displayRetail =
+          priced.length > 0 ? priced[0].retailPrice : phoneRetail;
         product = {
           id: String(phone._id),
           name: String(phone.name || ""),
-          price: phoneRetail,
+          price: displayRetail,
           priceRetail:
             typeof phone.priceRetail === "number" && !Number.isNaN(phone.priceRetail)
               ? phone.priceRetail
@@ -254,9 +262,12 @@ export default async function ProductDetailPage({
           ),
           details: pickFirstNonEmptyString(phone.details, phone.description, phone.desc),
           colors: Array.isArray(phone.colors) ? phone.colors : [],
-          options: Array.isArray(phone.options)
-            ? phone.options.map((x: unknown) => String(x || "").trim()).filter(Boolean)
-            : [],
+          options: priced.length
+            ? priced.map((p) => p.label)
+            : Array.isArray(phone.options)
+              ? phone.options.map((x: unknown) => String(x || "").trim()).filter(Boolean)
+              : [],
+          pricedOptions: priced.length ? priced : undefined,
           stock: typeof phone.stock === "number" ? phone.stock : undefined,
         };
         source = "phone";
@@ -291,11 +302,14 @@ export default async function ProductDetailPage({
         const brandId = typeof brand === "object" && brand?._id ? String(brand._id) : "";
         brandLabel = typeof brand === "object" && brand?.name ? String(brand.name) : "";
 
+        const pricedPart = parsePricedVariantsFromApi(part.pricedOptions);
         const partRetail = Number(part.priceRetail ?? part.price ?? 0);
+        const displayPartRetail =
+          pricedPart.length > 0 ? pricedPart[0].retailPrice : partRetail;
         product = {
           id: String(part._id),
           name: String(part.name || ""),
-          price: partRetail,
+          price: displayPartRetail,
           priceRetail:
             typeof part.priceRetail === "number" && !Number.isNaN(part.priceRetail as number)
               ? (part.priceRetail as number)
@@ -327,9 +341,12 @@ export default async function ProductDetailPage({
           ),
           details: pickFirstNonEmptyString(part.details, part.description, part.desc),
           colors: Array.isArray(part.colors) ? part.colors : [],
-          options: Array.isArray(part.options)
-            ? part.options.map((x: unknown) => String(x || "").trim()).filter(Boolean)
-            : [],
+          options: pricedPart.length
+            ? pricedPart.map((p) => p.label)
+            : Array.isArray(part.options)
+              ? part.options.map((x: unknown) => String(x || "").trim()).filter(Boolean)
+              : [],
+          pricedOptions: pricedPart.length ? pricedPart : undefined,
         };
         source = "sparePart";
         sparePartContext = {
@@ -489,6 +506,7 @@ export default async function ProductDetailPage({
             description,
             colors: product.colors || [],
             options: product.options || [],
+            pricedOptions: product.pricedOptions,
             stock: product.stock,
           }}
           relatedProducts={relatedProducts}

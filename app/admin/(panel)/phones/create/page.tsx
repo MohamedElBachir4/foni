@@ -20,6 +20,13 @@ import {
   snapshotFromPhoneForCopy,
 } from "@/lib/adminCopyProduct";
 import {
+  createEmptyPricedOptionRow,
+  pricedRowsFromApi,
+  validatePricedOptionRows,
+  type PricedOptionFormRow,
+  type PricedOptionCompare,
+} from "@/lib/adminPricedOptionsForm";
+import {
   Smartphone,
   CheckCircle,
   AlertCircle,
@@ -45,6 +52,7 @@ type Phone = {
   stock?: number;
   colors?: string[];
   options?: string[];
+  pricedOptions?: PricedOptionCompare[];
 };
 
 const fld =
@@ -66,7 +74,7 @@ export default function CreatePhonePage() {
   const [priceReparateur, setPriceReparateur] = useState("");
   const [details, setDetails] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [options, setOptions] = useState<string[]>([]);
+  const [pricedOptionRows, setPricedOptionRows] = useState<PricedOptionFormRow[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [phoneModalNotice, setPhoneModalNotice] = useState<{
     type: "success" | "error";
@@ -122,7 +130,7 @@ export default function CreatePhonePage() {
     setPriceReparateur("");
     setDetails("");
     setSelectedColors([]);
-    setOptions([]);
+    setPricedOptionRows([]);
     setEditing(null);
     setCopySnapshot(null);
   }
@@ -186,12 +194,12 @@ export default function CreatePhonePage() {
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    const normalizedOptions = options.map((x) => x.trim()).filter(Boolean);
-    if (options.length > 0 && normalizedOptions.length !== options.length) {
-      setPhoneModalNotice({ type: "error", text: "لا يمكن ترك خيار نصي فارغ." });
+    e.preventDefault();
+    const pricedValidation = validatePricedOptionRows(pricedOptionRows);
+    if (!pricedValidation.ok) {
+      setPhoneModalNotice({ type: "error", text: pricedValidation.text });
       return;
     }
-    e.preventDefault();
     setPhoneModalNotice(null);
     setMessage(null);
     if (!phoneName.trim()) {
@@ -223,7 +231,7 @@ export default function CreatePhonePage() {
           priceReparateur,
           details,
           selectedColors,
-          options,
+          pricedOptions: pricedValidation.data,
         })
       );
       if (current === copySnapshot) {
@@ -243,7 +251,7 @@ export default function CreatePhonePage() {
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
       details: details.trim(),
       colors: selectedColors,
-      options: normalizedOptions,
+      pricedOptions: pricedValidation.data,
     };
 
     setSavingPhone(true);
@@ -296,7 +304,7 @@ export default function CreatePhonePage() {
     setPriceReparateur(phone.priceReparateur != null ? String(phone.priceReparateur) : "");
     setDetails(phone.details || "");
     setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
-    setOptions(Array.isArray(phone.options) ? [...phone.options] : []);
+    setPricedOptionRows(pricedRowsFromApi(phone.pricedOptions));
   }
 
   function startEdit(phone: Phone) {
@@ -314,7 +322,7 @@ export default function CreatePhonePage() {
     setPriceReparateur(phone.priceReparateur != null ? String(phone.priceReparateur) : "");
     setDetails(phone.details || "");
     setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
-    setOptions(Array.isArray(phone.options) ? [...phone.options] : []);
+    setPricedOptionRows(pricedRowsFromApi(phone.pricedOptions));
   }
 
   async function handleDelete(id: string) {
@@ -607,48 +615,118 @@ export default function CreatePhonePage() {
                 </p>
               </div>
               <div className="mt-2 border-t border-slate-100 pt-2">
-                <div className="mb-1 flex items-center justify-between">
-                  <label className={lbl}>خيارات نصية (اختيار واحد للزبون)</label>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className={lbl}>
+                    خيارات المنتج (اسم + سعر تجزئة / جملة / مصلحين)
+                  </label>
                   <AdminButton
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setOptions((prev) => [...prev, ""])}
+                    onClick={() => setPricedOptionRows((prev) => [...prev, createEmptyPricedOptionRow()])}
                     icon={<Plus className="h-3.5 w-3.5" />}
                   >
                     إضافة خيار
                   </AdminButton>
                 </div>
-                {options.length === 0 ? (
+                {pricedOptionRows.length === 0 ? (
                   <p className="text-[10px] text-slate-500">
-                    مثال: 64GB، 128GB، أحمر، نسخة أصلية.
+                    اضغط «إضافة خيار» لإضافة مثلاً 64GB أو 128GB مع أسعار مختلفة لكل نوع زبون.
                   </p>
                 ) : (
-                  <div className="space-y-1.5">
-                    {options.map((opt, idx) => (
-                      <div key={`option-${idx}`} className="flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          value={opt}
-                          onChange={(e) =>
-                            setOptions((prev) =>
-                              prev.map((item, i) => (i === idx ? e.target.value : item))
-                            )
-                          }
-                          className={fld}
-                          placeholder={`الخيار ${idx + 1}`}
-                        />
-                        <AdminButton
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="hover:bg-rose-50 hover:text-rose-600"
-                          icon={<Trash2 className="h-3.5 w-3.5" />}
-                          onClick={() =>
-                            setOptions((prev) => prev.filter((_, i) => i !== idx))
-                          }
-                          title="حذف الخيار"
-                        />
+                  <div className="max-h-[220px] space-y-2 overflow-y-auto pe-0.5">
+                    {pricedOptionRows.map((row) => (
+                      <div
+                        key={row.id}
+                        className="rounded-lg border border-slate-200 bg-slate-50/80 p-2"
+                      >
+                        <div className="mb-1.5 flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={row.label}
+                            onChange={(e) =>
+                              setPricedOptionRows((prev) =>
+                                prev.map((r) =>
+                                  r.id === row.id ? { ...r, label: e.target.value } : r
+                                )
+                              )
+                            }
+                            className={`${fld} min-w-0 flex-1`}
+                            placeholder="اسم الخيار (مثلاً 128GB)"
+                          />
+                          <AdminButton
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="shrink-0 hover:bg-rose-50 hover:text-rose-600"
+                            icon={<Trash2 className="h-3.5 w-3.5" />}
+                            onClick={() =>
+                              setPricedOptionRows((prev) => prev.filter((r) => r.id !== row.id))
+                            }
+                            title="حذف الخيار"
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <div>
+                            <span className={lbl}>تجزئة (DA)</span>
+                            <input
+                              type="number"
+                              min={1}
+                              step="1"
+                              inputMode="numeric"
+                              value={row.retailPrice}
+                              onChange={(e) =>
+                                setPricedOptionRows((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id ? { ...r, retailPrice: e.target.value } : r
+                                  )
+                                )
+                              }
+                              className={fldNum}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <span className={lbl}>جملة (DA)</span>
+                            <input
+                              type="number"
+                              min={1}
+                              step="1"
+                              inputMode="numeric"
+                              value={row.wholesalePrice}
+                              onChange={(e) =>
+                                setPricedOptionRows((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id
+                                      ? { ...r, wholesalePrice: e.target.value }
+                                      : r
+                                  )
+                                )
+                              }
+                              className={fldNum}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <span className={lbl}>مصلح (DA)</span>
+                            <input
+                              type="number"
+                              min={1}
+                              step="1"
+                              inputMode="numeric"
+                              value={row.repairPrice}
+                              onChange={(e) =>
+                                setPricedOptionRows((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id ? { ...r, repairPrice: e.target.value } : r
+                                  )
+                                )
+                              }
+                              className={fldNum}
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -17,6 +17,7 @@ type Accessory = {
   priceReparateur?: number;
   details?: string;
   colors?: string[];
+  options?: string[];
 };
 
 export function BrandAccessoriesList({ accessories }: { accessories: Accessory[] }) {
@@ -89,6 +90,7 @@ export function BrandAccessoriesList({ accessories }: { accessories: Accessory[]
                 price={effectivePrice ?? 0}
                 image={a.image ?? ""}
                 colors={Array.isArray(a.colors) ? a.colors : []}
+                options={Array.isArray(a.options) ? a.options : []}
                 category="أكسسوارات"
               />
             </div>

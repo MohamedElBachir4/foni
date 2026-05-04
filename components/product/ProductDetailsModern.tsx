@@ -10,10 +10,12 @@ import { ProductImage } from "@/components/ProductImage";
 import {
   formatDzd,
   getEffectivePrice,
+  getEffectivePriceForVariant,
   getPricingAccount,
   describeActivePriceTier,
   type TieredPrice,
 } from "@/lib/pricing";
+import type { PricedVariant } from "@/lib/productPricedOptions";
 import { useAccount } from "@/context/AccountContext";
 import { useCart } from "@/context/CartContext";
 import { slugifyProductName } from "@/lib/seo";
@@ -46,6 +48,8 @@ type ProductDetailsModernProps = {
     description: string;
     colors?: string[];
     options?: string[];
+    /** خيارات بأسعار ثلاثية — عند وجودها يُحدَّد السعر حسب الخيار ونوع الحساب */
+    pricedOptions?: PricedVariant[];
     stock?: number;
   };
   relatedProducts: RelatedProduct[];
@@ -87,12 +91,16 @@ export function ProductDetailsModern({
     [product.price, product.priceRetail, product.priceWholesale, product.priceReparateur]
   );
 
+  const variantList = useMemo(
+    () =>
+      Array.isArray(product.pricedOptions) && product.pricedOptions.length > 0
+        ? product.pricedOptions
+        : [],
+    [product.pricedOptions]
+  );
+
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
 
-  const effectivePrice = useMemo(
-    () => getEffectivePrice(tiered, pricingAccount),
-    [tiered, pricingAccount]
-  );
   const images = useMemo(() => {
     const merged = [product.image, ...(product.extraImages || [])]
       .map((x) => String(x || "").trim())
@@ -104,6 +112,20 @@ export function ProductDetailsModern({
   const [selectedColorId, setSelectedColorId] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
   const [orderHint, setOrderHint] = useState("");
+
+  const selectedVariant = useMemo(() => {
+    if (!variantList.length) return null;
+    const want = String(selectedOption || "").trim();
+    const hit = variantList.find((v) => v.label === want);
+    return hit ?? variantList[0];
+  }, [variantList, selectedOption]);
+
+  const effectivePrice = useMemo(() => {
+    if (variantList.length && selectedVariant) {
+      return getEffectivePriceForVariant(selectedVariant, pricingAccount);
+    }
+    return getEffectivePrice(tiered, pricingAccount);
+  }, [variantList.length, selectedVariant, tiered, pricingAccount]);
 
   useEffect(() => {
     const cols = product.colors || [];
@@ -119,11 +141,19 @@ export function ProductDetailsModern({
   }, [product.id, product.colors]);
 
   useEffect(() => {
+    if (variantList.length) {
+      setSelectedOption((prev) => {
+        const p = String(prev || "").trim();
+        const hit = variantList.find((v) => v.label === p);
+        return hit ? hit.label : variantList[0].label;
+      });
+      return;
+    }
     const opts = Array.isArray(product.options)
       ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
       : [];
     setSelectedOption(opts[0] || "");
-  }, [product.id, product.options]);
+  }, [product.id, product.options, variantList]);
 
   /** الهواتف: في الـ API الافتراضي stock=0 ولا يعني «غير متوفر» حتى يُضبط تتبع المخزون. */
   const isAvailable =
@@ -137,14 +167,16 @@ export function ProductDetailsModern({
 
   function handleOrderNow() {
     const cols = product.colors || [];
-    const opts = Array.isArray(product.options)
-      ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
-      : [];
+    const optLabels = variantList.length
+      ? variantList.map((v) => v.label)
+      : Array.isArray(product.options)
+        ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
+        : [];
     if (cols.length > 0 && !String(selectedColorId || "").trim()) {
       setOrderHint("اختر لوناً قبل إتمام الطلب.");
       return;
     }
-    if (opts.length > 0 && !String(selectedOption || "").trim()) {
+    if (optLabels.length > 0 && !String(selectedOption || "").trim()) {
       setOrderHint("اختر خيار المنتج قبل إتمام الطلب.");
       return;
     }
@@ -158,8 +190,8 @@ export function ProductDetailsModern({
       quantity: 1,
       color: colorNorm,
       availableColors: cols.length ? cols.map((c) => String(c).trim().toLowerCase()) : undefined,
-      option: opts.length ? selectedOption : undefined,
-      availableOptions: opts.length ? opts : undefined,
+      option: optLabels.length ? selectedOption : undefined,
+      availableOptions: optLabels.length ? optLabels : undefined,
       productType: cartProductType(product.category),
     });
     router.push("/checkout");
@@ -257,11 +289,20 @@ export function ProductDetailsModern({
               </div>
             )}
 
-            {Array.isArray(product.options) && product.options.length > 0 && (
+            {(variantList.length > 0 ||
+              (Array.isArray(product.options) && product.options.length > 0)) && (
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="mb-2 text-sm font-extrabold text-slate-800">خيارات المنتج</p>
+                <p className="mb-2 text-[11px] text-slate-500">
+                  {variantList.length > 0
+                    ? "اختر خياراً — يتغيّر السعر أعلاه مباشرة حسب خيارك ونوع حسابك (تجزئة / جملة / مصلح)."
+                    : "اختر وصف الخيار قبل الإضافة للسلة."}
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {product.options.map((opt) => {
+                  {(variantList.length
+                    ? variantList.map((v) => v.label)
+                    : (product.options || []).map((x) => String(x || "").trim()).filter(Boolean)
+                  ).map((opt) => {
                     const isActive = selectedOption === opt;
                     return (
                       <button
@@ -348,8 +389,17 @@ export function ProductDetailsModern({
                 colors={product.colors || []}
                 lockColorToSelection={!!(product.colors && product.colors.length > 0)}
                 lockedColor={selectedColorId}
-                options={Array.isArray(product.options) ? product.options : []}
-                lockOptionToSelection={!!(product.options && product.options.length > 0)}
+                options={
+                  variantList.length > 0
+                    ? variantList.map((v) => v.label)
+                    : Array.isArray(product.options)
+                      ? product.options
+                      : []
+                }
+                lockOptionToSelection={
+                  variantList.length > 0 ||
+                  !!(product.options && product.options.length > 0)
+                }
                 lockedOption={selectedOption}
                 productType={cartProductType(product.category)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500"

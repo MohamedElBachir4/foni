@@ -1,4 +1,5 @@
 import type { AccountInfo } from "@/context/AccountContext";
+import type { PricedVariant } from "@/lib/productPricedOptions";
 
 export type TieredPrice = {
   price?: number | null;
@@ -61,6 +62,25 @@ export function getEffectivePrice(
   }
 
   return baseRetail;
+}
+
+/**
+ * سعر خيار بأسعار ثلاثية (تجزئة / جملة / مصلحين) حسب نفس منطق الحساب B2B:
+ * grossiste → جملة، reparateur → مصلح (أو جملة إن فُعّل الشراء بالجملة)، غير ذلك → تجزئة.
+ */
+export function getEffectivePriceForVariant(
+  variant: PricedVariant,
+  account: AccountInfo | null
+): number {
+  return getEffectivePrice(
+    {
+      price: variant.retailPrice,
+      priceRetail: variant.retailPrice,
+      priceWholesale: variant.wholesalePrice,
+      priceReparateur: variant.repairPrice,
+    },
+    account
+  );
 }
 
 /** وصف قصير لما يعرض تحت السعر (شفافية للمستخدم). */
