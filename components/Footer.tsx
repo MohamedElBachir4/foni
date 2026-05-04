@@ -198,29 +198,17 @@ export function Footer() {
             </div>
           </div>
           <div className="-mt-px border-t border-blue-950/10 bg-gradient-to-r from-slate-50/90 via-blue-50/30 to-slate-50/90 px-6 py-4">
-            <div className="mx-auto flex max-w-lg flex-col items-center gap-2.5 text-center">
-              <p className="text-[13px] font-medium leading-relaxed text-slate-700">
-                تم برمجة وتطوير هذا الموقع من قِبل شركة التطوير{" "}
-                <strong className="font-bold text-slate-900">Codeasy</strong>. الرابط التالي يفتح{" "}
-                <strong className="font-bold text-slate-900">موقع المُطوِّر</strong> في نافذة جديدة (ليس صفحة
-                من متجر FONI).
-              </p>
+            <div className="mx-auto flex max-w-lg justify-center">
               <a
                 href="https://codeasy.site"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="فتح موقع المطور Codeasy في نافذة جديدة (codeasy.site)"
+                aria-label="فتح موقع المطور Codeasy في نافذة جديدة"
                 className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-1.5 text-sm font-semibold text-blue-700 transition hover:border-blue-200 hover:bg-blue-50/70 hover:text-blue-900"
               >
                 <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-75" aria-hidden />
                 <span>Codeasy — موقع المُطور</span>
               </a>
-              <p className="text-[11px] text-slate-500">
-                الرابط الخارجي:{" "}
-                <span dir="ltr" className="font-medium text-slate-600">
-                  https://codeasy.site
-                </span>
-              </p>
             </div>
           </div>
         </div>

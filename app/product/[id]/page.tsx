@@ -87,6 +87,51 @@ async function getProductSeoData(id: string) {
     } catch {
       // ignore
     }
+
+    try {
+      let part: { _id?: string; [key: string]: unknown } | null = null;
+      const byIdRes = await publicFetch(`/api/spare-parts/${id}`, { cache: "no-store" });
+      if (byIdRes.ok) {
+        part = await byIdRes.json();
+      } else {
+        const listRes = await publicFetch(`/api/spare-parts?limit=1000`, {
+          cache: "no-store",
+        });
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const parts = listData?.parts ?? (Array.isArray(listData) ? listData : []);
+          part = Array.isArray(parts)
+            ? parts.find((item: { _id?: string }) => item?._id === id) ?? null
+            : null;
+        }
+      }
+
+      if (part?._id) {
+        const brand = part.brand as { name?: string } | undefined;
+        const brandLabel =
+          typeof brand === "object" && brand?.name ? String(brand.name) : "";
+        const name = String(part.name || "قطعة غيار");
+        const desc =
+          String(part.details || part.description || part.desc || "").trim() ||
+          `قطعة غيار ${name} من ${brandLabel || "Foni"} متوفرة في الجزائر.`;
+        return {
+          id: String(part._id),
+          name,
+          image: pickFirstNonEmptyString(
+            part.image,
+            part.imageUrl,
+            part.image_url,
+            part.thumbnail,
+            "/LOGO.jpeg"
+          ),
+          price: Number(part.priceRetail ?? part.price ?? 0),
+          brandLabel,
+          description: desc,
+        };
+      }
+    } catch {
+      // ignore
+    }
   }
 
   return null;
@@ -143,6 +188,7 @@ export default async function ProductDetailPage({
     extraImages?: string[];
     details?: string;
     colors?: string[];
+    options?: string[];
     stock?: number;
   } | null = null;
   let source: "static" | "phone" | "sparePart" = "static";
@@ -208,6 +254,9 @@ export default async function ProductDetailPage({
           ),
           details: pickFirstNonEmptyString(phone.details, phone.description, phone.desc),
           colors: Array.isArray(phone.colors) ? phone.colors : [],
+          options: Array.isArray(phone.options)
+            ? phone.options.map((x: unknown) => String(x || "").trim()).filter(Boolean)
+            : [],
           stock: typeof phone.stock === "number" ? phone.stock : undefined,
         };
         source = "phone";
@@ -278,6 +327,9 @@ export default async function ProductDetailPage({
           ),
           details: pickFirstNonEmptyString(part.details, part.description, part.desc),
           colors: Array.isArray(part.colors) ? part.colors : [],
+          options: Array.isArray(part.options)
+            ? part.options.map((x: unknown) => String(x || "").trim()).filter(Boolean)
+            : [],
         };
         source = "sparePart";
         sparePartContext = {
@@ -436,6 +488,7 @@ export default async function ProductDetailPage({
             extraImages: product.extraImages || [],
             description,
             colors: product.colors || [],
+            options: product.options || [],
             stock: product.stock,
           }}
           relatedProducts={relatedProducts}

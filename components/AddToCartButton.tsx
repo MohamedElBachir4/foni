@@ -12,10 +12,14 @@ type AddToCartButtonProps = {
   price: number;
   image?: string;
   colors?: string[];
+  options?: string[];
   /** عند true: إضافة مباشرة بلون محدّد من الأب (مثل صفحة المنتج بعد اختيار الدائرة) دون نافذة */
   lockColorToSelection?: boolean;
   /** اللون المستخدم مع lockColorToSelection (معرّف من القائمة) */
   lockedColor?: string;
+  /** عند true: إضافة مباشرة بخيار نصي محدّد من الأب */
+  lockOptionToSelection?: boolean;
+  lockedOption?: string;
   productType?: "phone" | "accessory" | "sparePart";
   className?: string;
   children?: React.ReactNode;
@@ -27,8 +31,11 @@ export function AddToCartButton({
   price,
   image = "",
   colors = [],
+  options = [],
   lockColorToSelection = false,
   lockedColor = "",
+  lockOptionToSelection = false,
+  lockedOption = "",
   productType = "phone",
   className,
   children,
@@ -56,11 +63,13 @@ export function AddToCartButton({
   }, [showColorModal, colors]);
 
   const handleAddToCart = useCallback(
-    (color?: string) => {
+    (color?: string, option?: string) => {
       if (added) return;
 
       const hasColors = colors && colors.length > 0;
       const c = color?.trim().toLowerCase();
+      const hasOptions = options && options.length > 0;
+      const o = String(option || "").trim();
       addToCart({
         id,
         name,
@@ -69,6 +78,8 @@ export function AddToCartButton({
         quantity: 1,
         color: hasColors && c ? c : undefined,
         availableColors: hasColors ? colors.map((x) => String(x).toLowerCase()) : undefined,
+        option: hasOptions && o ? o : undefined,
+        availableOptions: hasOptions ? options.map((x) => String(x).trim()).filter(Boolean) : undefined,
         productType,
       });
 
@@ -77,10 +88,31 @@ export function AddToCartButton({
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => setAdded(false), 1800);
     },
-    [added, addToCart, id, name, price, image, productType, colors]
+    [added, addToCart, id, name, price, image, productType, colors, options]
   );
 
   const handleClick = useCallback(() => {
+    const normalizedOptions = options.map((x) => String(x || "").trim()).filter(Boolean);
+    const hasOptions = normalizedOptions.length > 0;
+    if (lockOptionToSelection && hasOptions) {
+      const wantOpt = String(lockedOption || normalizedOptions[0] || "").trim();
+      const okOpt = normalizedOptions.includes(wantOpt);
+      const option = okOpt ? wantOpt : normalizedOptions[0];
+      if (lockColorToSelection && colors.length > 0) {
+        const want = String(lockedColor || colors[0] || "")
+          .trim()
+          .toLowerCase();
+        const ok = colors.some((c) => String(c).trim().toLowerCase() === want);
+        handleAddToCart(ok ? want : String(colors[0]).trim().toLowerCase(), option);
+        return;
+      }
+      if (colors && colors.length > 0) {
+        setShowColorModal(true);
+      } else {
+        handleAddToCart(undefined, option);
+      }
+      return;
+    }
     if (lockColorToSelection && colors.length > 0) {
       const want = String(lockedColor || colors[0] || "")
         .trim()
@@ -94,7 +126,7 @@ export function AddToCartButton({
     } else {
       handleAddToCart();
     }
-  }, [colors, handleAddToCart, lockColorToSelection, lockedColor]);
+  }, [colors, handleAddToCart, lockColorToSelection, lockedColor, lockOptionToSelection, lockedOption, options]);
 
   const baseClass =
     "inline-flex w-full items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-medium transition-all duration-500 ease-out focus:outline-none focus:ring-2 focus:ring-offset-1 ";

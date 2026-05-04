@@ -20,11 +20,15 @@ export type CartItem = {
   color?: string;
   /** ألوان المنتج المعروضة للزبون (للتحقق عند الطلب وتغيير اللون من السلة/الدفع) */
   availableColors?: string[];
+  option?: string;
+  availableOptions?: string[];
   productType?: "phone" | "accessory" | "sparePart";
 };
 
 function cartLineKey(i: CartItem): string {
-  return i.color ? `${i.id}||${i.color}` : i.id;
+  const colorPart = i.color ? `||c:${i.color}` : "";
+  const optionPart = i.option ? `||o:${i.option}` : "";
+  return `${i.id}${colorPart}${optionPart}`;
 }
 
 type CartContextValue = {
@@ -46,10 +50,21 @@ function normalizeCartItemColors(list: CartItem[]): CartItem[] {
     const ac = Array.isArray(i.availableColors)
       ? i.availableColors.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
       : [];
-    if (!ac.length) return i;
+    const ao = Array.isArray(i.availableOptions)
+      ? i.availableOptions.map((x) => String(x).trim()).filter(Boolean)
+      : [];
+    const opt = String(i.option || "").trim();
+    const optionOk = ao.length ? (opt && ao.includes(opt) ? opt : ao[0]) : opt || undefined;
+    if (!ac.length) return { ...i, availableOptions: ao.length ? ao : undefined, option: optionOk };
     const col = String(i.color || "").trim().toLowerCase();
     const colorOk = col && ac.includes(col) ? col : ac[0];
-    return { ...i, availableColors: ac, color: colorOk };
+    return {
+      ...i,
+      availableColors: ac,
+      color: colorOk,
+      availableOptions: ao.length ? ao : undefined,
+      option: optionOk,
+    };
   });
 }
 
@@ -110,8 +125,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           nextAc = undefined;
           nextColor = rawCol || undefined;
         }
+        const aoRaw = (item as CartItem).availableOptions;
+        const ao = Array.isArray(aoRaw)
+          ? aoRaw.map((x) => String(x).trim()).filter(Boolean)
+          : undefined;
+        const rawOption = String((item as CartItem).option || "").trim();
+        const nextOption = ao?.length ? (rawOption && ao.includes(rawOption) ? rawOption : ao[0]) : rawOption || undefined;
 
-        const itemKey = nextColor ? `${item.id}||${nextColor}` : item.id;
+        const itemKey = cartLineKey({
+          id: item.id,
+          name: "",
+          price: 0,
+          image: "",
+          quantity: 1,
+          color: nextColor,
+          option: nextOption,
+        });
         const existing = prev.find((i) => cartLineKey(i) === itemKey);
 
         if (existing) {
@@ -133,6 +162,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             quantity: q || 1,
             color: nextColor,
             availableColors: nextAc,
+            option: nextOption,
+            availableOptions: ao,
             productType: (item as CartItem).productType,
           },
         ];

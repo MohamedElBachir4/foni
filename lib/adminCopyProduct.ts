@@ -34,6 +34,7 @@ export function buildPhoneCreateComparePayload(args: {
   priceReparateur: string;
   details: string;
   selectedColors: string[];
+  options: string[];
 }): Record<string, unknown> {
   return {
     name: args.phoneName.trim(),
@@ -46,6 +47,7 @@ export function buildPhoneCreateComparePayload(args: {
     priceReparateur: args.priceReparateur.trim() ? Number(args.priceReparateur) : undefined,
     details: args.details.trim(),
     colors: [...args.selectedColors],
+    options: args.options.map((x) => String(x || "").trim()).filter(Boolean),
   };
 }
 
@@ -60,6 +62,7 @@ export function snapshotFromPhoneForCopy(phone: {
   priceReparateur?: number;
   details?: string;
   colors?: string[];
+  options?: string[];
 }): string {
   const brandId =
     typeof phone.brand === "string" ? phone.brand : String(phone.brand?._id || "");
@@ -75,6 +78,7 @@ export function snapshotFromPhoneForCopy(phone: {
       priceReparateur: phone.priceReparateur != null ? String(phone.priceReparateur) : "",
       details: phone.details || "",
       selectedColors: Array.isArray(phone.colors) ? [...phone.colors] : [],
+      options: Array.isArray(phone.options) ? [...phone.options] : [],
     })
   );
 }
@@ -93,6 +97,7 @@ export function buildAccessoryCreateComparePayload(args: {
   priceReparateur: string;
   stock: string;
   details: string;
+  options: string[];
 }): Record<string, unknown> {
   return {
     name: args.name.trim(),
@@ -108,6 +113,7 @@ export function buildAccessoryCreateComparePayload(args: {
     priceReparateur: args.priceReparateur.trim() ? Number(args.priceReparateur) : undefined,
     stock: args.stock.trim() ? Number(args.stock) : 0,
     details: args.details.trim(),
+    options: args.options.map((x) => String(x || "").trim()).filter(Boolean),
   };
 }
 
@@ -164,6 +170,9 @@ export function snapshotAccessoryAfterModelsResolved(
       stock: item.stock != null ? String(item.stock) : "",
       details: item.details || "",
       colors: Array.isArray(item.colors) ? [...item.colors] : [],
+      options: Array.isArray((item as { options?: string[] }).options)
+        ? [...((item as { options?: string[] }).options || [])]
+        : [],
     })
   );
 }
@@ -181,6 +190,7 @@ export function buildSparePartManualCreateComparePayload(args: {
   selectedPhoneTypes: string[];
   newPhoneTypeName: string;
   selectedSpareColors: string[];
+  options: string[];
 }): Record<string, unknown> {
   const normalizedDetails = args.details.trim();
   const phoneTypesSorted = [...args.selectedPhoneTypes].slice().sort();
@@ -195,6 +205,7 @@ export function buildSparePartManualCreateComparePayload(args: {
     priceWholesale: args.priceWholesale.trim() ? Number(args.priceWholesale) : undefined,
     priceReparateur: args.priceReparateur.trim() ? Number(args.priceReparateur) : undefined,
     colors: [...args.selectedSpareColors],
+    options: args.options.map((x) => String(x || "").trim()).filter(Boolean),
     creationSource: "manual",
     brand: args.selectedBrand || null,
     phoneTypes: phoneTypesSorted,
@@ -259,6 +270,9 @@ export function snapshotFromSparePartForCopy(p: {
       selectedPhoneTypes,
       newPhoneTypeName: "",
       selectedSpareColors: Array.isArray(p.colors) ? [...p.colors] : [],
+      options: Array.isArray((p as { options?: string[] }).options)
+        ? [...((p as { options?: string[] }).options || [])]
+        : [],
     })
   );
 }

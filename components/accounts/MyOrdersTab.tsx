@@ -25,6 +25,7 @@ export type CustomerOrderItem = {
   quantity: number;
   image?: string;
   color?: string;
+  option?: string;
   productType?: string;
 };
 
@@ -426,7 +427,7 @@ export function MyOrdersTab() {
                               className="min-w-0 max-w-full rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-1.5 sm:max-w-[min(100%,20rem)] sm:px-3"
                             >
                               <p className="text-xs font-semibold text-slate-900">
-                                {it.name}
+                                {it.option ? `${it.name} - ${it.option}` : it.name}
                                 <span className="me-1.5 text-[11px] font-normal text-slate-500">
                                   ×{it.quantity}
                                 </span>

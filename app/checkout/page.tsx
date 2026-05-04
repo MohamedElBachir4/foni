@@ -85,6 +85,11 @@ export default function CheckoutPage() {
   /** يُستهلك عند استلام قائمة البلديات (بعد ضبط الولاية)، لا يعتمد على setCommuneName من /me */
   const pendingCommuneRestoreRef = useRef<PendingCommuneRestore | null>(null);
   const [restoredShippingHint, setRestoredShippingHint] = useState(false);
+  const lineKey = (item: {
+    id: string;
+    color?: string;
+    option?: string;
+  }) => `${item.id}${item.color ? `||c:${item.color}` : ""}${item.option ? `||o:${item.option}` : ""}`;
 
   useEffect(() => {
     if (!hydrated) return;
@@ -344,6 +349,10 @@ export default function CheckoutPage() {
         setError(`اختر لوناً لمنتج: ${i.name}`);
         return;
       }
+      if (i.availableOptions?.length && !String(i.option || "").trim()) {
+        setError(`اختر خيار المنتج: ${i.name}`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -373,6 +382,7 @@ export default function CheckoutPage() {
             price: i.price,
             quantity: i.quantity,
             color: i.color || "",
+            option: i.option || "",
             productType: i.productType || "phone",
             image: i.image || "",
           })),
@@ -458,7 +468,7 @@ export default function CheckoutPage() {
               <ul className="max-h-64 space-y-3 overflow-y-auto sm:max-h-80">
                 {items.map((item) => (
                   <li
-                    key={item.color ? `${item.id}||${item.color}` : item.id}
+                    key={lineKey(item)}
                     className="flex gap-3 rounded-xl bg-slate-50/80 p-3"
                   >
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white">
@@ -471,11 +481,14 @@ export default function CheckoutPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-slate-800">
-                        {item.name}
+                        {item.option ? `${item.name} - ${item.option}` : item.name}
                       </p>
                       <p className="text-xs text-slate-500">
                         {item.quantity} × {formatDzd(item.price)} DA
                       </p>
+                      {item.option ? (
+                        <p className="mt-1 text-[10px] text-slate-500">الخيار: {item.option}</p>
+                      ) : null}
                       {item.availableColors && item.availableColors.length > 0 ? (
                         <div className="mt-2 border-t border-slate-200/80 pt-2">
                           <p className="mb-1 text-[10px] font-semibold text-slate-500">اللون</p>
@@ -483,7 +496,7 @@ export default function CheckoutPage() {
                             colorIds={item.availableColors}
                             value={item.color || ""}
                             onChange={(c) =>
-                              updateLineColor(item.color ? `${item.id}||${item.color}` : item.id, c)
+                              updateLineColor(lineKey(item), c)
                             }
                             size="sm"
                           />

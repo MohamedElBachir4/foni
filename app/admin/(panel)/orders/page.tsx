@@ -7,7 +7,7 @@ import { AdminPageHeader } from "@/components/admin";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-type OrderItem = { name: string; price: number; quantity: number; color?: string };
+type OrderItem = { name: string; price: number; quantity: number; color?: string; option?: string };
 type Order = {
   _id: string;
   fullName: string;
@@ -280,7 +280,7 @@ export default function AdminOrdersPage() {
                       >
                         <div className="flex justify-between">
                           <span className="text-slate-800">
-                            {item.name} × {item.quantity}
+                            {item.option ? `${item.name} - ${item.option}` : item.name} × {item.quantity}
                           </span>
                           <span className="font-semibold text-slate-700">
                             {(item.price * item.quantity).toLocaleString()} دج

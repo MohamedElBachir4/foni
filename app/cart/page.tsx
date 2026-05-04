@@ -6,7 +6,6 @@ import { useCart } from "@/context/CartContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft } from "lucide-react";
-import { getProductImageUrl } from "@/lib/productImage";
 import { formatDzd } from "@/lib/pricing";
 import { getProductColorLabelAr } from "@/lib/productColors";
 import { ProductColorSwatches } from "@/components/ProductColorSwatches";
@@ -14,6 +13,12 @@ import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, updateLineColor, totalItems, totalPrice } =
     useCart();
+
+  const lineKey = (item: {
+    id: string;
+    color?: string;
+    option?: string;
+  }) => `${item.id}${item.color ? `||c:${item.color}` : ""}${item.option ? `||o:${item.option}` : ""}`;
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-white antialiased">
@@ -59,7 +64,7 @@ export default function CartPage() {
             <ul className="space-y-4">
               {items.map((item) => (
                 <li
-                  key={item.color ? `${item.id}||${item.color}` : item.id}
+                  key={lineKey(item)}
                   className="group flex flex-col gap-4 rounded-2xl border-0 bg-white p-4 shadow-md shadow-slate-200/50 transition hover:shadow-lg sm:flex-row sm:items-center sm:gap-6 sm:p-5"
                 >
                   <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 sm:h-32 sm:w-32">
@@ -72,17 +77,18 @@ export default function CartPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-bold text-slate-900 line-clamp-2">
-                      {item.name}
+                      {item.option ? `${item.name} - ${item.option}` : item.name}
                     </h3>
+                    {item.option ? (
+                      <p className="mt-0.5 text-sm text-slate-500">الخيار: {item.option}</p>
+                    ) : null}
                     {item.availableColors && item.availableColors.length > 0 ? (
                       <div className="mt-2">
                         <p className="text-xs font-semibold text-slate-600">اللون</p>
                         <ProductColorSwatches
                           colorIds={item.availableColors}
                           value={item.color || ""}
-                          onChange={(c) =>
-                            updateLineColor(item.color ? `${item.id}||${item.color}` : item.id, c)
-                          }
+                          onChange={(c) => updateLineColor(lineKey(item), c)}
                           size="sm"
                           className="mt-1 justify-start"
                         />
@@ -105,7 +111,7 @@ export default function CartPage() {
                         type="button"
                         onClick={() =>
                           updateQuantity(
-                            item.color ? `${item.id}||${item.color}` : item.id,
+                            lineKey(item),
                             Math.max(0, item.quantity - 1)
                           )
                         }
@@ -120,7 +126,7 @@ export default function CartPage() {
                       <button
                         type="button"
                         onClick={() =>
-                          updateQuantity(item.color ? `${item.id}||${item.color}` : item.id, item.quantity + 1)
+                          updateQuantity(lineKey(item), item.quantity + 1)
                         }
                         className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-white hover:text-blue-600 hover:shadow-sm"
                         aria-label="زيادة"
@@ -133,7 +139,7 @@ export default function CartPage() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => removeFromCart(item.color ? `${item.id}||${item.color}` : item.id)}
+                      onClick={() => removeFromCart(lineKey(item))}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                       aria-label="حذف من السلة"
                     >

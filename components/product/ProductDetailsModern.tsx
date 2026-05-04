@@ -45,6 +45,7 @@ type ProductDetailsModernProps = {
     extraImages?: string[];
     description: string;
     colors?: string[];
+    options?: string[];
     stock?: number;
   };
   relatedProducts: RelatedProduct[];
@@ -101,6 +102,7 @@ export function ProductDetailsModern({
 
   const [selectedImage, setSelectedImage] = useState(images[0] || "");
   const [selectedColorId, setSelectedColorId] = useState("");
+  const [selectedOption, setSelectedOption] = useState("");
   const [orderHint, setOrderHint] = useState("");
 
   useEffect(() => {
@@ -116,6 +118,13 @@ export function ProductDetailsModern({
     });
   }, [product.id, product.colors]);
 
+  useEffect(() => {
+    const opts = Array.isArray(product.options)
+      ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
+      : [];
+    setSelectedOption(opts[0] || "");
+  }, [product.id, product.options]);
+
   /** الهواتف: في الـ API الافتراضي stock=0 ولا يعني «غير متوفر» حتى يُضبط تتبع المخزون. */
   const isAvailable =
     product.category === "هواتف"
@@ -128,8 +137,15 @@ export function ProductDetailsModern({
 
   function handleOrderNow() {
     const cols = product.colors || [];
+    const opts = Array.isArray(product.options)
+      ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
+      : [];
     if (cols.length > 0 && !String(selectedColorId || "").trim()) {
       setOrderHint("اختر لوناً قبل إتمام الطلب.");
+      return;
+    }
+    if (opts.length > 0 && !String(selectedOption || "").trim()) {
+      setOrderHint("اختر خيار المنتج قبل إتمام الطلب.");
       return;
     }
     setOrderHint("");
@@ -142,6 +158,8 @@ export function ProductDetailsModern({
       quantity: 1,
       color: colorNorm,
       availableColors: cols.length ? cols.map((c) => String(c).trim().toLowerCase()) : undefined,
+      option: opts.length ? selectedOption : undefined,
+      availableOptions: opts.length ? opts : undefined,
       productType: cartProductType(product.category),
     });
     router.push("/checkout");
@@ -239,6 +257,35 @@ export function ProductDetailsModern({
               </div>
             )}
 
+            {Array.isArray(product.options) && product.options.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="mb-2 text-sm font-extrabold text-slate-800">خيارات المنتج</p>
+                <div className="flex flex-wrap gap-2">
+                  {product.options.map((opt) => {
+                    const isActive = selectedOption === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => {
+                          setSelectedOption(opt);
+                          setOrderHint("");
+                        }}
+                        className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
+                          isActive
+                            ? "border-blue-600 bg-blue-600 text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700"
+                        }`}
+                        aria-pressed={isActive}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
               <p className="mb-2 text-sm font-extrabold tracking-wide text-slate-700">
                 الوصف
@@ -301,6 +348,9 @@ export function ProductDetailsModern({
                 colors={product.colors || []}
                 lockColorToSelection={!!(product.colors && product.colors.length > 0)}
                 lockedColor={selectedColorId}
+                options={Array.isArray(product.options) ? product.options : []}
+                lockOptionToSelection={!!(product.options && product.options.length > 0)}
+                lockedOption={selectedOption}
                 productType={cartProductType(product.category)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500"
               >

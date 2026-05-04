@@ -262,7 +262,9 @@ export default function AccountOrderDetailPage() {
                     key={`${order._id}-line-${idx}`}
                     className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"
                   >
-                    <p className="font-semibold text-slate-900">{it.name}</p>
+                    <p className="font-semibold text-slate-900">
+                      {it.option ? `${it.name} - ${it.option}` : it.name}
+                    </p>
                     {it.color ? (
                       <p className="mt-0.5 text-xs text-slate-500">اللون: {it.color}</p>
                     ) : null}

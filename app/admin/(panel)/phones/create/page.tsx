@@ -44,6 +44,7 @@ type Phone = {
   details?: string;
   stock?: number;
   colors?: string[];
+  options?: string[];
 };
 
 const fld =
@@ -65,6 +66,7 @@ export default function CreatePhonePage() {
   const [priceReparateur, setPriceReparateur] = useState("");
   const [details, setDetails] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [options, setOptions] = useState<string[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [phoneModalNotice, setPhoneModalNotice] = useState<{
     type: "success" | "error";
@@ -120,6 +122,7 @@ export default function CreatePhonePage() {
     setPriceReparateur("");
     setDetails("");
     setSelectedColors([]);
+    setOptions([]);
     setEditing(null);
     setCopySnapshot(null);
   }
@@ -183,6 +186,11 @@ export default function CreatePhonePage() {
   }
 
   async function handleSubmit(e: React.FormEvent) {
+    const normalizedOptions = options.map((x) => x.trim()).filter(Boolean);
+    if (options.length > 0 && normalizedOptions.length !== options.length) {
+      setPhoneModalNotice({ type: "error", text: "لا يمكن ترك خيار نصي فارغ." });
+      return;
+    }
     e.preventDefault();
     setPhoneModalNotice(null);
     setMessage(null);
@@ -215,6 +223,7 @@ export default function CreatePhonePage() {
           priceReparateur,
           details,
           selectedColors,
+          options,
         })
       );
       if (current === copySnapshot) {
@@ -234,6 +243,7 @@ export default function CreatePhonePage() {
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
       details: details.trim(),
       colors: selectedColors,
+      options: normalizedOptions,
     };
 
     setSavingPhone(true);
@@ -286,6 +296,7 @@ export default function CreatePhonePage() {
     setPriceReparateur(phone.priceReparateur != null ? String(phone.priceReparateur) : "");
     setDetails(phone.details || "");
     setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
+    setOptions(Array.isArray(phone.options) ? [...phone.options] : []);
   }
 
   function startEdit(phone: Phone) {
@@ -303,6 +314,7 @@ export default function CreatePhonePage() {
     setPriceReparateur(phone.priceReparateur != null ? String(phone.priceReparateur) : "");
     setDetails(phone.details || "");
     setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
+    setOptions(Array.isArray(phone.options) ? [...phone.options] : []);
   }
 
   async function handleDelete(id: string) {
@@ -593,6 +605,54 @@ export default function CreatePhonePage() {
                   <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
                   يظهر للزبون اختيار اللون عند الشراء عند وجود أكثر من لون.
                 </p>
+              </div>
+              <div className="mt-2 border-t border-slate-100 pt-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <label className={lbl}>خيارات نصية (اختيار واحد للزبون)</label>
+                  <AdminButton
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOptions((prev) => [...prev, ""])}
+                    icon={<Plus className="h-3.5 w-3.5" />}
+                  >
+                    إضافة خيار
+                  </AdminButton>
+                </div>
+                {options.length === 0 ? (
+                  <p className="text-[10px] text-slate-500">
+                    مثال: 64GB، 128GB، أحمر، نسخة أصلية.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {options.map((opt, idx) => (
+                      <div key={`option-${idx}`} className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) =>
+                            setOptions((prev) =>
+                              prev.map((item, i) => (i === idx ? e.target.value : item))
+                            )
+                          }
+                          className={fld}
+                          placeholder={`الخيار ${idx + 1}`}
+                        />
+                        <AdminButton
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="hover:bg-rose-50 hover:text-rose-600"
+                          icon={<Trash2 className="h-3.5 w-3.5" />}
+                          onClick={() =>
+                            setOptions((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          title="حذف الخيار"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

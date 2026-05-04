@@ -62,6 +62,7 @@ type SparePart = {
   brand?: Brand | string | null;
   phoneType?: PhoneType | string | null;
   phoneTypes?: PhoneType[] | string[] | null;
+  options?: string[];
 };
 
 type ImportReportError = { productName: string; reason: string };
@@ -134,6 +135,7 @@ export default function AdminSparePartsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedSpareColors, setSelectedSpareColors] = useState<string[]>([]);
+  const [options, setOptions] = useState<string[]>([]);
   const [inlinePriceDrafts, setInlinePriceDrafts] = useState<Record<string, InlinePriceDraft>>({});
   const [inlineSavingIds, setInlineSavingIds] = useState<Record<string, boolean>>({});
 
@@ -264,6 +266,7 @@ export default function AdminSparePartsPage() {
     setSelectedPhoneTypes([]);
     setNewPhoneTypeName("");
     setSelectedSpareColors([]);
+    setOptions([]);
     setEditing(null);
     setCopySnapshot(null);
     setPartModalNotice(null);
@@ -478,6 +481,11 @@ export default function AdminSparePartsPage() {
         : priceRetail.trim().length > 0
           ? Number(priceRetail)
           : 0;
+    const normalizedOptions = options.map((x) => x.trim()).filter(Boolean);
+    if (options.length > 0 && normalizedOptions.length !== options.length) {
+      setPartModalNotice({ type: "error", text: "لا يمكن ترك خيار نصي فارغ." });
+      return;
+    }
 
     const payload: Record<string, unknown> = {
       name: name.trim(),
@@ -490,6 +498,7 @@ export default function AdminSparePartsPage() {
       priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
       colors: selectedSpareColors,
+      options: normalizedOptions,
     };
 
     /** إنشاء يدوي فقط يُطبَّق عبر هذا النموذج — المصدر لا يصل من واجهة الاستيراد */
@@ -533,6 +542,7 @@ export default function AdminSparePartsPage() {
           selectedPhoneTypes,
           newPhoneTypeName,
           selectedSpareColors,
+          options,
         })
       );
       if (current === copySnapshot) {
@@ -606,6 +616,7 @@ export default function AdminSparePartsPage() {
     }
     setNewPhoneTypeName("");
     setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
+    setOptions(Array.isArray(item.options) ? [...item.options] : []);
     if (brandId) fetchPhoneTypesForBrand(brandId);
     setPartModalNotice(null);
     setPartModalOpen(true);
@@ -642,6 +653,7 @@ export default function AdminSparePartsPage() {
     }
     setNewPhoneTypeName("");
     setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
+    setOptions(Array.isArray(item.options) ? [...item.options] : []);
     if (brandId) fetchPhoneTypesForBrand(brandId);
   }
 
@@ -1337,6 +1349,52 @@ export default function AdminSparePartsPage() {
                   value={selectedSpareColors}
                   onChange={setSelectedSpareColors}
                 />
+              </div>
+              <div className="mt-2 border-t border-slate-100 pt-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <label className={lbl}>خيارات نصية (اختيار واحد للزبون)</label>
+                  <AdminButton
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOptions((prev) => [...prev, ""])}
+                    icon={<Plus className="h-3.5 w-3.5" />}
+                  >
+                    إضافة خيار
+                  </AdminButton>
+                </div>
+                {options.length === 0 ? (
+                  <p className="text-[10px] text-slate-500">
+                    مثال: شاشة OLED، شاشة Incell، جودة A+.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {options.map((opt, idx) => (
+                      <div key={`option-${idx}`} className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) =>
+                            setOptions((prev) =>
+                              prev.map((item, i) => (i === idx ? e.target.value : item))
+                            )
+                          }
+                          className={fld}
+                          placeholder={`الخيار ${idx + 1}`}
+                        />
+                        <AdminButton
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="hover:bg-rose-50 hover:text-rose-600"
+                          icon={<Trash2 className="h-3.5 w-3.5" />}
+                          onClick={() => setOptions((prev) => prev.filter((_, i) => i !== idx))}
+                          title="حذف الخيار"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
