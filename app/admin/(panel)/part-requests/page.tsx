@@ -8,6 +8,7 @@ import { PackageSearch, Trash2, Truck, Loader2 } from "lucide-react";
 type PartRequest = {
   _id: string;
   productName: string;
+  productPrice?: number;
   description?: string;
   customerName: string;
   phone: string;
@@ -99,13 +100,28 @@ export default function AdminPartRequestsPage() {
     }
   }
 
-  async function sendToYalidine(id: string) {
+  async function sendToYalidine(row: PartRequest) {
+    const id = row._id;
+    const name = String(row.productName || "").trim();
+    const price = Number(row.productPrice) || 0;
+    if (!name) {
+      setToast({ type: "error", text: "اسم القطعة مطلوب قبل الإرسال" });
+      return;
+    }
+    if (!Number.isFinite(price) || price < 0) {
+      setToast({ type: "error", text: "سعر المنتج غير صالح" });
+      return;
+    }
     setBusyId(id);
     try {
       const res = await fetch(`${API_URL}/api/part-requests/${id}/send-to-yalidine`, {
         method: "POST",
         headers: getAuthHeaders(),
         credentials: "include",
+        body: JSON.stringify({
+          productName: name,
+          productPrice: price,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "فشل الإرسال إلى Yalidine");
@@ -154,6 +170,7 @@ export default function AdminPartRequestsPage() {
             <thead className="bg-slate-50 text-slate-700">
               <tr>
                 <th className="px-3 py-3">اسم القطعة</th>
+                <th className="px-3 py-3">سعر المنتج</th>
                 <th className="px-3 py-3">الزبون</th>
                 <th className="px-3 py-3">الهاتف</th>
                 <th className="px-3 py-3">الولاية</th>
@@ -167,10 +184,41 @@ export default function AdminPartRequestsPage() {
               {sorted.map((row) => (
                 <tr key={row._id} className="border-t border-slate-100 align-top">
                   <td className="px-3 py-3">
-                    <div className="font-semibold text-slate-800">{row.productName}</div>
+                    <input
+                      type="text"
+                      value={row.productName}
+                      onChange={(e) =>
+                        setRows((prev) =>
+                          prev.map((r) =>
+                            r._id === row._id ? { ...r, productName: e.target.value } : r
+                          )
+                        )
+                      }
+                      disabled={busyId === row._id || row.deliveryStatus === "sent"}
+                      className="w-56 rounded-lg border border-slate-300 px-2 py-1 font-semibold text-slate-800 disabled:bg-slate-100"
+                    />
                     {row.description ? (
                       <div className="mt-1 text-xs text-slate-500">{row.description}</div>
                     ) : null}
+                  </td>
+                  <td className="px-3 py-3">
+                    <input
+                      type="number"
+                      min={0}
+                      value={row.productPrice ?? 0}
+                      onChange={(e) =>
+                        setRows((prev) =>
+                          prev.map((r) =>
+                            r._id === row._id
+                              ? { ...r, productPrice: Number(e.target.value || 0) }
+                              : r
+                          )
+                        )
+                      }
+                      disabled={busyId === row._id || row.deliveryStatus === "sent"}
+                      className="w-28 rounded-lg border border-slate-300 px-2 py-1 disabled:bg-slate-100"
+                    />
+                    <div className="mt-1 text-xs text-slate-500">دج</div>
                   </td>
                   <td className="px-3 py-3">{row.customerName}</td>
                   <td className="px-3 py-3" dir="ltr">
@@ -200,7 +248,7 @@ export default function AdminPartRequestsPage() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => sendToYalidine(row._id)}
+                        onClick={() => sendToYalidine(row)}
                         disabled={busyId === row._id || row.deliveryStatus === "sent"}
                         className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
                       >

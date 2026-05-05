@@ -6,6 +6,7 @@ import { User, Phone, MapPin, Package, Calendar, Loader2 } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const YALIDINE_MAX_PRICE = 150000;
 
 type OrderItem = { name: string; price: number; quantity: number; color?: string; option?: string };
 type Order = {
@@ -18,6 +19,7 @@ type Order = {
   totalPrice: number;
   status?: string;
   customerType?: string;
+  yalidineTracking?: string;
   createdAt: string;
 };
 
@@ -50,6 +52,7 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   async function updateOrderStatus(orderId: string, status: string) {
     // التحقق من أن المعرف موجود وصحيح
@@ -142,6 +145,64 @@ export default function AdminOrdersPage() {
     }
     load();
   }, []);
+
+  function updateOrderItemField(
+    orderId: string,
+    idx: number,
+    field: "name" | "price",
+    value: string
+  ) {
+    setOrders((prev) =>
+      prev.map((order) => {
+        if (order._id !== orderId) return order;
+        const nextItems = order.items.map((item, itemIdx) => {
+          if (itemIdx !== idx) return item;
+          if (field === "name") return { ...item, name: value };
+          return { ...item, price: Math.max(0, Number(value) || 0) };
+        });
+        const nextTotal = nextItems.reduce(
+          (sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 0),
+          0
+        );
+        return { ...order, items: nextItems, totalPrice: nextTotal };
+      })
+    );
+  }
+
+  async function sendOrderToYalidine(order: Order) {
+    if (order.yalidineTracking) {
+      alert("تم إرسال هذا الطلب مسبقاً إلى Yalidine");
+      return;
+    }
+    if ((Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE) {
+      alert(
+        `Yalidine تقبل مبلغ تحصيل حتى ${YALIDINE_MAX_PRICE.toLocaleString()} دج فقط. عدّل أسعار المنتجات قبل الإرسال.`
+      );
+      return;
+    }
+    setSendingId(order._id);
+    try {
+      const itemsPayload = order.items.map((item) => ({
+        name: String(item.name || "").trim(),
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        price: Math.max(0, Number(item.price) || 0),
+      }));
+      const res = await fetch(`${API_URL}/api/orders/${order._id}/send-to-yalidine`, {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ items: itemsPayload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "فشل الإرسال إلى Yalidine");
+      setOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, ...data } : o)));
+      alert("تم إرسال الطلب إلى Yalidine بنجاح");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "فشل الإرسال");
+    } finally {
+      setSendingId(null);
+    }
+  }
 
   function formatDate(iso: string) {
     try {
@@ -252,11 +313,38 @@ export default function AdminOrdersPage() {
                         </option>
                       ))}
                     </select>
+                    <button
+                      type="button"
+                      onClick={() => sendOrderToYalidine(order)}
+                      disabled={
+                        sendingId === order._id ||
+                        Boolean(order.yalidineTracking) ||
+                        (Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE
+                      }
+                      className="rounded-full bg-indigo-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
+                      title={
+                        (Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE
+                          ? "خفّض مجموع الأسعار إلى 150000 دج أو أقل قبل الإرسال"
+                          : undefined
+                      }
+                    >
+                      {order.yalidineTracking
+                        ? "تم الإرسال"
+                        : sendingId === order._id
+                        ? "جاري الإرسال..."
+                        : "إرسال إلى Yalidine"}
+                    </button>
                     <span className="rounded-full bg-blue-600 px-4 py-1.5 text-lg font-bold text-white">
                       {order.totalPrice.toLocaleString()} دج
                     </span>
                   </div>
                 </div>
+                {(Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE ? (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+                    Yalidine تقبل مبلغ تحصيل حتى {YALIDINE_MAX_PRICE.toLocaleString()} دج فقط.
+                    عدّل أسعار المنتجات قبل الإرسال.
+                  </div>
+                ) : null}
               </div>
               <div className="grid gap-6 p-6 sm:grid-cols-2">
                 <div>
@@ -279,11 +367,31 @@ export default function AdminOrdersPage() {
                         className="flex flex-col justify-center rounded-lg bg-slate-50 px-3 py-2 text-sm"
                       >
                         <div className="flex justify-between">
-                          <span className="text-slate-800">
-                            {item.option ? `${item.name} - ${item.option}` : item.name} × {item.quantity}
+                          <span className="flex-1">
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) =>
+                                updateOrderItemField(order._id, i, "name", e.target.value)
+                              }
+                              className="w-full rounded border border-slate-300 px-2 py-1 text-slate-800"
+                            />
+                            <span className="mt-1 inline-block text-xs text-slate-500">
+                              الكمية: {item.quantity}
+                              {item.option ? ` - الخيار: ${item.option}` : ""}
+                            </span>
                           </span>
                           <span className="font-semibold text-slate-700">
-                            {(item.price * item.quantity).toLocaleString()} دج
+                            <input
+                              type="number"
+                              min={0}
+                              value={item.price}
+                              onChange={(e) =>
+                                updateOrderItemField(order._id, i, "price", e.target.value)
+                              }
+                              className="w-24 rounded border border-slate-300 px-2 py-1 text-right"
+                            />
+                            <span className="mr-1 text-xs text-slate-500">دج</span>
                           </span>
                         </div>
                         {item.color && (
