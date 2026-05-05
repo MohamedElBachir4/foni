@@ -3,7 +3,14 @@
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, ShoppingCart, ClipboardList } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  ShoppingCart,
+  ClipboardList,
+  Minus,
+  Plus,
+} from "lucide-react";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 import { ProductImage } from "@/components/ProductImage";
@@ -50,13 +57,17 @@ type ProductDetailsModernProps = {
     options?: string[];
     /** خيارات بأسعار ثلاثية — عند وجودها يُحدَّد السعر حسب الخيار ونوع الحساب */
     pricedOptions?: PricedVariant[];
+    /** تعدد الخيارات بكميات منفصلة (قطع غيار / أكسسوارات) */
+    hasVariants?: boolean;
     stock?: number;
   };
   relatedProducts: RelatedProduct[];
 };
 
-function cartProductType(category: string): "phone" | "sparePart" {
-  return category === "قطع غيار" ? "sparePart" : "phone";
+function cartProductType(category: string): "phone" | "accessory" | "sparePart" {
+  if (category === "قطع غيار") return "sparePart";
+  if (category === "أكسسوارات" || category === "اكسسوارات") return "accessory";
+  return "phone";
 }
 
 function isHtml(value: string) {
@@ -99,6 +110,13 @@ export function ProductDetailsModern({
     [product.pricedOptions]
   );
 
+  const multiVariantMode = useMemo(() => {
+    const cat = product.category;
+    const spareOrAccessory =
+      cat === "قطع غيار" || cat === "أكسسوارات" || cat === "اكسسوارات";
+    return Boolean(product.hasVariants) && variantList.length > 0 && spareOrAccessory;
+  }, [product.category, product.hasVariants, variantList.length]);
+
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
 
   const images = useMemo(() => {
@@ -112,6 +130,21 @@ export function ProductDetailsModern({
   const [selectedColorId, setSelectedColorId] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
   const [orderHint, setOrderHint] = useState("");
+  const [variantQtys, setVariantQtys] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!multiVariantMode) {
+      setVariantQtys({});
+      return;
+    }
+    setVariantQtys((prev) => {
+      const next: Record<string, number> = {};
+      for (const v of variantList) {
+        next[v.label] = prev[v.label] ?? 0;
+      }
+      return next;
+    });
+  }, [product.id, multiVariantMode, variantList]);
 
   const selectedVariant = useMemo(() => {
     if (!variantList.length) return null;
@@ -121,11 +154,37 @@ export function ProductDetailsModern({
   }, [variantList, selectedOption]);
 
   const effectivePrice = useMemo(() => {
+    if (multiVariantMode) {
+      let sum = 0;
+      for (const v of variantList) {
+        const q = variantQtys[v.label] ?? 0;
+        if (q <= 0) continue;
+        sum += getEffectivePriceForVariant(v, pricingAccount) * q;
+      }
+      return sum;
+    }
     if (variantList.length && selectedVariant) {
       return getEffectivePriceForVariant(selectedVariant, pricingAccount);
     }
     return getEffectivePrice(tiered, pricingAccount);
-  }, [variantList.length, selectedVariant, tiered, pricingAccount]);
+  }, [
+    multiVariantMode,
+    variantList,
+    variantQtys,
+    selectedVariant,
+    tiered,
+    pricingAccount,
+  ]);
+
+  const variantCartSelections = useMemo(
+    () =>
+      variantList.map((v) => ({
+        label: v.label,
+        price: getEffectivePriceForVariant(v, pricingAccount),
+        quantity: variantQtys[v.label] ?? 0,
+      })),
+    [variantList, variantQtys, pricingAccount]
+  );
 
   useEffect(() => {
     const cols = product.colors || [];
@@ -141,6 +200,7 @@ export function ProductDetailsModern({
   }, [product.id, product.colors]);
 
   useEffect(() => {
+    if (multiVariantMode) return;
     if (variantList.length) {
       setSelectedOption((prev) => {
         const p = String(prev || "").trim();
@@ -153,7 +213,7 @@ export function ProductDetailsModern({
       ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
       : [];
     setSelectedOption(opts[0] || "");
-  }, [product.id, product.options, variantList]);
+  }, [product.id, product.options, variantList, multiVariantMode]);
 
   /** الهواتف: في الـ API الافتراضي stock=0 ولا يعني «غير متوفر» حتى يُضبط تتبع المخزون. */
   const isAvailable =
@@ -167,7 +227,8 @@ export function ProductDetailsModern({
 
   function handleOrderNow() {
     const cols = product.colors || [];
-    const optLabels = variantList.length
+    const optLabels =
+      !multiVariantMode && variantList.length
       ? variantList.map((v) => v.label)
       : Array.isArray(product.options)
         ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
@@ -176,8 +237,39 @@ export function ProductDetailsModern({
       setOrderHint("اختر لوناً قبل إتمام الطلب.");
       return;
     }
-    if (optLabels.length > 0 && !String(selectedOption || "").trim()) {
+    if (!multiVariantMode && optLabels.length > 0 && !String(selectedOption || "").trim()) {
       setOrderHint("اختر خيار المنتج قبل إتمام الطلب.");
+      return;
+    }
+    if (multiVariantMode) {
+      const selections = variantList
+        .map((v) => ({
+          label: v.label,
+          price: getEffectivePriceForVariant(v, pricingAccount),
+          quantity: variantQtys[v.label] ?? 0,
+        }))
+        .filter((x) => x.quantity > 0);
+      if (selections.length === 0) {
+        setOrderHint("حدّد كمية لخيار واحد على الأقل.");
+        return;
+      }
+      setOrderHint("");
+      const totalQty = selections.reduce((s, x) => s + x.quantity, 0);
+      const subtotal = selections.reduce((s, x) => s + x.price * x.quantity, 0);
+      const colorNorm = cols.length ? String(selectedColorId).trim().toLowerCase() : undefined;
+      addToCart({
+        id: product.id,
+        name: product.name,
+        price: totalQty > 0 ? subtotal / totalQty : 0,
+        quantity: totalQty,
+        image: product.image,
+        color: colorNorm,
+        availableColors: cols.length ? cols.map((c) => String(c).trim().toLowerCase()) : undefined,
+        hasVariants: true,
+        variantSelections: selections,
+        productType: cartProductType(product.category),
+      });
+      router.push("/checkout");
       return;
     }
     setOrderHint("");
@@ -261,14 +353,16 @@ export function ProductDetailsModern({
 
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                السعر
+                {multiVariantMode ? "مجموع المختار" : "السعر"}
               </p>
               <p className="mt-1 text-3xl font-black text-blue-600">
                 {formatDzd(effectivePrice)}
                 <span className="ms-1 text-lg font-semibold text-blue-400">DA</span>
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                {describeActivePriceTier(account)}
+                {multiVariantMode
+                  ? "يتجدّد المجموع فور تعديل الكميات حسب نوع حسابك (تجزئة / جملة / مصلح)."
+                  : describeActivePriceTier(account)}
               </p>
             </div>
 
@@ -289,8 +383,121 @@ export function ProductDetailsModern({
               </div>
             )}
 
-            {(variantList.length > 0 ||
-              (Array.isArray(product.options) && product.options.length > 0)) && (
+            {multiVariantMode && (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+                <p className="mb-2 text-sm font-extrabold text-slate-800">الخيارات والكميات</p>
+                <p className="mb-4 text-[11px] leading-relaxed text-slate-500">
+                  حدّد الخيارات وكمياتها؛ يُحدَّث المجموع أعلاه حسب نوع حسابك. يمكنك تفعيل الصف من مربع
+                  الاختيار أو من أسهم الكمية.
+                </p>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                  <table className="w-full min-w-[320px] border-collapse text-sm text-slate-800">
+                    <thead>
+                      <tr className="bg-slate-50">
+                        <th
+                          scope="col"
+                          className="w-12 border border-slate-200 px-2 py-3 text-center text-xs font-bold text-slate-700 sm:w-14"
+                        >
+                          {/* عمود التحديد — بدون عنوان مطابقاً للمرجع */}
+                        </th>
+                        <th
+                          scope="col"
+                          className="border border-slate-200 px-3 py-3 text-start text-xs font-bold text-slate-900 sm:px-4"
+                        >
+                          الخيار
+                        </th>
+                        <th
+                          scope="col"
+                          className="border border-slate-200 px-3 py-3 text-center text-xs font-bold text-slate-900 sm:px-4"
+                        >
+                          الكمية
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {variantList.map((v) => {
+                        const unit = getEffectivePriceForVariant(v, pricingAccount);
+                        const q = variantQtys[v.label] ?? 0;
+                        const setQty = (raw: number) => {
+                          const n = Math.max(0, Math.floor(Number(raw) || 0));
+                          setVariantQtys((prev) => ({
+                            ...prev,
+                            [v.label]: n,
+                          }));
+                          setOrderHint("");
+                        };
+                        return (
+                          <tr key={v.label}>
+                            <td className="border border-slate-200 px-2 py-3 text-center align-middle">
+                              <input
+                                type="checkbox"
+                                checked={q > 0}
+                                onChange={() => setQty(q > 0 ? 0 : 1)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500/30"
+                                aria-label={`اختيار ${v.label}`}
+                              />
+                            </td>
+                            <td className="border border-slate-200 px-3 py-3 align-middle sm:px-4">
+                              <p className="font-normal leading-snug text-slate-900">{v.label}</p>
+                              <p className="mt-1 font-mono text-[11px] tabular-nums text-slate-500">
+                                {formatDzd(unit)} DA / وحدة
+                              </p>
+                            </td>
+                            <td className="border border-slate-200 px-3 py-3 align-middle sm:px-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setQty(q - 1)}
+                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200 active:scale-95"
+                                  aria-label="تقليل الكمية"
+                                >
+                                  <Minus className="h-4 w-4 stroke-[2.5]" />
+                                </button>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={1}
+                                  inputMode="numeric"
+                                  value={q}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (v === "") {
+                                      setQty(0);
+                                      return;
+                                    }
+                                    const n = parseInt(v, 10);
+                                    if (!Number.isNaN(n)) setQty(n);
+                                  }}
+                                  className="h-10 w-14 shrink-0 rounded-md border border-slate-200 bg-white px-2 text-center text-sm font-semibold tabular-nums text-slate-900 outline-none [appearance:textfield] focus:border-blue-400 focus:ring-2 focus:ring-blue-500/25 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none sm:w-16"
+                                  aria-label={`كمية ${v.label}`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setQty(q + 1)}
+                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200 active:scale-95"
+                                  aria-label="زيادة الكمية"
+                                >
+                                  <Plus className="h-4 w-4 stroke-[2.5]" />
+                                </button>
+                              </div>
+                              {q > 0 ? (
+                                <p className="mt-2 text-center font-mono text-[11px] tabular-nums text-blue-700">
+                                  المجموع: {formatDzd(unit * q)} DA
+                                </p>
+                              ) : null}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {!multiVariantMode &&
+              (variantList.length > 0 ||
+                (Array.isArray(product.options) && product.options.length > 0)) && (
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="mb-2 text-sm font-extrabold text-slate-800">خيارات المنتج</p>
                 <p className="mb-2 text-[11px] text-slate-500">
@@ -389,20 +596,24 @@ export function ProductDetailsModern({
                 colors={product.colors || []}
                 lockColorToSelection={!!(product.colors && product.colors.length > 0)}
                 lockedColor={selectedColorId}
+                variantCartSelections={multiVariantMode ? variantCartSelections : undefined}
                 options={
-                  variantList.length > 0
-                    ? variantList.map((v) => v.label)
-                    : Array.isArray(product.options)
-                      ? product.options
-                      : []
+                  multiVariantMode
+                    ? []
+                    : variantList.length > 0
+                      ? variantList.map((v) => v.label)
+                      : Array.isArray(product.options)
+                        ? product.options
+                        : []
                 }
                 lockOptionToSelection={
-                  variantList.length > 0 ||
-                  !!(product.options && product.options.length > 0)
+                  !multiVariantMode &&
+                  (variantList.length > 0 || !!(product.options && product.options.length > 0))
                 }
                 lockedOption={selectedOption}
                 productType={cartProductType(product.category)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500 disabled:pointer-events-none disabled:opacity-50"
+                disabled={multiVariantMode && !variantCartSelections.some((x) => x.quantity > 0)}
               >
                 <ShoppingCart className="h-5 w-5" />
                 إضافة إلى السلة

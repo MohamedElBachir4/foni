@@ -19,6 +19,8 @@ import { publicFetch } from "@/lib/publicFetch";
 import { useAccount } from "@/context/AccountContext";
 import { formatDzd } from "@/lib/pricing";
 
+export type CustomerOrderVariantLine = { label: string; price: number; quantity: number };
+
 export type CustomerOrderItem = {
   name: string;
   price: number;
@@ -27,6 +29,7 @@ export type CustomerOrderItem = {
   color?: string;
   option?: string;
   productType?: string;
+  variantSelections?: CustomerOrderVariantLine[];
 };
 
 export type CustomerOrder = {
@@ -429,7 +432,9 @@ export function MyOrdersTab() {
                               <p className="text-xs font-semibold text-slate-900">
                                 {it.option ? `${it.name} - ${it.option}` : it.name}
                                 <span className="me-1.5 text-[11px] font-normal text-slate-500">
-                                  ×{it.quantity}
+                                  {it.variantSelections?.length
+                                    ? ` (${it.variantSelections.map((v) => `${v.label}×${v.quantity}`).join("، ")})`
+                                    : ` ×${it.quantity}`}
                                 </span>
                               </p>
                             </li>

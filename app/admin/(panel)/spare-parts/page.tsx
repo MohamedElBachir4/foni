@@ -71,6 +71,7 @@ type SparePart = {
   phoneTypes?: PhoneType[] | string[] | null;
   options?: string[];
   pricedOptions?: PricedOptionCompare[];
+  hasVariants?: boolean;
 };
 
 type ImportReportError = { productName: string; reason: string };
@@ -144,6 +145,7 @@ export default function AdminSparePartsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedSpareColors, setSelectedSpareColors] = useState<string[]>([]);
   const [pricedOptionRows, setPricedOptionRows] = useState<PricedOptionFormRow[]>([]);
+  const [hasVariants, setHasVariants] = useState(false);
   const [inlinePriceDrafts, setInlinePriceDrafts] = useState<Record<string, InlinePriceDraft>>({});
   const [inlineSavingIds, setInlineSavingIds] = useState<Record<string, boolean>>({});
 
@@ -275,6 +277,7 @@ export default function AdminSparePartsPage() {
     setNewPhoneTypeName("");
     setSelectedSpareColors([]);
     setPricedOptionRows([]);
+    setHasVariants(false);
     setEditing(null);
     setCopySnapshot(null);
     setPartModalNotice(null);
@@ -494,6 +497,13 @@ export default function AdminSparePartsPage() {
       setPartModalNotice({ type: "error", text: pricedValidation.text });
       return;
     }
+    if (hasVariants && pricedValidation.data.length === 0) {
+      setPartModalNotice({
+        type: "error",
+        text: "تعدد الخيارات يتطلّب خياراً واحداً على الأقل مع أسعار التجزئة والجملة والمصلحين.",
+      });
+      return;
+    }
 
     const payload: Record<string, unknown> = {
       name: name.trim(),
@@ -507,6 +517,7 @@ export default function AdminSparePartsPage() {
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
       colors: selectedSpareColors,
       pricedOptions: pricedValidation.data,
+      hasVariants,
     };
 
     /** إنشاء يدوي فقط يُطبَّق عبر هذا النموذج — المصدر لا يصل من واجهة الاستيراد */
@@ -551,6 +562,7 @@ export default function AdminSparePartsPage() {
           newPhoneTypeName,
           selectedSpareColors,
           pricedOptions: pricedValidation.data,
+          hasVariants,
         })
       );
       if (current === copySnapshot) {
@@ -625,6 +637,7 @@ export default function AdminSparePartsPage() {
     setNewPhoneTypeName("");
     setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
+    setHasVariants(Boolean(item.hasVariants));
     if (brandId) fetchPhoneTypesForBrand(brandId);
     setPartModalNotice(null);
     setPartModalOpen(true);
@@ -662,6 +675,7 @@ export default function AdminSparePartsPage() {
     setNewPhoneTypeName("");
     setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
+    setHasVariants(Boolean(item.hasVariants));
     if (brandId) fetchPhoneTypesForBrand(brandId);
   }
 
@@ -1359,6 +1373,18 @@ export default function AdminSparePartsPage() {
                 />
               </div>
               <div className="mt-2 border-t border-slate-100 pt-2">
+                <label className="mb-2 flex cursor-pointer items-start gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[11px] font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={hasVariants}
+                    onChange={(e) => setHasVariants(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-300"
+                  />
+                  <span>
+                    تفعيل تعدد الخيارات (Variants): الزبون يختار عدة خيارات مع تحديد الكمية لكل واحد في المتجر.
+                    بدون التفعيل تبقى الخيارات أقراص اختيار واحدة كما سابقاً.
+                  </span>
+                </label>
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <label className={lbl}>
                     خيارات المنتج (اسم + تجزئة / جملة / مصلح)

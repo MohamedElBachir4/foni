@@ -194,6 +194,7 @@ export default async function ProductDetailPage({
     colors?: string[];
     options?: string[];
     pricedOptions?: PricedVariant[];
+    hasVariants?: boolean;
     stock?: number;
   } | null = null;
   let source: "static" | "phone" | "sparePart" = "static";
@@ -347,6 +348,7 @@ export default async function ProductDetailPage({
               ? part.options.map((x: unknown) => String(x || "").trim()).filter(Boolean)
               : [],
           pricedOptions: pricedPart.length ? pricedPart : undefined,
+          hasVariants: Boolean(part.hasVariants),
         };
         source = "sparePart";
         sparePartContext = {
@@ -507,6 +509,7 @@ export default async function ProductDetailPage({
             colors: product.colors || [],
             options: product.options || [],
             pricedOptions: product.pricedOptions,
+            hasVariants: product.hasVariants,
             stock: product.stock,
           }}
           relatedProducts={relatedProducts}

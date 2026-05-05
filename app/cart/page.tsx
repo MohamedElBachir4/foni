@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ProductImage } from "@/components/ProductImage";
-import { useCart } from "@/context/CartContext";
+import { cartLineKey, cartLineSubtotal, useCart } from "@/context/CartContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft } from "lucide-react";
@@ -11,14 +11,15 @@ import { getProductColorLabelAr } from "@/lib/productColors";
 import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 
 export default function CartPage() {
-  const { items, removeFromCart, updateQuantity, updateLineColor, totalItems, totalPrice } =
-    useCart();
-
-  const lineKey = (item: {
-    id: string;
-    color?: string;
-    option?: string;
-  }) => `${item.id}${item.color ? `||c:${item.color}` : ""}${item.option ? `||o:${item.option}` : ""}`;
+  const {
+    items,
+    removeFromCart,
+    updateQuantity,
+    updateVariantSelectionQuantity,
+    updateLineColor,
+    totalItems,
+    totalPrice,
+  } = useCart();
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-white antialiased">
@@ -64,7 +65,7 @@ export default function CartPage() {
             <ul className="space-y-4">
               {items.map((item) => (
                 <li
-                  key={lineKey(item)}
+                  key={cartLineKey(item)}
                   className="group flex flex-col gap-4 rounded-2xl border-0 bg-white p-4 shadow-md shadow-slate-200/50 transition hover:shadow-lg sm:flex-row sm:items-center sm:gap-6 sm:p-5"
                 >
                   <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 sm:h-32 sm:w-32">
@@ -76,10 +77,53 @@ export default function CartPage() {
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-slate-900 line-clamp-2">
-                      {item.option ? `${item.name} - ${item.option}` : item.name}
-                    </h3>
-                    {item.option ? (
+                    <h3 className="font-bold text-slate-900 line-clamp-2">{item.name}</h3>
+                    {item.hasVariants && item.variantSelections?.length ? (
+                      <ul className="mt-2 space-y-2 rounded-xl bg-slate-50 p-2 text-sm">
+                        {item.variantSelections.map((v) => (
+                          <li
+                            key={v.label}
+                            className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 last:border-0 last:pb-0"
+                          >
+                            <span className="min-w-0 flex-1 font-medium text-slate-800">{v.label}</span>
+                            <span className="font-mono text-xs text-slate-600">
+                              {formatDzd(v.price)} DA × {v.quantity}
+                            </span>
+                            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white">
+                              <button
+                                type="button"
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 hover:bg-slate-50"
+                                aria-label="تقليل"
+                                onClick={() =>
+                                  updateVariantSelectionQuantity(
+                                    cartLineKey(item),
+                                    v.label,
+                                    Math.max(0, v.quantity - 1)
+                                  )
+                                }
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </button>
+                              <span className="min-w-[2rem] text-center text-xs font-bold">{v.quantity}</span>
+                              <button
+                                type="button"
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 hover:bg-slate-50"
+                                aria-label="زيادة"
+                                onClick={() =>
+                                  updateVariantSelectionQuantity(
+                                    cartLineKey(item),
+                                    v.label,
+                                    v.quantity + 1
+                                  )
+                                }
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : item.option ? (
                       <p className="mt-0.5 text-sm text-slate-500">الخيار: {item.option}</p>
                     ) : null}
                     {item.availableColors && item.availableColors.length > 0 ? (
@@ -88,7 +132,7 @@ export default function CartPage() {
                         <ProductColorSwatches
                           colorIds={item.availableColors}
                           value={item.color || ""}
-                          onChange={(c) => updateLineColor(lineKey(item), c)}
+                            onChange={(c) => updateLineColor(cartLineKey(item), c)}
                           size="sm"
                           className="mt-1 justify-start"
                         />
@@ -106,40 +150,41 @@ export default function CartPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50/80">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateQuantity(
-                            lineKey(item),
-                            Math.max(0, item.quantity - 1)
-                          )
-                        }
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-white hover:text-blue-600 hover:shadow-sm"
-                        aria-label="تقليل"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="min-w-[2.25rem] text-center font-bold text-slate-800">
-                        {item.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateQuantity(lineKey(item), item.quantity + 1)
-                        }
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-white hover:text-blue-600 hover:shadow-sm"
-                        aria-label="زيادة"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
+                    {!item.hasVariants ? (
+                      <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50/80">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateQuantity(cartLineKey(item), Math.max(0, item.quantity - 1))
+                          }
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-white hover:text-blue-600 hover:shadow-sm"
+                          aria-label="تقليل"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="min-w-[2.25rem] text-center font-bold text-slate-800">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(cartLineKey(item), item.quantity + 1)}
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-white hover:text-blue-600 hover:shadow-sm"
+                          aria-label="زيادة"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-semibold text-slate-500">
+                        الكمية الإجمالية: {item.quantity}
+                      </p>
+                    )}
                     <p className="min-w-[5rem] text-left text-lg font-bold text-blue-600">
-                      {formatDzd(item.price * item.quantity)} DA
+                      {formatDzd(cartLineSubtotal(item))} DA
                     </p>
                     <button
                       type="button"
-                      onClick={() => removeFromCart(lineKey(item))}
+                      onClick={() => removeFromCart(cartLineKey(item))}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                       aria-label="حذف من السلة"
                     >

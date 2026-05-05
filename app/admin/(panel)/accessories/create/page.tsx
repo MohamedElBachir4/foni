@@ -57,6 +57,7 @@ type Accessory = {
   details?: string;
   options?: string[];
   pricedOptions?: PricedOptionCompare[];
+  hasVariants?: boolean;
 };
 
 export default function AccessoriesPage() {
@@ -80,6 +81,7 @@ export default function AccessoriesPage() {
   const [details, setDetails] = useState("");
   const [colors, setColors] = useState<string[]>([]);
   const [pricedOptionRows, setPricedOptionRows] = useState<PricedOptionFormRow[]>([]);
+  const [hasVariants, setHasVariants] = useState(false);
   const [editing, setEditing] = useState<Accessory | null>(null);
   const [copySnapshot, setCopySnapshot] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -178,6 +180,7 @@ export default function AccessoriesPage() {
     setDetails("");
     setColors([]);
     setPricedOptionRows([]);
+    setHasVariants(false);
     setEditing(null);
     setCopySnapshot(null);
   }
@@ -245,6 +248,13 @@ export default function AccessoriesPage() {
       setAccessoryModalNotice({ type: "error", text: pricedValidation.text });
       return;
     }
+    if (hasVariants && pricedValidation.data.length === 0) {
+      setAccessoryModalNotice({
+        type: "error",
+        text: "تعدد الخيارات يتطلّب خياراً واحداً على الأقل مع الأسعار الثلاثة.",
+      });
+      return;
+    }
     setAccessoryModalNotice(null);
     setMessage(null);
     if (!name.trim()) {
@@ -285,6 +295,7 @@ export default function AccessoriesPage() {
       stock: stock.trim() ? Number(stock) : 0,
       details: details.trim(),
       pricedOptions: pricedValidation.data,
+      hasVariants,
     };
     if (!editing && copySnapshot) {
       const current = snapshotCreatePayload(
@@ -303,6 +314,7 @@ export default function AccessoriesPage() {
           stock,
           details,
           pricedOptions: pricedValidation.data,
+          hasVariants,
         })
       );
       if (current === copySnapshot) {
@@ -379,6 +391,7 @@ export default function AccessoriesPage() {
     setDetails(item.details || "");
     setColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
+    setHasVariants(Boolean(item.hasVariants));
 
     if (bid) {
       let list = await loadPhoneTypes(bid);
@@ -447,6 +460,7 @@ export default function AccessoriesPage() {
     setDetails(item.details || "");
     setColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
+    setHasVariants(Boolean(item.hasVariants));
 
     if (bid) {
       let list = await loadPhoneTypes(bid);
@@ -851,6 +865,17 @@ export default function AccessoriesPage() {
                 <AdminProductColorsPicker variant="compact" value={colors} onChange={setColors} />
               </div>
               <div className="mt-2 border-t border-slate-100 pt-2">
+                <label className="mb-2 flex cursor-pointer items-start gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[11px] font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={hasVariants}
+                    onChange={(e) => setHasVariants(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-300"
+                  />
+                  <span>
+                    تفعيل تعدد الخيارات (Variants): الزبون يختار عدة خيارات مع كمية لكل واحد في المتجر.
+                  </span>
+                </label>
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <label className={lbl}>
                     خيارات المنتج (اسم + تجزئة / جملة / مصلح)

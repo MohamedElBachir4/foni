@@ -265,14 +265,41 @@ export default function AccountOrderDetailPage() {
                     <p className="font-semibold text-slate-900">
                       {it.option ? `${it.name} - ${it.option}` : it.name}
                     </p>
+                    {it.variantSelections && it.variantSelections.length > 0 ? (
+                      <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                        {it.variantSelections.map((v) => (
+                          <li key={v.label}>
+                            {v.label} × {v.quantity} —{" "}
+                            {formatDzd(Number(v.price) * Number(v.quantity))} DA
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                     {it.color ? (
                       <p className="mt-0.5 text-xs text-slate-500">اللون: {it.color}</p>
                     ) : null}
                     <p className="mt-1 text-sm text-slate-600">
-                      {it.quantity} × {formatDzd(Number(it.price) || 0)} DA ={" "}
-                      <span className="font-bold text-slate-800">
-                        {formatDzd(Number(it.price) * Number(it.quantity))} DA
-                      </span>
+                      {it.variantSelections && it.variantSelections.length > 0 ? (
+                        <>
+                          المجموع:{" "}
+                          <span className="font-bold text-slate-800">
+                            {formatDzd(
+                              it.variantSelections.reduce(
+                                (s, v) => s + Number(v.price) * Number(v.quantity),
+                                0
+                              )
+                            )}{" "}
+                            DA
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {it.quantity} × {formatDzd(Number(it.price) || 0)} DA ={" "}
+                          <span className="font-bold text-slate-800">
+                            {formatDzd(Number(it.price) * Number(it.quantity))} DA
+                          </span>
+                        </>
+                      )}
                     </p>
                   </li>
                 ))}

@@ -8,7 +8,15 @@ import { AdminPageHeader } from "@/components/admin";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const YALIDINE_MAX_PRICE = 150000;
 
-type OrderItem = { name: string; price: number; quantity: number; color?: string; option?: string };
+type OrderVariantLine = { label: string; price: number; quantity: number };
+type OrderItem = {
+  name: string;
+  price: number;
+  quantity: number;
+  color?: string;
+  option?: string;
+  variantSelections?: OrderVariantLine[];
+};
 type Order = {
   _id: string;
   fullName: string;
@@ -40,6 +48,17 @@ const customerTypeLabels: Record<string, string> = {
   wholesale: "بائع جملة",
   repairer: "مصلح",
 };
+
+function orderItemLineTotal(item: OrderItem): number {
+  const vs = item.variantSelections;
+  if (Array.isArray(vs) && vs.length > 0) {
+    return vs.reduce(
+      (sum, v) => sum + (Number(v.price) || 0) * (Number(v.quantity) || 0),
+      0
+    );
+  }
+  return (Number(item.price) || 0) * (Number(item.quantity) || 0);
+}
 
 const customerTypeClasses: Record<string, string> = {
   retail: "bg-slate-100 text-slate-700",
@@ -162,10 +181,7 @@ export default function AdminOrdersPage() {
           if (field === "name") return { ...item, name: value };
           return { ...item, price: Math.max(0, Number(value) || 0) };
         });
-        const nextTotal = nextItems.reduce(
-          (sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 0),
-          0
-        );
+        const nextTotal = nextItems.reduce((sum, i) => sum + orderItemLineTotal(i), 0);
         return { ...order, items: nextItems, totalPrice: nextTotal };
       })
     );
@@ -184,11 +200,25 @@ export default function AdminOrdersPage() {
     }
     setSendingId(order._id);
     try {
-      const itemsPayload = order.items.map((item) => ({
-        name: String(item.name || "").trim(),
-        quantity: Math.max(1, Number(item.quantity) || 1),
-        price: Math.max(0, Number(item.price) || 0),
-      }));
+      const itemsPayload = order.items.map((item) => {
+        const base = {
+          name: String(item.name || "").trim(),
+          quantity: Math.max(1, Number(item.quantity) || 1),
+          price: Math.max(0, Number(item.price) || 0),
+        };
+        const vs = item.variantSelections;
+        if (Array.isArray(vs) && vs.length > 0) {
+          return {
+            ...base,
+            variantSelections: vs.map((v) => ({
+              label: String(v.label || "").trim(),
+              price: Math.max(0, Number(v.price) || 0),
+              quantity: Math.max(1, Number(v.quantity) || 1),
+            })),
+          };
+        }
+        return base;
+      });
       const res = await fetch(`${API_URL}/api/orders/${order._id}/send-to-yalidine`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -379,8 +409,24 @@ export default function AdminOrdersPage() {
                               className="w-full rounded border border-slate-300 px-2 py-1 text-slate-800"
                             />
                             <span className="mt-1 inline-block text-xs text-slate-500">
-                              الكمية: {item.quantity}
-                              {item.option ? ` - الخيار: ${item.option}` : ""}
+                              {item.variantSelections?.length ? (
+                                <span className="block space-y-0.5">
+                                  {item.variantSelections.map((v) => (
+                                    <span key={v.label} className="block">
+                                      {v.label} × {v.quantity} —{" "}
+                                      {(Number(v.price) * Number(v.quantity)).toLocaleString()} دج
+                                    </span>
+                                  ))}
+                                  <span className="font-semibold text-slate-600">
+                                    المجموع: {orderItemLineTotal(item).toLocaleString()} دج
+                                  </span>
+                                </span>
+                              ) : (
+                                <>
+                                  الكمية: {item.quantity}
+                                  {item.option ? ` - الخيار: ${item.option}` : ""}
+                                </>
+                              )}
                             </span>
                           </span>
                           <span className="font-semibold text-slate-700">

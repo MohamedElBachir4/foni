@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ProductImage } from "@/components/ProductImage";
 import { useRouter } from "next/navigation";
-import { useCart } from "@/context/CartContext";
+import { cartLineKey, cartLineSubtotal, useCart } from "@/context/CartContext";
 import { useAccount } from "@/context/AccountContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -85,12 +85,6 @@ export default function CheckoutPage() {
   /** يُستهلك عند استلام قائمة البلديات (بعد ضبط الولاية)، لا يعتمد على setCommuneName من /me */
   const pendingCommuneRestoreRef = useRef<PendingCommuneRestore | null>(null);
   const [restoredShippingHint, setRestoredShippingHint] = useState(false);
-  const lineKey = (item: {
-    id: string;
-    color?: string;
-    option?: string;
-  }) => `${item.id}${item.color ? `||c:${item.color}` : ""}${item.option ? `||o:${item.option}` : ""}`;
-
   useEffect(() => {
     if (!hydrated) return;
     if (!account || !token) return;
@@ -377,15 +371,28 @@ export default function CheckoutPage() {
           stopdeskId: deliveryType === "stopdesk" ? Number(stopdeskId) : null,
           deliveryFee,
           address: address.trim(),
-          items: items.map((i) => ({
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-            color: i.color || "",
-            option: i.option || "",
-            productType: i.productType || "phone",
-            image: i.image || "",
-          })),
+          items: items.map((i) => {
+            const base = {
+              name: i.name,
+              price: i.price,
+              quantity: i.quantity,
+              color: i.color || "",
+              option: i.option || "",
+              productType: i.productType || "phone",
+              image: i.image || "",
+            };
+            if (i.hasVariants && i.variantSelections?.length) {
+              return {
+                ...base,
+                variantSelections: i.variantSelections.map((v) => ({
+                  label: v.label,
+                  price: v.price,
+                  quantity: v.quantity,
+                })),
+              };
+            }
+            return base;
+          }),
           totalPrice: grandTotal,
         }),
       });
@@ -468,7 +475,7 @@ export default function CheckoutPage() {
               <ul className="max-h-64 space-y-3 overflow-y-auto sm:max-h-80">
                 {items.map((item) => (
                   <li
-                    key={lineKey(item)}
+                    key={cartLineKey(item)}
                     className="flex gap-3 rounded-xl bg-slate-50/80 p-3"
                   >
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white">
@@ -480,15 +487,25 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-800">
-                        {item.option ? `${item.name} - ${item.option}` : item.name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {item.quantity} × {formatDzd(item.price)} DA
-                      </p>
-                      {item.option ? (
-                        <p className="mt-1 text-[10px] text-slate-500">الخيار: {item.option}</p>
-                      ) : null}
+                      <p className="truncate text-sm font-medium text-slate-800">{item.name}</p>
+                      {item.hasVariants && item.variantSelections?.length ? (
+                        <ul className="mt-1 space-y-0.5 text-[11px] text-slate-600">
+                          {item.variantSelections.map((v) => (
+                            <li key={v.label}>
+                              {v.label} × {v.quantity} — {formatDzd(v.price * v.quantity)} DA
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <>
+                          <p className="text-xs text-slate-500">
+                            {item.quantity} × {formatDzd(item.price)} DA
+                          </p>
+                          {item.option ? (
+                            <p className="mt-1 text-[10px] text-slate-500">الخيار: {item.option}</p>
+                          ) : null}
+                        </>
+                      )}
                       {item.availableColors && item.availableColors.length > 0 ? (
                         <div className="mt-2 border-t border-slate-200/80 pt-2">
                           <p className="mb-1 text-[10px] font-semibold text-slate-500">اللون</p>
@@ -496,7 +513,7 @@ export default function CheckoutPage() {
                             colorIds={item.availableColors}
                             value={item.color || ""}
                             onChange={(c) =>
-                              updateLineColor(lineKey(item), c)
+                              updateLineColor(cartLineKey(item), c)
                             }
                             size="sm"
                           />
@@ -515,7 +532,7 @@ export default function CheckoutPage() {
                       ) : null}
                     </div>
                     <p className="shrink-0 text-sm font-bold text-slate-800">
-                      {formatDzd(item.price * item.quantity)} DA
+                      {formatDzd(cartLineSubtotal(item))} DA
                     </p>
                   </li>
                 ))}

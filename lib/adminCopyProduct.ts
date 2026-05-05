@@ -129,6 +129,7 @@ export function buildAccessoryCreateComparePayload(args: {
   stock: string;
   details: string;
   pricedOptions: PricedOptionCompare[];
+  hasVariants?: boolean;
 }): Record<string, unknown> {
   const pricedOptions = [...args.pricedOptions]
     .slice()
@@ -148,6 +149,7 @@ export function buildAccessoryCreateComparePayload(args: {
     stock: args.stock.trim() ? Number(args.stock) : 0,
     details: args.details.trim(),
     pricedOptions,
+    hasVariants: Boolean(args.hasVariants),
   };
 }
 
@@ -172,6 +174,7 @@ type AccessoryLike = {
     wholesalePrice?: number;
     repairPrice?: number;
   }>;
+  hasVariants?: boolean;
 };
 
 function accessoryBrandId(item: AccessoryLike): string {
@@ -229,6 +232,7 @@ export function snapshotAccessoryAfterModelsResolved(
       details: item.details || "",
       colors: Array.isArray(item.colors) ? [...item.colors] : [],
       pricedOptions,
+      hasVariants: Boolean(item.hasVariants),
     })
   );
 }
@@ -247,6 +251,7 @@ export function buildSparePartManualCreateComparePayload(args: {
   newPhoneTypeName: string;
   selectedSpareColors: string[];
   pricedOptions: PricedOptionCompare[];
+  hasVariants?: boolean;
 }): Record<string, unknown> {
   const normalizedDetails = args.details.trim();
   const phoneTypesSorted = [...args.selectedPhoneTypes].slice().sort();
@@ -265,6 +270,7 @@ export function buildSparePartManualCreateComparePayload(args: {
     priceReparateur: args.priceReparateur.trim() ? Number(args.priceReparateur) : undefined,
     colors: [...args.selectedSpareColors],
     pricedOptions,
+    hasVariants: Boolean(args.hasVariants),
     creationSource: "manual",
     brand: args.selectedBrand || null,
     phoneTypes: phoneTypesSorted,
@@ -294,6 +300,7 @@ export function snapshotFromSparePartForCopy(p: {
     wholesalePrice?: number;
     repairPrice?: number;
   }>;
+  hasVariants?: boolean;
 }): string {
   const brandId =
     typeof p.brand === "string" ? p.brand : p.brand && typeof p.brand === "object" ? String(p.brand._id || "") : "";
@@ -354,6 +361,7 @@ export function snapshotFromSparePartForCopy(p: {
       newPhoneTypeName: "",
       selectedSpareColors: Array.isArray(p.colors) ? [...p.colors] : [],
       pricedOptions,
+      hasVariants: Boolean(p.hasVariants),
     })
   );
 }
