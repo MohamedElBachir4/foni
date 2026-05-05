@@ -136,6 +136,36 @@ async function getProductSeoData(id: string) {
     } catch {
       // ignore
     }
+
+    try {
+      const accRes = await publicFetch(`/api/accessories/${id}`, { cache: "no-store" });
+      if (accRes.ok) {
+        const acc = await accRes.json();
+        const brand = acc.brand as { name?: string } | undefined;
+        const brandLabel =
+          typeof brand === "object" && brand?.name ? String(brand.name) : "";
+        const name = String(acc.name || "اكسسوار");
+        const desc =
+          String(acc.details || "").trim() ||
+          `اكسسوار ${name}${brandLabel ? ` من ${brandLabel}` : ""} في الجزائر.`;
+        return {
+          id: String(acc._id),
+          name,
+          image: pickFirstNonEmptyString(
+            acc.image,
+            acc.imageUrl,
+            acc.image_url,
+            acc.thumbnail,
+            "/LOGO.jpeg"
+          ),
+          price: Number(acc.priceRetail ?? acc.price ?? 0),
+          brandLabel,
+          description: desc,
+        };
+      }
+    } catch {
+      // ignore
+    }
   }
 
   return null;
@@ -190,6 +220,7 @@ export default async function ProductDetailPage({
     category: string;
     image: string;
     extraImages?: string[];
+    /** يُحمَّل من الـ API عند الهاتف / قطعة غيار / أكسسوار */
     details?: string;
     colors?: string[];
     options?: string[];
@@ -197,9 +228,10 @@ export default async function ProductDetailPage({
     hasVariants?: boolean;
     stock?: number;
   } | null = null;
-  let source: "static" | "phone" | "sparePart" = "static";
+  let source: "static" | "phone" | "sparePart" | "accessory" = "static";
   let brandLabel = "";
   let sparePartContext: { brandId?: string; phoneTypeId?: string } = {};
+  let accessoryContext: { typeId?: string; typeLabel?: string } = {};
 
   if (isNumericId) {
     const staticProduct = getProductById(numericId);
@@ -361,25 +393,111 @@ export default async function ProductDetailPage({
     }
   }
 
+  if (!product && /^[a-f0-9A-F]{24}$/.test(id)) {
+    try {
+      const accRes = await publicFetch(`/api/accessories/${id}`, { cache: "no-store" });
+      if (accRes.ok) {
+        const acc = await accRes.json();
+        const brand = acc.brand as { _id?: string; name?: string; slug?: string } | string | undefined;
+        brandLabel =
+          typeof brand === "object" && brand?.name ? String(brand.name) : "";
+
+        const typeObj = acc.type as { _id?: string; name?: string } | undefined;
+        accessoryContext = {
+          typeId: typeof typeObj === "object" && typeObj?._id ? String(typeObj._id) : "",
+          typeLabel: typeof typeObj === "object" && typeObj?.name ? String(typeObj.name) : "",
+        };
+
+        const pricedAcc = parsePricedVariantsFromApi(acc.pricedOptions);
+        const accRetail = Number(acc.priceRetail ?? acc.price ?? 0);
+        const displayAccRetail =
+          pricedAcc.length > 0 ? pricedAcc[0].retailPrice : accRetail;
+
+        product = {
+          id: String(acc._id),
+          name: String(acc.name || ""),
+          price: displayAccRetail,
+          priceRetail:
+            typeof acc.priceRetail === "number" && !Number.isNaN(acc.priceRetail as number)
+              ? (acc.priceRetail as number)
+              : typeof acc.price === "number"
+                ? (acc.price as number)
+                : undefined,
+          priceWholesale:
+            typeof acc.priceWholesale === "number" && !Number.isNaN(acc.priceWholesale as number)
+              ? (acc.priceWholesale as number)
+              : undefined,
+          priceReparateur:
+            typeof acc.priceReparateur === "number" && !Number.isNaN(acc.priceReparateur as number)
+              ? (acc.priceReparateur as number)
+              : undefined,
+          brand:
+            typeof brand === "object" && brand?.slug
+              ? String(brand.slug)
+              : typeof brand === "object" && brand?.name
+                ? String(brand.name).toLowerCase().trim().replace(/\s+/g, "-")
+                : "",
+          category: "أكسسوارات",
+          image: pickFirstNonEmptyString(
+            acc.image,
+            acc.imageUrl,
+            acc.image_url,
+            acc.thumbnail
+          ),
+          extraImages: normalizeExtraImages(
+            acc.extraImages ??
+              acc.extra_images ??
+              acc.images ??
+              acc.galleryImages ??
+              acc.gallery_images
+          ),
+          details: pickFirstNonEmptyString(acc.details, acc.description, acc.desc),
+          colors: Array.isArray(acc.colors) ? acc.colors : [],
+          options: pricedAcc.length
+            ? pricedAcc.map((p) => p.label)
+            : Array.isArray(acc.options)
+              ? acc.options.map((x: unknown) => String(x || "").trim()).filter(Boolean)
+              : [],
+          pricedOptions: pricedAcc.length ? pricedAcc : undefined,
+          hasVariants: Boolean(acc.hasVariants),
+          stock: typeof acc.stock === "number" ? acc.stock : undefined,
+        };
+        source = "accessory";
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (!product) notFound();
 
   const descriptionFallback =
     source === "sparePart"
       ? `قطعة غيار عالية الجودة من ${brandLabel || "الماركة المطلوبة"}، مصممة لأداء ثابت واعتمادية طويلة.`
-      : `منتج عالي الجودة من ${brandLabel || "الماركة"}، متوفر الآن مع تجربة شراء سلسة وتوصيل سريع.`;
+      : source === "accessory"
+        ? `اكسسوار ${product.name}${brandLabel ? ` من ${brandLabel}` : ""}، متوفر للطلب مع توصيل في الجزائر.`
+        : `منتج عالي الجودة من ${brandLabel || "الماركة"}، متوفر الآن مع تجربة شراء سلسة وتوصيل سريع.`;
   const description = pickFirstNonEmptyString(product.details, descriptionFallback);
 
   const backHref =
-    source === "sparePart" && sparePartContext.brandId && sparePartContext.phoneTypeId
-      ? `/spare-parts/${sparePartContext.brandId}/${sparePartContext.phoneTypeId}`
-      : `/phones/${product.brand}`;
+    source === "accessory"
+      ? accessoryContext.typeId
+        ? `/accessories/${accessoryContext.typeId}`
+        : "/accessories"
+      : source === "sparePart" && sparePartContext.brandId && sparePartContext.phoneTypeId
+        ? `/spare-parts/${sparePartContext.brandId}/${sparePartContext.phoneTypeId}`
+        : `/phones/${product.brand}`;
   const backLabel =
-    source === "sparePart" ? `قطع غيار ${brandLabel || ""}`.trim() : `هواتف ${brandLabel}`;
+    source === "accessory"
+      ? accessoryContext.typeLabel?.trim() || "أنواع الأكسسوارات"
+      : source === "sparePart"
+        ? `قطع غيار ${brandLabel || ""}`.trim()
+        : `هواتف ${brandLabel}`;
 
   let relatedProducts: RelatedPhone[] = [];
   const brandForApi =
     product.brand || String(brandLabel || "").toLowerCase().trim().replace(/\s+/g, "-");
-  if (source !== "sparePart" && brandForApi) {
+  if (source !== "sparePart" && source !== "accessory" && brandForApi) {
     try {
       const res = await publicFetch(
         `/api/phones?brand=${encodeURIComponent(brandForApi)}`,
@@ -435,6 +553,45 @@ export default async function ProductDetailPage({
         const data = await res.json();
         const list = data?.parts ?? (Array.isArray(data) ? data : []);
         relatedProducts = (Array.isArray(list) ? list : [])
+          .filter((item: { _id?: string }) => item?._id && item._id !== product.id)
+          .slice(0, 4)
+          .map(
+            (item: {
+              _id: string;
+              name: string;
+              price?: number;
+              priceRetail?: number;
+              priceWholesale?: number;
+              priceReparateur?: number;
+              image?: string;
+              colors?: string[];
+            }) => ({
+              _id: item._id,
+              name: item.name,
+              price: Number(item.priceRetail ?? item.price ?? 0),
+              priceRetail: item.priceRetail,
+              priceWholesale: item.priceWholesale,
+              priceReparateur: item.priceReparateur,
+              image: item.image,
+              colors: Array.isArray(item.colors) ? item.colors : [],
+            })
+          );
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (source === "accessory" && accessoryContext.typeId) {
+    try {
+      const res = await publicFetch(
+        `/api/accessories?type=${encodeURIComponent(accessoryContext.typeId)}`,
+        { cache: "no-store" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        relatedProducts = list
           .filter((item: { _id?: string }) => item?._id && item._id !== product.id)
           .slice(0, 4)
           .map(

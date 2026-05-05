@@ -13,11 +13,6 @@ function inferProductType(category?: string): "phone" | "accessory" | "sparePart
   return "phone";
 }
 
-function isAccessoryCard(category?: string): boolean {
-  const c = String(category || "").trim();
-  return c === "أكسسوارات" || c === "اكسسوارات";
-}
-
 function colorKey(id: string) {
   return String(id || "").trim().toLowerCase();
 }
@@ -170,14 +165,12 @@ export function ProductCardActions({
           <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2} />
           أضف للسلة
         </AddToCartButton>
-        {!isAccessoryCard(category) ? (
-          <Link
-            href={`/product/${id}/${slugifyProductName(name)}`}
-            className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 sm:py-3"
-          >
-            التفاصيل
-          </Link>
-        ) : null}
+        <Link
+          href={`/product/${id}/${slugifyProductName(name)}`}
+          className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 sm:py-3"
+        >
+          التفاصيل
+        </Link>
       </div>
     </>
   );

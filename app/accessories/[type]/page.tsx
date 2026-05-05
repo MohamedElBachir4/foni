@@ -5,8 +5,6 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ProductImage } from "@/components/ProductImage";
 import { formatDzd } from "@/lib/pricing";
-import { filterAccessoriesForTypeListing } from "@/lib/accessoryVisibility";
-
 import { publicFetch } from "@/lib/publicFetch";
 
 type AccessoryType = { _id: string; name: string };
@@ -42,17 +40,32 @@ async function fetchAccessoriesByType(typeId: string): Promise<Accessory[]> {
   }
 }
 
+async function fetchAccessoryTypeName(typeId: string): Promise<string | null> {
+  try {
+    const res = await publicFetch("/api/accessory-types", { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data)) return null;
+    const row = data.find((x: { _id?: string }) => x?._id === typeId);
+    return row?.name ? String(row.name) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function AccessoriesByTypePage({
   params,
 }: {
   params: Promise<{ type: string }>;
 }) {
   const { type } = await params;
-  const accessories = filterAccessoriesForTypeListing(await fetchAccessoriesByType(type));
+  const accessories = await fetchAccessoriesByType(type);
 
   const first = accessories[0];
-  const typeName =
-    first && typeof first.type === "object" && first.type ? (first.type as AccessoryType).name : "الأكسسوارات";
+  const typeNameFromProduct =
+    first && typeof first.type === "object" && first.type ? (first.type as AccessoryType).name : null;
+  const typeNameResolved =
+    typeNameFromProduct || (await fetchAccessoryTypeName(type)) || "الأكسسوارات";
 
   return (
     <div className="min-h-screen w-full antialiased bg-slate-50">
@@ -68,16 +81,16 @@ export default async function AccessoriesByTypePage({
           </Link>
           <span className="mx-1">/</span>
           <span className="text-slate-800 font-medium truncate max-w-[180px] align-middle sm:max-w-none inline-block">
-            {typeName}
+            {typeNameResolved}
           </span>
         </nav>
 
         <header className="mb-6 sm:mb-8">
           <h1 className="text-2xl font-extrabold text-slate-900 sm:text-3xl">
-            {typeName}
+            {typeNameResolved}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-            المنتجات العامة لهذا النوع. الأكسسوارات المربوطة بموديل هاتف محدّد تظهر فقط من صفحة الماركة ثم اختيار الموديل ثم «اكسسوارات».
+            جميع الأكسسوارات المُصنَّفة تحت هذا النوع، بما فيها المرتبطة بموديلات محددة إن وُجدت.
           </p>
         </header>
 
