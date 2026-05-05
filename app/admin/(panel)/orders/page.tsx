@@ -82,7 +82,8 @@ export default function AdminOrdersPage() {
 
       const res = await fetch(url, {
         method: "PATCH",
-        headers: { ...getAuthHeaders(), credentials: 'include', "Content-Type": "application/json"  },
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ status }),
       });
 
@@ -122,8 +123,9 @@ export default function AdminOrdersPage() {
     async function load() {
       try {
         const res = await fetch(`${API_URL}/api/orders`, {
-          headers: getAuthHeaders(), credentials: 'include',
-         });
+          headers: getAuthHeaders(),
+          credentials: "include",
+        });
         if (!res.ok) {
           if (res.status === 401) setError("يجب تسجيل الدخول");
           else setError("فشل في جلب الطلبات");

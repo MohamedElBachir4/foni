@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
+import { API_URL, getAuthHeaders, getToken } from "@/lib/adminAuth";
+import { getProductImageUrl } from "@/lib/productImage";
 import { Layers, CheckCircle, AlertCircle, Trash2, Pencil } from "lucide-react";
 import {
   AdminButton,
@@ -20,6 +21,44 @@ export default function AccessoryTypesPage() {
   const [editing, setEditing] = useState<AccessoryType | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  async function uploadImageFromDevice(file: File | null): Promise<string | null> {
+    if (!file || !String(file.type || "").startsWith("image/")) return null;
+    const formData = new FormData();
+    formData.append("images", file);
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/uploads/images`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "فشل رفع الصورة");
+    const urls = Array.isArray(data.urls) ? data.urls : [];
+    return urls[0] ? String(urls[0]) : null;
+  }
+
+  async function handleImageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    e.target.value = "";
+    if (!file) return;
+    setMessage(null);
+    setUploadingImage(true);
+    try {
+      const url = await uploadImageFromDevice(file);
+      if (url) setImage(url);
+      else setMessage({ type: "error", text: "لم يُرجَع رابط للصورة بعد الرفع" });
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "فشل رفع الصورة من الجهاز",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   const fetchTypes = useCallback(async () => {
     setLoading(true);
@@ -125,9 +164,17 @@ export default function AccessoryTypesPage() {
     _id: t._id,
     name: <span className="font-medium text-slate-800">{t.name}</span>,
     image: t.image ? (
-      <a href={t.image} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">
-        رابط
-      </a>
+      <div className="flex items-center gap-2">
+        <AdminTableCellImage src={t.image} alt={t.name} />
+        <a
+          href={getProductImageUrl(t.image)}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-sky-600 hover:underline"
+        >
+          فتح
+        </a>
+      </div>
     ) : (
       <AdminTableCellImage src={null} />
     ),
@@ -183,7 +230,39 @@ export default function AccessoryTypesPage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                رابط الصورة (اختياري)
+                صورة من الجهاز (اختياري)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                disabled={uploadingImage}
+                onChange={handleImageFileChange}
+                className="block w-full text-sm text-slate-600 file:me-4 file:rounded-lg file:border-0 file:bg-sky-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-sky-700 hover:file:bg-sky-100"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                {uploadingImage ? "جاري الرفع…" : "حد أقصى 5 ميجابايت لكل صورة."}
+              </p>
+              {image ? (
+                <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getProductImageUrl(image)}
+                    alt=""
+                    className="h-14 w-14 rounded-md object-cover"
+                  />
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-rose-600 hover:underline"
+                    onClick={() => setImage("")}
+                  >
+                    إزالة الصورة
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                أو رابط الصورة (اختياري)
               </label>
               <input
                 type="text"
@@ -191,7 +270,7 @@ export default function AccessoryTypesPage() {
                 onChange={(e) => setImage(e.target.value)}
                 className="admin-input"
                 dir="ltr"
-                placeholder="أي رابط صورة (https، //، data:...)"
+                placeholder="https://… أو يُملأ تلقائياً بعد الرفع من الجهاز"
               />
             </div>
           </div>

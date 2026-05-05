@@ -19,10 +19,16 @@ export default function AdminPanelLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const fetchPendingCount = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      setPendingCount(0);
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/api/admin/pending-orders-count`, {
-        headers: getAuthHeaders(), credentials: 'include',
-       });
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       if (res.status === 401) {
         clearToken();
         setHasToken(false);
