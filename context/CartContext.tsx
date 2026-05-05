@@ -142,6 +142,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           option: nextOption,
         });
         const existing = prev.find((i) => cartLineKey(i) === itemKey);
+        const sameProductAndColor = ao?.length
+          ? prev.filter(
+              (i) =>
+                i.id === item.id &&
+                String(i.color || "").trim().toLowerCase() ===
+                  String(nextColor || "").trim().toLowerCase()
+            )
+          : [];
+        const existingByIdAndColor =
+          sameProductAndColor.length > 0 ? sameProductAndColor[0] : null;
 
         if (existing) {
           return prev.map((i) => {
@@ -150,6 +160,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               ? { ...i, quantity: i.quantity + (q || 1) }
               : i;
           });
+        }
+
+        // للمنتجات ذات الخيارات (مثل 128/256/512): لا ننشئ سطرًا جديدًا عند تغيير الخيار،
+        // بل نُحدّث نفس السطر (نفس المنتج + نفس اللون) ونزيل أي سطور خيارات قديمة
+        // لنفس المنتج حتى لا يظهر 128 و512 معاً في الملخص.
+        if (existingByIdAndColor) {
+          const mergedQuantity =
+            sameProductAndColor.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0) +
+            (q || 1);
+
+          return prev
+            .filter((i) => !sameProductAndColor.includes(i))
+            .concat({
+              ...existingByIdAndColor,
+              name: item.name,
+              price: item.price,
+              image: item.image ?? existingByIdAndColor.image,
+              color: nextColor,
+              availableColors: nextAc,
+              option: nextOption,
+              availableOptions: ao,
+              quantity: mergedQuantity,
+              productType: (item as CartItem).productType ?? existingByIdAndColor.productType,
+            });
         }
 
         return [

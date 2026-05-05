@@ -44,6 +44,7 @@ export function AddToCartButton({
   const [added, setAdded] = useState(false);
   const [showColorModal, setShowColorModal] = useState(false);
   const [modalColor, setModalColor] = useState("");
+  const [modalOption, setModalOption] = useState("");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export function AddToCartButton({
       const okOpt = normalizedOptions.includes(wantOpt);
       const option = okOpt ? wantOpt : normalizedOptions[0];
       if (lockColorToSelection && colors.length > 0) {
+        setModalOption(option);
         const want = String(lockedColor || colors[0] || "")
           .trim()
           .toLowerCase();
@@ -107,6 +109,7 @@ export function AddToCartButton({
         return;
       }
       if (colors && colors.length > 0) {
+        setModalOption(option);
         setShowColorModal(true);
       } else {
         handleAddToCart(undefined, option);
@@ -122,6 +125,7 @@ export function AddToCartButton({
       return;
     }
     if (colors && colors.length > 0) {
+      setModalOption("");
       setShowColorModal(true);
     } else {
       handleAddToCart();
@@ -164,7 +168,7 @@ export function AddToCartButton({
         <button
           type="button"
           onClick={() => {
-            if (modalColor) handleAddToCart(modalColor);
+            if (modalColor) handleAddToCart(modalColor, modalOption || undefined);
           }}
           className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-bold text-white transition hover:bg-blue-500"
         >
