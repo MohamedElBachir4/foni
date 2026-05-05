@@ -243,6 +243,18 @@ function ResultGrid({
 
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4">
+      <Link
+        href="/request-part"
+        className="group flex h-full min-h-[340px] flex-col justify-center rounded-2xl border border-dashed border-amber-300 bg-gradient-to-b from-amber-50 to-white p-5 text-center shadow-sm transition hover:border-amber-400 hover:shadow-md sm:min-h-[360px] sm:rounded-[1.25rem]"
+      >
+        <p className="text-sm font-bold text-amber-700 sm:text-base">لم تجد قطعتك؟</p>
+        <p className="mt-2 text-xs text-slate-600 sm:text-sm">
+          أرسل طلب قطعة جديدة وسنتواصل معك.
+        </p>
+        <span className="mt-4 inline-flex items-center justify-center rounded-full bg-amber-500 px-4 py-2 text-xs font-bold text-white transition group-hover:bg-amber-600">
+          طلب قطعة
+        </span>
+      </Link>
       {items.map((item) => {
         const effectivePrice = getEffectivePrice(
           {

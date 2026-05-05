@@ -144,7 +144,8 @@ export function SearchBar() {
   }, []);
 
   const list = flatList(grouped);
-  const total = list.length;
+  const total = list.length + 1;
+  const hasSearchResults = list.length > 0;
   const showPanel = open && Boolean(query.trim());
   const showInterpretedHint =
     Boolean(interpretedQuery) &&
@@ -177,7 +178,13 @@ export function SearchBar() {
     }
     if (e.key === "Enter") {
       e.preventDefault();
-      const cur = list[highlightIndex];
+      if (highlightIndex === 0) {
+        router.push("/request-part");
+        setOpen(false);
+        setQuery("");
+        return;
+      }
+      const cur = list[highlightIndex - 1];
       if (cur) {
         router.push(cur.item.href);
         setOpen(false);
@@ -212,7 +219,7 @@ export function SearchBar() {
           dir="rtl"
           aria-label="بحث عن المنتجات"
           aria-autocomplete="list"
-          aria-expanded={open && total > 0}
+          aria-expanded={open && Boolean(query.trim())}
           className="w-full rounded-full border border-gray-200 bg-white/90 py-2.5 pr-10 pl-10 text-right text-[15px] text-gray-900 placeholder:text-gray-500 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 sm:py-3"
         />
         {loading && (
@@ -254,17 +261,37 @@ export function SearchBar() {
             </div>
           </div>
 
-          {loading && total === 0 ? (
+          {loading && !hasSearchResults ? (
             <div className="flex items-center justify-center gap-2 py-10 text-gray-500">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
               <span>جاري البحث...</span>
             </div>
-          ) : total === 0 ? (
-            <div className="px-4 py-10 text-center text-gray-500">لا توجد نتائج</div>
           ) : (
             <ul className="py-1.5" role="listbox" id="search-suggestions-ul">
+              <li role="option" aria-selected={highlightIndex === 0}>
+                <Link
+                  href="/request-part"
+                  onClick={() => {
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className={`mx-2 mb-1 flex items-center justify-between rounded-xl px-4 py-3 text-right transition-colors ${
+                    highlightIndex === 0
+                      ? "bg-amber-100"
+                      : "bg-amber-50 hover:bg-amber-100/80"
+                  }`}
+                >
+                  <span className="text-sm font-bold text-amber-900">لم تجد قطعتك؟</span>
+                  <span className="text-xs font-semibold text-amber-700">طلب قطعة</span>
+                </Link>
+              </li>
+              {!loading && !hasSearchResults ? (
+                <li className="px-4 py-3 text-center text-sm text-slate-500">
+                  لا توجد نتائج أخرى
+                </li>
+              ) : null}
               {(() => {
-                let row = 0;
+                let row = 1;
                 return (
                   <>
                     {grouped.phones.length > 0 && (

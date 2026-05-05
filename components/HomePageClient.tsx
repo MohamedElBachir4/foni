@@ -73,12 +73,12 @@ export function HomePageClient() {
                 >
                   فتح حساب
                 </Link>
-                <button
-                  type="button"
-                  className="rounded-xl border border-white/80 bg-white/10 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-900/20 backdrop-blur-sm transition hover:bg-white/20 sm:px-6 sm:py-3"
+                <Link
+                  href="/request-part"
+                  className="rounded-xl border border-amber-300/80 bg-amber-400/20 px-4 py-2 text-sm font-bold text-amber-50 shadow-lg shadow-slate-900/20 backdrop-blur-sm transition hover:bg-amber-300/30 sm:px-6 sm:py-3"
                 >
-                  استكشف المنتجات
-                </button>
+                  لم تجد قطعتك؟
+                </Link>
               </div>
             </div>
           </div>

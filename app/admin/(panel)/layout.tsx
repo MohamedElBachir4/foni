@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getToken, clearToken, getAuthHeaders, API_URL } from "@/lib/adminAuth";
-import { LayoutDashboard, Smartphone, LogOut, Package, ShoppingCart, User, Archive, Settings, ChevronRight, Tags } from "lucide-react";
+import { LayoutDashboard, Smartphone, LogOut, Package, ShoppingCart, User, Archive, Settings, ChevronRight, Tags, Wrench } from "lucide-react";
 
 export default function AdminPanelLayout({
   children,
@@ -219,6 +219,13 @@ export default function AdminPanelLayout({
               "الطلبات السارية",
               pendingCount,
               "text-sky-500 group-hover:text-sky-600"
+            )}
+            {navLink(
+              "/admin/part-requests",
+              <Wrench className="h-5 w-5 shrink-0" />,
+              "طلبات القطع",
+              undefined,
+              "text-amber-500 group-hover:text-amber-600"
             )}
             {navLink(
               "/admin/archive",
