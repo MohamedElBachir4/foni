@@ -373,6 +373,7 @@ export default function CheckoutPage() {
           address: address.trim(),
           items: items.map((i) => {
             const base = {
+              productId: i.id,
               name: i.name,
               price: i.price,
               quantity: i.quantity,

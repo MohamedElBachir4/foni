@@ -215,9 +215,11 @@ export function ProductDetailsModern({
     setSelectedOption(opts[0] || "");
   }, [product.id, product.options, variantList, multiVariantMode]);
 
-  /** الهواتف: في الـ API الافتراضي stock=0 ولا يعني «غير متوفر» حتى يُضبط تتبع المخزون. */
+  /** الهواتف والأكسسوارات: غالباً stock=0 أو غير مستعمل للعرض — لا يُعتبر «غير متوفر» حتى يُفعَّل تتبع مخزون صارم. */
   const isAvailable =
-    product.category === "هواتف"
+    product.category === "هواتف" ||
+    product.category === "أكسسوارات" ||
+    product.category === "اكسسوارات"
       ? true
       : product.stock === undefined
         ? true

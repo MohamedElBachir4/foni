@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
-import { User, Phone, MapPin, Mail, Loader2, ChevronLeft } from "lucide-react";
+import { User, Phone, MapPin, Mail, Loader2, ChevronLeft, Search } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin";
 
 type Account = {
@@ -27,6 +27,7 @@ export default function AdminAccountsPage() {
   const [error, setError] = useState("");
   const [approvalFilter, setApprovalFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [nameSearch, setNameSearch] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -102,6 +103,14 @@ export default function AdminAccountsPage() {
     }
   }
 
+  const normalizedSearch = nameSearch.trim().toLowerCase();
+  const visibleAccounts = normalizedSearch
+    ? accounts.filter((acc) => {
+        const fullName = `${acc.firstName || ""} ${acc.lastName || ""}`.trim().toLowerCase();
+        return fullName.includes(normalizedSearch);
+      })
+    : accounts;
+
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl">
@@ -149,14 +158,29 @@ export default function AdminAccountsPage() {
         }
       />
 
-      {accounts.length === 0 ? (
+      <div className="mt-4">
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={nameSearch}
+            onChange={(e) => setNameSearch(e.target.value)}
+            placeholder="ابحث عن زبون بالاسم الكامل"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pr-10 pl-3 text-sm text-slate-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+          />
+        </div>
+      </div>
+
+      {visibleAccounts.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
           <User className="mx-auto h-14 w-14 text-slate-300" />
-          <p className="mt-4 font-medium text-slate-600">لا توجد حسابات حتى الآن.</p>
+          <p className="mt-4 font-medium text-slate-600">
+            {accounts.length === 0 ? "لا توجد حسابات حتى الآن." : "لا يوجد زبون مطابق لاسم البحث."}
+          </p>
         </div>
       ) : (
         <div className="mt-8 space-y-5">
-          {accounts.map((acc) => (
+          {visibleAccounts.map((acc) => (
             <Link
               key={acc._id}
               href={`/admin/accounts/${acc._id}`}

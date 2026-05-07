@@ -36,7 +36,7 @@ export function getEffectivePrice(
 
   if (!account) return baseRetail;
 
-  if (account.role === "grossiste") {
+  if (account.role === "grossiste" || (account.role as string) === "wholesale") {
     const v =
       typeof tiered.priceWholesale === "number" && !Number.isNaN(tiered.priceWholesale)
         ? tiered.priceWholesale
@@ -44,7 +44,7 @@ export function getEffectivePrice(
     return v ?? baseRetail;
   }
 
-  if (account.role === "reparateur") {
+  if (account.role === "reparateur" || (account.role as string) === "repair") {
     if (account.useWholesalePricing) {
       const wholesale =
         typeof tiered.priceWholesale === "number" &&
@@ -87,8 +87,8 @@ export function getEffectivePriceForVariant(
 export function describeActivePriceTier(account: AccountInfo | null): string {
   const acc = getPricingAccount(account);
   if (!acc) return "سعر التجزئة — العرض العام";
-  if (acc.role === "grossiste") return "سعر الجملة لحسابك";
-  if (acc.role === "reparateur") {
+  if (acc.role === "grossiste" || (acc.role as string) === "wholesale") return "سعر الجملة لحسابك";
+  if (acc.role === "reparateur" || (acc.role as string) === "repair") {
     return acc.useWholesalePricing
       ? "سعر الجملة — بعد تفعيل الشراء بالجملة"
       : "سعر Réparateur — حساب مصلّح";
