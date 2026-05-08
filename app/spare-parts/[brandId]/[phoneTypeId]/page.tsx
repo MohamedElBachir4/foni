@@ -214,13 +214,13 @@ export default function SparePartsListPage() {
                     className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:border-slate-200 sm:rounded-[1.25rem]"
                   >
                     {/* منطقة الصورة مع الشارات فوقها */}
-                    <div className="relative flex min-h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:min-h-[130px] sm:py-4">
+                    <div className="relative flex h-[180px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[220px] sm:py-4">
                       <ProductImage
                         src={part.image ?? ""}
                         alt={part.name}
                         priority={index < 4}
                         sizes={isMobile ? "(max-width: 640px) 50vw, 25vw" : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"}
-                        className="object-contain w-full max-w-[100px] sm:max-w-[130px]"
+                        className="h-full w-full object-contain p-2 sm:p-3"
                       />
                       <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm sm:start-4 sm:top-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
                         قطعة غيار

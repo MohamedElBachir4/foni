@@ -106,7 +106,7 @@ export default async function AccessoriesByTypePage({
                 className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl sm:rounded-[1.25rem]"
               >
                 {/* منطقة الصورة مع الشارات فوقها (مثل بطاقة الهاتف) */}
-                <div className="relative flex min-h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:min-h-[130px] sm:py-4">
+                <div className="relative flex h-[180px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[220px] sm:py-4">
                   <ProductImage
                     src={
                       a.image ||
@@ -115,7 +115,7 @@ export default async function AccessoriesByTypePage({
                     alt={a.name}
                     priority={false}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="w-full max-w-[100px] object-contain sm:max-w-[130px]"
+                    className="h-full w-full object-contain p-2 sm:p-3"
                   />
                   {/* شارة النوع */}
                   <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm sm:start-4 sm:top-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
