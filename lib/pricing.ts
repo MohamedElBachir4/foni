@@ -20,8 +20,8 @@ export function getPricingAccount(account: AccountInfo | null): AccountInfo | nu
  * سعر الواجهة حسب نوع الحساب:
  * - بدون حساب B2B معتمد ← تجزئة (priceRetail ثم price)
  * - Grossiste معتمد ← جملة
- * - Réparateur معتمد بدون شراء بالجملة ← Réparateur
- * - Réparateur مع تفعيل «الشراء بالجملة» ← جملة
+ * - حساب تاجر/صاحب محل معتمد بدون شراء بالجملة ← سعر تاجر/صاحب محل
+ * - حساب تاجر/صاحب محل مع تفعيل «الشراء بالجملة» ← جملة
  */
 export function getEffectivePrice(
   tiered: TieredPrice,
@@ -65,8 +65,8 @@ export function getEffectivePrice(
 }
 
 /**
- * سعر خيار بأسعار ثلاثية (تجزئة / جملة / مصلحين) حسب نفس منطق الحساب B2B:
- * grossiste → جملة، reparateur → مصلح (أو جملة إن فُعّل الشراء بالجملة)، غير ذلك → تجزئة.
+ * سعر خيار بأسعار ثلاثية (تجزئة / جملة / تاجر/صاحب محل) حسب نفس منطق الحساب B2B:
+ * grossiste → جملة، reparateur → تاجر/صاحب محل (أو جملة إن فُعّل الشراء بالجملة)، غير ذلك → تجزئة.
  */
 export function getEffectivePriceForVariant(
   variant: PricedVariant,
@@ -91,7 +91,7 @@ export function describeActivePriceTier(account: AccountInfo | null): string {
   if (acc.role === "reparateur" || (acc.role as string) === "repair") {
     return acc.useWholesalePricing
       ? "سعر الجملة — بعد تفعيل الشراء بالجملة"
-      : "سعر Réparateur — حساب مصلّح";
+      : "سعر تاجر أو صاحب محل — حسابك";
   }
   return "سعر التجزئة — العرض العام";
 }

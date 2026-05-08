@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Smartphone, Headphones, Wrench, ArrowLeft } from "lucide-react";
+import { Smartphone, Headphones, Wrench } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
@@ -13,6 +13,14 @@ type PhoneTypeOne = {
   name: string;
   image?: string;
   brand?: { _id: string; name: string; slug?: string } | null;
+};
+
+type ProductCardItem = {
+  _id: string;
+  name: string;
+  image?: string;
+  price?: number;
+  priceRetail?: number;
 };
 
 function brandParamMatchesPhoneType(brandParam: string, pt: PhoneTypeOne) {
@@ -53,6 +61,41 @@ export default async function ModelHubPage({
   const modelName = pt.name;
   const brandMongoId = pt.brand._id;
 
+  const [phones, accessories, spareParts] = await Promise.all([
+    publicFetch(
+      `/api/phones?brand=${encodeURIComponent(brandMongoId)}&phoneType=${encodeURIComponent(
+        phoneTypeId
+      )}`,
+      { cache: "no-store" }
+    )
+      .then(async (res) => (res.ok ? ((await res.json()) as ProductCardItem[]) : []))
+      .catch(() => []),
+    publicFetch(
+      `/api/accessories?brand=${encodeURIComponent(brandMongoId)}&phoneType=${encodeURIComponent(
+        phoneTypeId
+      )}`,
+      { cache: "no-store" }
+    )
+      .then(async (res) => (res.ok ? ((await res.json()) as ProductCardItem[]) : []))
+      .catch(() => []),
+    publicFetch(
+      `/api/spare-parts?brand=${encodeURIComponent(brandMongoId)}&phoneType=${encodeURIComponent(
+        phoneTypeId
+      )}&limit=200`,
+      { cache: "no-store" }
+    )
+      .then(async (res) => {
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (Array.isArray(data?.parts) ? data.parts : []) as ProductCardItem[];
+      })
+      .catch(() => []),
+  ]);
+
+  function effectivePrice(item: ProductCardItem) {
+    return Number(item.price ?? item.priceRetail ?? 0);
+  }
+
   return (
     <div className="min-h-screen w-full antialiased bg-slate-50">
       <Navbar />
@@ -70,91 +113,112 @@ export default async function ModelHubPage({
             <span className="font-medium text-slate-700">{modelName}</span>
           </nav>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-            اختر القسم — {modelName}
+            {modelName}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
-            اختر ما تريد استعراضه لهذا الموديل: الهواتف النقّالة، الأكسسوارات، أو قطع الغيار.
+            كل المنتجات المرتبطة بهذا الموديل في صفحة واحدة: الهواتف ثم قطع الغيار ثم الإكسسوارات.
           </p>
         </header>
 
-        <section className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Link
-            href={`/brand/${brandParam}/phones?phoneType=${phoneTypeId}`}
-            className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105 hover:shadow-2xl"
-          >
-            <div className="relative h-64 overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://i.pinimg.com/736x/e3/f4/a2/e3f4a286400d050bad935c6853879d6e.jpg"
-                alt={`هواتف ${modelName}`}
-                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-blue-600 to-blue-400 opacity-80" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white">
-                <div className="mb-4 rounded-full bg-white/20 p-4 backdrop-blur-sm transition-all duration-300 group-hover:scale-110">
-                  <Smartphone className="h-12 w-12" />
-                </div>
-                <h3 className="mb-2 text-2xl font-bold">الهواتف النقّالة</h3>
-                <p className="mb-4 text-white/90">هواتف متوافقة مع هذا الموديل.</p>
-                <div className="flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 backdrop-blur-sm transition-all duration-300 group-hover:bg-white/30">
-                  <span>تسوق الآن</span>
-                  <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
-                </div>
+        <section className="space-y-10">
+          <div>
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900">
+              <Smartphone className="h-5 w-5 text-blue-600" />
+              الهواتف
+            </h2>
+            {phones.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+                لا توجد هواتف لهذا الموديل حالياً.
               </div>
-            </div>
-          </Link>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {phones.map((item) => (
+                  <Link
+                    key={item._id}
+                    href={`/product/${item._id}`}
+                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image || "/LOGO.jpeg"}
+                      alt={item.name}
+                      className="h-40 w-full object-contain bg-slate-50 p-2"
+                    />
+                    <div className="p-3">
+                      <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.name}</p>
+                      <p className="mt-1 text-sm font-bold text-blue-600">{effectivePrice(item).toLocaleString()} دج</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
-          <Link
-            href={`/brand/${brandParam}/accessories?phoneType=${phoneTypeId}`}
-            className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105 hover:shadow-2xl"
-          >
-            <div className="relative h-64 overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://i.pinimg.com/736x/a1/f6/e2/a1f6e266de71fe64b1eb4a68b91c00ee.jpg"
-                alt={`أكسسوارات ${modelName}`}
-                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-purple-600 to-pink-500 opacity-80" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white">
-                <div className="mb-4 rounded-full bg-white/20 p-4 backdrop-blur-sm transition-all duration-300 group-hover:scale-110">
-                  <Headphones className="h-12 w-12" />
-                </div>
-                <h3 className="mb-2 text-2xl font-bold">اكسسوارات</h3>
-                <p className="mb-4 text-white/90">جرابات وشواحن وغيرها المرتبطة بهذا الموديل.</p>
-                <div className="flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 backdrop-blur-sm transition-all duration-300 group-hover:bg-white/30">
-                  <span>تسوق الآن</span>
-                  <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
-                </div>
+          <div>
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900">
+              <Wrench className="h-5 w-5 text-emerald-600" />
+              قطع الغيار
+            </h2>
+            {spareParts.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+                لا توجد قطع غيار لهذا الموديل حالياً.
               </div>
-            </div>
-          </Link>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {spareParts.map((item) => (
+                  <Link
+                    key={item._id}
+                    href={`/product/${item._id}`}
+                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image || "/LOGO.jpeg"}
+                      alt={item.name}
+                      className="h-40 w-full object-contain bg-slate-50 p-2"
+                    />
+                    <div className="p-3">
+                      <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.name}</p>
+                      <p className="mt-1 text-sm font-bold text-emerald-600">{effectivePrice(item).toLocaleString()} دج</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
-          <Link
-            href={`/spare-parts/${brandMongoId}/${phoneTypeId}`}
-            className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105 hover:shadow-2xl"
-          >
-            <div className="relative h-64 overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://i.pinimg.com/736x/02/c2/62/02c262e51afde8e065fc64aac01eb378.jpg"
-                alt={`قطع غيار ${modelName}`}
-                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-green-600 to-emerald-500 opacity-80" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white">
-                <div className="mb-4 rounded-full bg-white/20 p-4 backdrop-blur-sm transition-all duration-300 group-hover:scale-110">
-                  <Wrench className="h-12 w-12" />
-                </div>
-                <h3 className="mb-2 text-2xl font-bold">قطع غيار الهواتف</h3>
-                <p className="mb-4 text-white/90">شاشات، بطاريات وقطع لهذا الموديل.</p>
-                <div className="flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 backdrop-blur-sm transition-all duration-300 group-hover:bg-white/30">
-                  <span>تسوق الآن</span>
-                  <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
-                </div>
+          <div>
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900">
+              <Headphones className="h-5 w-5 text-fuchsia-600" />
+              الإكسسوارات
+            </h2>
+            {accessories.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+                لا توجد إكسسوارات لهذا الموديل حالياً.
               </div>
-            </div>
-          </Link>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {accessories.map((item) => (
+                  <Link
+                    key={item._id}
+                    href={`/product/${item._id}`}
+                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image || "/LOGO.jpeg"}
+                      alt={item.name}
+                      className="h-40 w-full object-contain bg-slate-50 p-2"
+                    />
+                    <div className="p-3">
+                      <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.name}</p>
+                      <p className="mt-1 text-sm font-bold text-fuchsia-600">{effectivePrice(item).toLocaleString()} دج</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       </main>
       <Footer />

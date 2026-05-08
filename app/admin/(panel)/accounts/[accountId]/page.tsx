@@ -201,7 +201,7 @@ export default function AdminAccountOrdersPage() {
               <span dir="ltr">{account.phone}</span>
             </p>
             <p className="text-xs text-slate-500">
-              النوع: {account.role === "reparateur" ? "Réparateur" : "Grossiste"}
+              النوع: {account.role === "reparateur" ? "تاجر أو صاحب محل" : "Grossiste"}
             </p>
             <span
               className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${approvalClass(

@@ -62,7 +62,7 @@ export default function ContactPage() {
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
                     لطلبات الجملة والشراكات، أنشئ حساباً مهنياً (Grossiste أو
-                    Réparateur) من صفحة الحسابات.
+                    تاجر أو صاحب محل) من صفحة الحسابات.
                   </p>
                   <Link
                     href="/accounts"

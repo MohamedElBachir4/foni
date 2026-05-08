@@ -66,6 +66,8 @@ type SparePart = {
   priceRetail?: number;
   priceWholesale?: number;
   priceReparateur?: number;
+  manageStock?: boolean;
+  stock?: number;
   brand?: Brand | string | null;
   phoneType?: PhoneType | string | null;
   phoneTypes?: PhoneType[] | string[] | null;
@@ -83,7 +85,7 @@ type InlinePriceDraft = {
 
 const fld =
   "admin-input !h-7 !rounded-md !px-2 !py-1 text-[11px] text-slate-800 placeholder:text-slate-400";
-const fldNum = `${fld} font-mono tabular-nums`;
+const fldNum = `${fld} font-mono tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`;
 const lbl = "mb-0.5 block text-[10px] font-medium text-slate-500";
 
 export default function AdminSparePartsPage() {
@@ -146,8 +148,14 @@ export default function AdminSparePartsPage() {
   const [selectedSpareColors, setSelectedSpareColors] = useState<string[]>([]);
   const [pricedOptionRows, setPricedOptionRows] = useState<PricedOptionFormRow[]>([]);
   const [hasVariants, setHasVariants] = useState(false);
+  const [manageStock, setManageStock] = useState(false);
+  const [stock, setStock] = useState("");
   const [inlinePriceDrafts, setInlinePriceDrafts] = useState<Record<string, InlinePriceDraft>>({});
   const [inlineSavingIds, setInlineSavingIds] = useState<Record<string, boolean>>({});
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedPartIds, setSelectedPartIds] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 400);
@@ -278,6 +286,8 @@ export default function AdminSparePartsPage() {
     setSelectedSpareColors([]);
     setPricedOptionRows([]);
     setHasVariants(false);
+    setManageStock(false);
+    setStock("");
     setEditing(null);
     setCopySnapshot(null);
     setPartModalNotice(null);
@@ -500,7 +510,7 @@ export default function AdminSparePartsPage() {
     if (hasVariants && pricedValidation.data.length === 0) {
       setPartModalNotice({
         type: "error",
-        text: "تعدد الخيارات يتطلّب خياراً واحداً على الأقل مع أسعار التجزئة والجملة والمصلحين.",
+        text: "تعدد الخيارات يتطلّب خياراً واحداً على الأقل مع أسعار التجزئة والجملة والتاجر أو صاحب المحل.",
       });
       return;
     }
@@ -518,6 +528,8 @@ export default function AdminSparePartsPage() {
       colors: selectedSpareColors,
       pricedOptions: pricedValidation.data,
       hasVariants,
+      manageStock,
+      stock: manageStock ? (stock.trim() ? Number(stock) : 0) : 0,
     };
 
     /** إنشاء يدوي فقط يُطبَّق عبر هذا النموذج — المصدر لا يصل من واجهة الاستيراد */
@@ -638,6 +650,8 @@ export default function AdminSparePartsPage() {
     setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
     setHasVariants(Boolean(item.hasVariants));
+    setManageStock(Boolean(item.manageStock));
+    setStock(item.stock != null ? String(item.stock) : "");
     if (brandId) fetchPhoneTypesForBrand(brandId);
     setPartModalNotice(null);
     setPartModalOpen(true);
@@ -676,6 +690,8 @@ export default function AdminSparePartsPage() {
     setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
     setHasVariants(Boolean(item.hasVariants));
+    setManageStock(Boolean(item.manageStock));
+    setStock(item.stock != null ? String(item.stock) : "");
     if (brandId) fetchPhoneTypesForBrand(brandId);
   }
 
@@ -699,6 +715,74 @@ export default function AdminSparePartsPage() {
       setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  function togglePartSelection(id: string) {
+    setSelectedPartIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function selectAllVisibleParts() {
+    setSelectedPartIds((prev) => {
+      const merged = new Set(prev);
+      for (const part of parts) merged.add(part._id);
+      return [...merged];
+    });
+  }
+
+  function clearSelectedParts() {
+    setSelectedPartIds([]);
+  }
+
+  function toggleSelectionMode() {
+    setSelectionMode((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedPartIds([]);
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkDeleteParts() {
+    if (selectedPartIds.length === 0) {
+      setBulkDeleteOpen(false);
+      return;
+    }
+    setBulkDeleting(true);
+    setMessage(null);
+    try {
+      const idsToDelete = [...selectedPartIds];
+      const res = await fetch(`${API_URL}/api/spare-parts/bulk-delete`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ ids: idsToDelete }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "فشل حذف المنتجات المحددة" });
+        return;
+      }
+
+      const deletedSet = new Set(idsToDelete);
+      setParts((prev) => prev.filter((part) => !deletedSet.has(part._id)));
+      setSelectedPartIds((prev) => prev.filter((id) => !deletedSet.has(id)));
+      setTotalParts((prev) => Math.max(0, prev - Number(data.deletedCount || 0)));
+      setBulkDeleteOpen(false);
+      setMessage({
+        type: "success",
+        text: `تم حذف ${Number(data.deletedCount || 0)} منتج بنجاح${
+          data.missingCount ? ` (غير موجود: ${data.missingCount})` : ""
+        }`,
+      });
+      await fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم أثناء الحذف الجماعي" });
+    } finally {
+      setBulkDeleting(false);
     }
   }
 
@@ -898,7 +982,7 @@ export default function AdminSparePartsPage() {
         open={importOpen}
         onClose={closeImportModal}
         title="استيراد قطع الغيار من Excel"
-        description="الملفات المدعومة: .xlsx, .xls, .csv — حتى 100 سطر بيانات (غير فارغ) لكل ملف. الأعمدة: Désignation, Prix Gro, Prix Réparateur, Prix Détail."
+        description="الملفات المدعومة: .xlsx, .xls, .csv — حتى 100 سطر بيانات (غير فارغ) لكل ملف. الأعمدة: Désignation, Prix Gro, Prix Commerçant, Prix Détail."
         icon={<FileSpreadsheet className="h-5 w-5" />}
         size="md"
       >
@@ -1263,7 +1347,7 @@ export default function AdminSparePartsPage() {
                 />
               </div>
               <div className="min-w-0">
-                <label className={lbl}>Réparateur</label>
+                <label className={lbl}>تاجر أو صاحب محل</label>
                 <input
                   type="number"
                   min={0}
@@ -1275,6 +1359,33 @@ export default function AdminSparePartsPage() {
                   placeholder="دج"
                 />
               </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={manageStock}
+                  onChange={(e) => setManageStock(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                تفعيل إدارة المخزون
+              </label>
+              {manageStock ? (
+                <div className="mt-2 max-w-[220px]">
+                  <label className={lbl}>الكمية في المخزون</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    inputMode="numeric"
+                    value={stock}
+                    onChange={(e) => setStock(e.target.value)}
+                    className={fldNum}
+                    placeholder="0"
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="border-t border-slate-100 pt-2">
@@ -1387,13 +1498,22 @@ export default function AdminSparePartsPage() {
                 </label>
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <label className={lbl}>
-                    خيارات المنتج (اسم + تجزئة / جملة / مصلح)
+                    خيارات المنتج (اسم + تجزئة / جملة / تاجر أو صاحب محل)
                   </label>
                   <AdminButton
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setPricedOptionRows((prev) => [...prev, createEmptyPricedOptionRow()])}
+                    onClick={() =>
+                      setPricedOptionRows((prev) => [
+                        ...prev,
+                        createEmptyPricedOptionRow({
+                          retailPrice: priceRetail,
+                          wholesalePrice: priceWholesale,
+                          repairPrice: priceReparateur,
+                        }),
+                      ])
+                    }
                     icon={<Plus className="h-3.5 w-3.5" />}
                   >
                     إضافة خيار
@@ -1436,7 +1556,7 @@ export default function AdminSparePartsPage() {
                             title="حذف الخيار"
                           />
                         </div>
-                        <div className="grid grid-cols-3 gap-1.5">
+                        <div className="grid grid-cols-4 gap-1.5">
                           <div>
                             <span className={lbl}>تجزئة</span>
                             <input
@@ -1478,7 +1598,7 @@ export default function AdminSparePartsPage() {
                             />
                           </div>
                           <div>
-                            <span className={lbl}>مصلح</span>
+                            <span className={lbl}>تاجر أو صاحب محل</span>
                             <input
                               type="number"
                               min={1}
@@ -1489,6 +1609,25 @@ export default function AdminSparePartsPage() {
                                 setPricedOptionRows((prev) =>
                                   prev.map((r) =>
                                     r.id === row.id ? { ...r, repairPrice: e.target.value } : r
+                                  )
+                                )
+                              }
+                              className={fldNum}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <span className={lbl}>المخزون</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="1"
+                              inputMode="numeric"
+                              value={row.stock}
+                              onChange={(e) =>
+                                setPricedOptionRows((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id ? { ...r, stock: e.target.value } : r
                                   )
                                 )
                               }
@@ -1558,22 +1697,79 @@ export default function AdminSparePartsPage() {
           </div>
           <span className="hidden text-[11px] text-slate-400 xl:inline">التمرير داخل الجدول فقط</span>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminButton
+            variant={selectionMode ? "outline" : "primary"}
+            size="sm"
+            onClick={toggleSelectionMode}
+          >
+            {selectionMode ? "إلغاء وضع التحديد" : "تفعيل التحديد"}
+          </AdminButton>
+          {selectionMode && (
+            <>
+              <AdminButton
+                variant="outline"
+                size="sm"
+                onClick={selectAllVisibleParts}
+                disabled={parts.length === 0}
+              >
+                تحديد الكل (المعروض)
+              </AdminButton>
+              <AdminButton
+                variant="outline"
+                size="sm"
+                onClick={clearSelectedParts}
+                disabled={selectedPartIds.length === 0}
+              >
+                إلغاء التحديد
+              </AdminButton>
+              <AdminButton
+                variant="danger"
+                size="sm"
+                onClick={() => setBulkDeleteOpen(true)}
+                disabled={selectedPartIds.length === 0}
+                loading={bulkDeleting}
+              >
+                حذف المحدد
+              </AdminButton>
+              <span className="text-xs font-medium text-slate-600">
+                تم تحديد {selectedPartIds.length} منتج
+              </span>
+            </>
+          )}
+        </div>
         <div className="min-h-[200px] min-w-0 flex-1 overflow-auto rounded-xl border border-slate-200/90 bg-white shadow-inner">
           <div className="min-w-max sm:min-w-0">
         <AdminTable
           columns={[
+            ...(selectionMode ? [{ key: "select", label: "" }] : []),
             { key: "image", label: "الصورة" },
             { key: "name", label: "الاسم" },
             { key: "priceRetail", label: "سعر التجزئة" },
             { key: "priceWholesale", label: "سعر الجملة" },
-            { key: "priceReparateur", label: "سعر المصلحين" },
+            { key: "priceReparateur", label: "سعر التاجر أو صاحب المحل" },
             { key: "colors", label: "الألوان" },
             { key: "brand", label: "الماركة" },
             { key: "phone", label: "الهاتف" },
+            { key: "stock", label: "المخزون" },
             { key: "actions", label: "إجراءات", className: "w-24" },
           ]}
           rows={parts.map((p: SparePart) => ({
             _id: p._id,
+            ...(selectionMode
+              ? {
+                  select: (
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedPartIds.includes(p._id)}
+                        onChange={() => togglePartSelection(p._id)}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                    </div>
+                  ),
+                }
+              : {}),
             image: <AdminTableCellImage src={p.image} alt={getAdminDisplayName(p)} />,
             name: <span className="font-medium text-slate-800">{getAdminDisplayName(p)}</span>,
             priceRetail: (
@@ -1654,6 +1850,25 @@ export default function AdminSparePartsPage() {
             ),
             brand: <span className="text-slate-600">{getBrandName(p)}</span>,
             phone: <span className="text-slate-600">{getPhoneTypeName(p)}</span>,
+            stock: (
+              <span className={`text-xs font-semibold ${
+                !p.manageStock
+                  ? "text-slate-400"
+                  : Number(p.stock || 0) <= 0
+                    ? "text-rose-600"
+                    : Number(p.stock || 0) <= 1
+                      ? "text-amber-600"
+                      : "text-emerald-700"
+              }`}>
+                {!p.manageStock
+                  ? "غير مُفعّل"
+                  : Number(p.stock || 0) <= 0
+                    ? "نفذ المخزون"
+                    : Number(p.stock || 0) <= 1
+                      ? "آخر قطعة"
+                      : `متوفر (${Number(p.stock || 0)})`}
+              </span>
+            ),
             actions: (
               <div className="flex items-center gap-2">
                 <AdminButton
@@ -1711,6 +1926,42 @@ export default function AdminSparePartsPage() {
           </div>
         )}
       </AdminCard>
+
+      <AdminModal
+        open={bulkDeleteOpen}
+        onClose={() => !bulkDeleting && setBulkDeleteOpen(false)}
+        title="تأكيد الحذف الجماعي"
+        description="سيتم حذف المنتجات المحددة نهائياً."
+        icon={<Trash2 className="h-5 w-5 text-rose-600" />}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            هل أنت متأكد من حذف {selectedPartIds.length} منتج؟
+            <br />
+            لا يمكن التراجع عن هذه العملية.
+          </p>
+          <div className="flex gap-2">
+            <AdminButton
+              variant="outline"
+              className="flex-1"
+              onClick={() => setBulkDeleteOpen(false)}
+              disabled={bulkDeleting}
+            >
+              إلغاء
+            </AdminButton>
+            <AdminButton
+              variant="danger"
+              className="flex-1"
+              onClick={handleBulkDeleteParts}
+              loading={bulkDeleting}
+              disabled={bulkDeleting || selectedPartIds.length === 0}
+            >
+              حذف المحدد
+            </AdminButton>
+          </div>
+        </div>
+      </AdminModal>
 
       <AdminModal
         open={showPhonesModal}

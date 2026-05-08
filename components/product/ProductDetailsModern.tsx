@@ -60,6 +60,7 @@ type ProductDetailsModernProps = {
     /** تعدد الخيارات بكميات منفصلة (قطع غيار / أكسسوارات) */
     hasVariants?: boolean;
     stock?: number;
+    manageStock?: boolean;
   };
   relatedProducts: RelatedProduct[];
 };
@@ -215,19 +216,15 @@ export function ProductDetailsModern({
     setSelectedOption(opts[0] || "");
   }, [product.id, product.options, variantList, multiVariantMode]);
 
-  /** الهواتف والأكسسوارات: غالباً stock=0 أو غير مستعمل للعرض — لا يُعتبر «غير متوفر» حتى يُفعَّل تتبع مخزون صارم. */
-  const isAvailable =
-    product.category === "هواتف" ||
-    product.category === "أكسسوارات" ||
-    product.category === "اكسسوارات"
-      ? true
-      : product.stock === undefined
-        ? true
-        : Number(product.stock) > 0;
+  const isAvailable = product.manageStock ? Number(product.stock || 0) > 0 : true;
   const sanitizedDescription = sanitizeHtml(product.description || "");
   const hasHtmlDescription = isHtml(sanitizedDescription);
 
   function handleOrderNow() {
+    if (!isAvailable) {
+      setOrderHint("نفد المخزون حالياً.");
+      return;
+    }
     const cols = product.colors || [];
     const optLabels =
       !multiVariantMode && variantList.length
@@ -363,7 +360,7 @@ export function ProductDetailsModern({
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                 {multiVariantMode
-                  ? "يتجدّد المجموع فور تعديل الكميات حسب نوع حسابك (تجزئة / جملة / مصلح)."
+                  ? "يتجدّد المجموع فور تعديل الكميات حسب نوع حسابك (تجزئة / جملة / تاجر أو صاحب محل)."
                   : describeActivePriceTier(account)}
               </p>
             </div>
@@ -421,7 +418,14 @@ export function ProductDetailsModern({
                         const unit = getEffectivePriceForVariant(v, pricingAccount);
                         const q = variantQtys[v.label] ?? 0;
                         const setQty = (raw: number) => {
-                          const n = Math.max(0, Math.floor(Number(raw) || 0));
+                          const maxByStock =
+                            product.manageStock && Number.isFinite(Number(v.stock))
+                              ? Math.max(0, Math.floor(Number(v.stock)))
+                              : Number.POSITIVE_INFINITY;
+                          const n = Math.min(
+                            Math.max(0, Math.floor(Number(raw) || 0)),
+                            maxByStock
+                          );
                           setVariantQtys((prev) => ({
                             ...prev,
                             [v.label]: n,
@@ -487,6 +491,11 @@ export function ProductDetailsModern({
                                   المجموع: {formatDzd(unit * q)} DA
                                 </p>
                               ) : null}
+                              {product.manageStock ? (
+                                <p className="mt-1 text-center text-[10px] text-slate-500">
+                                  المتاح: {Math.max(0, Math.floor(Number(v.stock || 0)))}
+                                </p>
+                              ) : null}
                             </td>
                           </tr>
                         );
@@ -504,7 +513,7 @@ export function ProductDetailsModern({
                 <p className="mb-2 text-sm font-extrabold text-slate-800">خيارات المنتج</p>
                 <p className="mb-2 text-[11px] text-slate-500">
                   {variantList.length > 0
-                    ? "اختر خياراً — يتغيّر السعر أعلاه مباشرة حسب خيارك ونوع حسابك (تجزئة / جملة / مصلح)."
+                    ? "اختر خياراً — يتغيّر السعر أعلاه مباشرة حسب خيارك ونوع حسابك (تجزئة / جملة / تاجر أو صاحب محل)."
                     : "اختر وصف الخيار قبل الإضافة للسلة."}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -615,7 +624,10 @@ export function ProductDetailsModern({
                 lockedOption={selectedOption}
                 productType={cartProductType(product.category)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500 disabled:pointer-events-none disabled:opacity-50"
-                disabled={multiVariantMode && !variantCartSelections.some((x) => x.quantity > 0)}
+                disabled={
+                  !isAvailable ||
+                  (multiVariantMode && !variantCartSelections.some((x) => x.quantity > 0))
+                }
               >
                 <ShoppingCart className="h-5 w-5" />
                 إضافة إلى السلة
@@ -623,6 +635,7 @@ export function ProductDetailsModern({
               <button
                 type="button"
                 onClick={handleOrderNow}
+                disabled={!isAvailable}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-600"
               >
                 <ClipboardList className="h-5 w-5" />

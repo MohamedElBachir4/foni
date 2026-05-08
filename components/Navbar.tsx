@@ -54,7 +54,7 @@ export function Navbar() {
                 <Sparkles className="h-4 w-4" />
               </span>
               <p className="font-medium leading-relaxed">
-                <span className="font-extrabold">عرض خاص للمصلّحين:</span>{" "}
+                <span className="font-extrabold">عرض خاص للتاجر أو صاحب المحل:</span>{" "}
                 فعّل الشراء بالجملة للحصول على نفس أسعار حساب الجملة داخل الموقع.
               </p>
             </div>
@@ -188,7 +188,7 @@ export function Navbar() {
                             {account.firstName} {account.lastName}
                           </p>
                           <p className="text-[11px] text-slate-500 sm:text-xs">
-                            {account.role === "reparateur" ? "حساب Réparateur" : "حساب Grossiste"}
+                            {account.role === "reparateur" ? "حساب تاجر أو صاحب محل" : "حساب Grossiste"}
                           </p>
                         </div>
                       </div>
@@ -213,7 +213,7 @@ export function Navbar() {
                       {account.role === "reparateur" && (
                         <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
                           <p className="text-[11px] font-semibold text-amber-900 sm:text-xs">
-                            عرض خاص للمصلّحين: أسعار الجملة
+                            عرض خاص للتاجر أو صاحب المحل: أسعار الجملة
                           </p>
                           <button
                             type="button"
@@ -244,7 +244,7 @@ export function Navbar() {
                   ) : (
                     <div className="space-y-2">
                       <p className="text-xs text-slate-600 sm:text-sm">
-                        قم بإنشاء حساب Réparateur أو Grossiste للاستفادة من التخفيضات.
+                        قم بإنشاء حساب تاجر أو صاحب محل أو Grossiste للاستفادة من التخفيضات.
                       </p>
                       <Link
                         href="/accounts"

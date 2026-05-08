@@ -50,6 +50,7 @@ type Phone = {
   priceReparateur?: number;
   details?: string;
   stock?: number;
+  manageStock?: boolean;
   colors?: string[];
   options?: string[];
   pricedOptions?: PricedOptionCompare[];
@@ -57,7 +58,7 @@ type Phone = {
 
 const fld =
   "admin-input !h-7 !rounded-md !px-2 !py-1 text-[11px] text-slate-800 placeholder:text-slate-400";
-const fldNum = `${fld} font-mono tabular-nums`;
+const fldNum = `${fld} font-mono tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`;
 const lbl = "mb-0.5 block text-[10px] font-medium text-slate-500";
 
 export default function CreatePhonePage() {
@@ -73,6 +74,8 @@ export default function CreatePhonePage() {
   const [priceWholesale, setPriceWholesale] = useState("");
   const [priceReparateur, setPriceReparateur] = useState("");
   const [details, setDetails] = useState("");
+  const [manageStock, setManageStock] = useState(false);
+  const [stock, setStock] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [pricedOptionRows, setPricedOptionRows] = useState<PricedOptionFormRow[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -129,6 +132,8 @@ export default function CreatePhonePage() {
     setPriceWholesale("");
     setPriceReparateur("");
     setDetails("");
+    setManageStock(false);
+    setStock("");
     setSelectedColors([]);
     setPricedOptionRows([]);
     setEditing(null);
@@ -230,6 +235,8 @@ export default function CreatePhonePage() {
           priceWholesale,
           priceReparateur,
           details,
+      manageStock,
+      stock,
           selectedColors,
           pricedOptions: pricedValidation.data,
         })
@@ -250,6 +257,8 @@ export default function CreatePhonePage() {
       priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
       details: details.trim(),
+      manageStock,
+      stock: manageStock ? Math.max(0, Number(stock) || 0) : 0,
       colors: selectedColors,
       pricedOptions: pricedValidation.data,
     };
@@ -303,6 +312,8 @@ export default function CreatePhonePage() {
     setPriceWholesale(phone.priceWholesale != null ? String(phone.priceWholesale) : "");
     setPriceReparateur(phone.priceReparateur != null ? String(phone.priceReparateur) : "");
     setDetails(phone.details || "");
+    setManageStock(Boolean(phone.manageStock));
+    setStock(phone.stock != null ? String(phone.stock) : "");
     setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(phone.pricedOptions));
   }
@@ -321,6 +332,8 @@ export default function CreatePhonePage() {
     setPriceWholesale(phone.priceWholesale != null ? String(phone.priceWholesale) : "");
     setPriceReparateur(phone.priceReparateur != null ? String(phone.priceReparateur) : "");
     setDetails(phone.details || "");
+    setManageStock(Boolean(phone.manageStock));
+    setStock(phone.stock != null ? String(phone.stock) : "");
     setSelectedColors(Array.isArray(phone.colors) ? [...phone.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(phone.pricedOptions));
   }
@@ -503,7 +516,7 @@ export default function CreatePhonePage() {
                 />
               </div>
               <div className="min-w-0">
-                <label className={lbl}>Réparateur</label>
+                <label className={lbl}>تاجر أو صاحب محل</label>
                 <input
                   type="number"
                   min={0}
@@ -515,6 +528,33 @@ export default function CreatePhonePage() {
                   placeholder="دج"
                 />
               </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={manageStock}
+                  onChange={(e) => setManageStock(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                تفعيل إدارة المخزون
+              </label>
+              {manageStock ? (
+                <div className="mt-2 max-w-[220px]">
+                  <label className={lbl}>الكمية في المخزون</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    inputMode="numeric"
+                    value={stock}
+                    onChange={(e) => setStock(e.target.value)}
+                    className={fldNum}
+                    placeholder="0"
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="border-t border-slate-100 pt-2">
@@ -617,13 +657,22 @@ export default function CreatePhonePage() {
               <div className="mt-2 border-t border-slate-100 pt-2">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <label className={lbl}>
-                    خيارات المنتج (اسم + سعر تجزئة / جملة / مصلحين)
+                    خيارات المنتج (اسم + سعر تجزئة / جملة / تاجر أو صاحب محل)
                   </label>
                   <AdminButton
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setPricedOptionRows((prev) => [...prev, createEmptyPricedOptionRow()])}
+                    onClick={() =>
+                      setPricedOptionRows((prev) => [
+                        ...prev,
+                        createEmptyPricedOptionRow({
+                          retailPrice: priceRetail,
+                          wholesalePrice: priceWholesale,
+                          repairPrice: priceReparateur,
+                        }),
+                      ])
+                    }
                     icon={<Plus className="h-3.5 w-3.5" />}
                   >
                     إضافة خيار
@@ -666,7 +715,7 @@ export default function CreatePhonePage() {
                             title="حذف الخيار"
                           />
                         </div>
-                        <div className="grid grid-cols-3 gap-1.5">
+                        <div className="grid grid-cols-4 gap-1.5">
                           <div>
                             <span className={lbl}>تجزئة (DA)</span>
                             <input
@@ -708,7 +757,7 @@ export default function CreatePhonePage() {
                             />
                           </div>
                           <div>
-                            <span className={lbl}>مصلح (DA)</span>
+                            <span className={lbl}>تاجر أو صاحب محل (DA)</span>
                             <input
                               type="number"
                               min={1}
@@ -719,6 +768,25 @@ export default function CreatePhonePage() {
                                 setPricedOptionRows((prev) =>
                                   prev.map((r) =>
                                     r.id === row.id ? { ...r, repairPrice: e.target.value } : r
+                                  )
+                                )
+                              }
+                              className={fldNum}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <span className={lbl}>المخزون</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="1"
+                              inputMode="numeric"
+                              value={row.stock}
+                              onChange={(e) =>
+                                setPricedOptionRows((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id ? { ...r, stock: e.target.value } : r
                                   )
                                 )
                               }
@@ -772,6 +840,7 @@ export default function CreatePhonePage() {
             { key: "colors", label: "الألوان" },
             { key: "price", label: "السعر" },
             { key: "details", label: "التفاصيل" },
+            { key: "stock", label: "المخزون" },
             { key: "actions", label: "إجراءات", className: "w-[9rem]" },
           ]}
           rows={phones.map((p) => ({
@@ -807,6 +876,11 @@ export default function CreatePhonePage() {
             details: (
               <span className="line-clamp-2 max-w-[14rem] text-[11px] text-slate-500" title={p.details}>
                 {p.details || "—"}
+              </span>
+            ),
+            stock: (
+              <span className={`text-xs font-semibold ${p.manageStock ? (Number(p.stock || 0) <= 1 ? "text-rose-600" : "text-emerald-700") : "text-slate-400"}`}>
+                {p.manageStock ? `${Math.max(0, Number(p.stock || 0))}` : "غير مُفعّل"}
               </span>
             ),
             actions: (

@@ -27,7 +27,7 @@ export default function AdminAccountsPage() {
   const [error, setError] = useState("");
   const [approvalFilter, setApprovalFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [nameSearch, setNameSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -103,11 +103,12 @@ export default function AdminAccountsPage() {
     }
   }
 
-  const normalizedSearch = nameSearch.trim().toLowerCase();
+  const normalizedSearch = searchQuery.trim().toLowerCase();
   const visibleAccounts = normalizedSearch
     ? accounts.filter((acc) => {
         const fullName = `${acc.firstName || ""} ${acc.lastName || ""}`.trim().toLowerCase();
-        return fullName.includes(normalizedSearch);
+        const phone = String(acc.phone || "").trim().toLowerCase();
+        return fullName.includes(normalizedSearch) || phone.includes(normalizedSearch);
       })
     : accounts;
 
@@ -163,9 +164,9 @@ export default function AdminAccountsPage() {
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            value={nameSearch}
-            onChange={(e) => setNameSearch(e.target.value)}
-            placeholder="ابحث عن زبون بالاسم الكامل"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ابحث عن زبون بالاسم أو رقم الهاتف"
             className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pr-10 pl-3 text-sm text-slate-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
           />
         </div>
@@ -197,7 +198,7 @@ export default function AdminAccountsPage() {
                         {acc.firstName} {acc.lastName}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {acc.role === "reparateur" ? "Réparateur" : "Grossiste"}
+                        {acc.role === "reparateur" ? "تاجر أو صاحب محل" : "Grossiste"}
                       </p>
                       <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClass(acc.approvalStatus)}`}>
                         {statusLabel(acc.approvalStatus)}

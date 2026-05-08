@@ -24,7 +24,7 @@ const services = [
   {
     title: "حسابات مهنية",
     description:
-      "برامج للصناعيين والتجار (Réparateur و Grossiste) مع عروض مخصصة.",
+      "برامج للصناعيين والتجار (تاجر أو صاحب محل و Grossiste) مع عروض مخصصة.",
     icon: ShieldCheck,
   },
   {

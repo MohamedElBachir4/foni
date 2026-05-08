@@ -37,6 +37,8 @@ export function buildPhoneCreateComparePayload(args: {
   priceWholesale: string;
   priceReparateur: string;
   details: string;
+  manageStock?: boolean;
+  stock?: string;
   selectedColors: string[];
   pricedOptions: PricedOptionCompare[];
 }): Record<string, unknown> {
@@ -53,6 +55,8 @@ export function buildPhoneCreateComparePayload(args: {
     priceWholesale: args.priceWholesale.trim() ? Number(args.priceWholesale) : undefined,
     priceReparateur: args.priceReparateur.trim() ? Number(args.priceReparateur) : undefined,
     details: args.details.trim(),
+    manageStock: Boolean(args.manageStock),
+    stock: args.manageStock ? Math.max(0, Number(args.stock) || 0) : 0,
     colors: [...args.selectedColors],
     pricedOptions,
   };
@@ -68,6 +72,8 @@ export function snapshotFromPhoneForCopy(phone: {
   priceWholesale?: number;
   priceReparateur?: number;
   details?: string;
+  manageStock?: boolean;
+  stock?: number;
   colors?: string[];
   options?: string[];
   pricedOptions?: Array<{
@@ -108,6 +114,8 @@ export function snapshotFromPhoneForCopy(phone: {
       priceWholesale: phone.priceWholesale != null ? String(phone.priceWholesale) : "",
       priceReparateur: phone.priceReparateur != null ? String(phone.priceReparateur) : "",
       details: phone.details || "",
+      manageStock: Boolean(phone.manageStock),
+      stock: phone.stock != null ? String(phone.stock) : "",
       selectedColors: Array.isArray(phone.colors) ? [...phone.colors] : [],
       pricedOptions,
     })

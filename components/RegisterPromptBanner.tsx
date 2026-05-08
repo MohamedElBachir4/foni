@@ -106,7 +106,7 @@ export function RegisterPromptBanner() {
           </p>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
             استفد من التخفيضات وسهولة الطلبات. اختر{" "}
-            <span className="font-semibold text-slate-800">مصلّحاً</span> أو{" "}
+            <span className="font-semibold text-slate-800">تاجراً أو صاحب محل</span> أو{" "}
             <span className="font-semibold text-slate-800">تاجر جملة</span> — خطوات
             بسيطة مثل المتاجر الاحترافية.
           </p>
@@ -119,7 +119,7 @@ export function RegisterPromptBanner() {
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-md shadow-emerald-600/25 transition hover:bg-emerald-500"
           >
             <Wrench className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
-            تسجيل كمصلّح
+            تسجيل كتاجر أو صاحب محل
           </Link>
           <Link
             href="/accounts?register=grossiste"

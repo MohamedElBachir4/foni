@@ -60,7 +60,7 @@ export function HomePageClient() {
               </p>
               <div className="mb-4 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                 <span className="rounded-full border border-blue-200/70 bg-blue-100/20 px-3 py-1.5 text-xs font-semibold text-blue-100 backdrop-blur-md sm:text-sm">
-                  مصلح أو بائع -15%
+                  تاجر أو صاحب محل -15%
                 </span>
                 <span className="rounded-full border border-sky-200/70 bg-sky-100/20 px-3 py-1.5 text-xs font-semibold text-sky-100 backdrop-blur-md sm:text-sm">
                   تجار الجملة -30%

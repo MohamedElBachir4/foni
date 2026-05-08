@@ -16,7 +16,7 @@ import {
   type PricedOptionFormRow,
   type PricedOptionCompare,
 } from "@/lib/adminPricedOptionsForm";
-import { Package, CheckCircle, AlertCircle, Pencil, Trash2, Copy, Plus } from "lucide-react";
+import { Package, CheckCircle, AlertCircle, Pencil, Trash2, Copy, Plus, Search } from "lucide-react";
 import {
   AdminButton,
   AdminCard,
@@ -33,7 +33,7 @@ const PAGE_SIZE = 12;
 
 const fld =
   "admin-input !h-7 !rounded-md !px-2 !py-1 text-[11px] text-slate-800 placeholder:text-slate-400";
-const fldNum = `${fld} font-mono tabular-nums`;
+const fldNum = `${fld} font-mono tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`;
 const lbl = "mb-0.5 block text-[10px] font-medium text-slate-500";
 
 type AccessoryType = { _id: string; name: string };
@@ -54,6 +54,7 @@ type Accessory = {
   priceWholesale?: number;
   priceReparateur?: number;
   stock?: number;
+  manageStock?: boolean;
   details?: string;
   options?: string[];
   pricedOptions?: PricedOptionCompare[];
@@ -78,6 +79,7 @@ export default function AccessoriesPage() {
   const [priceWholesale, setPriceWholesale] = useState("");
   const [priceReparateur, setPriceReparateur] = useState("");
   const [stock, setStock] = useState("");
+  const [manageStock, setManageStock] = useState(false);
   const [details, setDetails] = useState("");
   const [colors, setColors] = useState<string[]>([]);
   const [pricedOptionRows, setPricedOptionRows] = useState<PricedOptionFormRow[]>([]);
@@ -93,6 +95,11 @@ export default function AccessoriesPage() {
   const [savingAccessory, setSavingAccessory] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedAccessoryIds, setSelectedAccessoryIds] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchTypes = useCallback(async () => {
     try {
@@ -177,6 +184,7 @@ export default function AccessoriesPage() {
     setPriceWholesale("");
     setPriceReparateur("");
     setStock("");
+    setManageStock(false);
     setDetails("");
     setColors([]);
     setPricedOptionRows([]);
@@ -292,7 +300,8 @@ export default function AccessoriesPage() {
       priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
       priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
       priceReparateur: priceReparateur.trim() ? Number(priceReparateur) : undefined,
-      stock: stock.trim() ? Number(stock) : 0,
+      stock: manageStock ? (stock.trim() ? Number(stock) : 0) : 0,
+      manageStock,
       details: details.trim(),
       pricedOptions: pricedValidation.data,
       hasVariants,
@@ -388,6 +397,7 @@ export default function AccessoriesPage() {
       item.priceReparateur != null ? String(item.priceReparateur) : ""
     );
     setStock(item.stock != null ? String(item.stock) : "");
+    setManageStock(Boolean(item.manageStock));
     setDetails(item.details || "");
     setColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
@@ -457,6 +467,7 @@ export default function AccessoriesPage() {
       item.priceReparateur != null ? String(item.priceReparateur) : ""
     );
     setStock(item.stock != null ? String(item.stock) : "");
+    setManageStock(Boolean(item.manageStock));
     setDetails(item.details || "");
     setColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
@@ -515,6 +526,70 @@ export default function AccessoriesPage() {
     }
   }
 
+  function toggleAccessorySelection(id: string) {
+    setSelectedAccessoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function selectAllVisibleAccessories(visibleRows: Accessory[]) {
+    setSelectedAccessoryIds((prev) => {
+      const merged = new Set(prev);
+      for (const row of visibleRows) merged.add(row._id);
+      return [...merged];
+    });
+  }
+
+  function clearSelectedAccessories() {
+    setSelectedAccessoryIds([]);
+  }
+
+  function toggleSelectionMode() {
+    setSelectionMode((prev) => {
+      const next = !prev;
+      if (!next) setSelectedAccessoryIds([]);
+      return next;
+    });
+  }
+
+  async function handleBulkDeleteAccessories() {
+    if (selectedAccessoryIds.length === 0) {
+      setBulkDeleteOpen(false);
+      return;
+    }
+    setBulkDeleting(true);
+    setMessage(null);
+    try {
+      const idsToDelete = [...selectedAccessoryIds];
+      const res = await fetch(`${API_URL}/api/accessories/bulk-delete`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ ids: idsToDelete }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "فشل حذف المنتجات المحددة" });
+        return;
+      }
+      const deletedSet = new Set(idsToDelete);
+      setItems((prev) => prev.filter((item) => !deletedSet.has(item._id)));
+      setSelectedAccessoryIds((prev) => prev.filter((id) => !deletedSet.has(id)));
+      setBulkDeleteOpen(false);
+      setMessage({
+        type: "success",
+        text: `تم حذف ${Number(data.deletedCount || 0)} منتج بنجاح${
+          data.missingCount ? ` (غير موجود: ${data.missingCount})` : ""
+        }`,
+      });
+      await fetchItems();
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم أثناء الحذف الجماعي" });
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   const typeName = (a: Accessory) =>
     typeof a.type === "object" && a.type ? (a.type as AccessoryType).name : "—";
 
@@ -549,8 +624,24 @@ export default function AccessoriesPage() {
 
   const hasIncompleteRows = items.some(accessoryMissingBrandOrModel);
 
-  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const paginatedItems = items.slice(
+  const normalizedSearch = searchInput.trim().toLowerCase();
+  const filteredItems = normalizedSearch
+    ? items.filter((a) => {
+        const text = [
+          a.name,
+          typeName(a),
+          brandName(a),
+          modelName(a),
+          a.details || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        return text.includes(normalizedSearch);
+      })
+    : items;
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const paginatedItems = filteredItems.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
@@ -747,7 +838,7 @@ export default function AccessoriesPage() {
                 />
               </div>
               <div className="min-w-0">
-                <label className={lbl}>Réparateur</label>
+                <label className={lbl}>تاجر أو صاحب محل</label>
                 <input
                   type="number"
                   min={0}
@@ -772,7 +863,19 @@ export default function AccessoriesPage() {
                 onChange={(e) => setStock(e.target.value)}
                 className={fldNum}
                 placeholder="0"
+                disabled={!manageStock}
               />
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={manageStock}
+                  onChange={(e) => setManageStock(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                تفعيل إدارة المخزون
+              </label>
             </div>
 
             <div className="border-t border-slate-100 pt-2">
@@ -878,13 +981,22 @@ export default function AccessoriesPage() {
                 </label>
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <label className={lbl}>
-                    خيارات المنتج (اسم + تجزئة / جملة / مصلح)
+                    خيارات المنتج (اسم + تجزئة / جملة / تاجر أو صاحب محل)
                   </label>
                   <AdminButton
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setPricedOptionRows((prev) => [...prev, createEmptyPricedOptionRow()])}
+                    onClick={() =>
+                      setPricedOptionRows((prev) => [
+                        ...prev,
+                        createEmptyPricedOptionRow({
+                          retailPrice: priceRetail,
+                          wholesalePrice: priceWholesale,
+                          repairPrice: priceReparateur,
+                        }),
+                      ])
+                    }
                     icon={<Plus className="h-3.5 w-3.5" />}
                   >
                     إضافة خيار
@@ -927,7 +1039,7 @@ export default function AccessoriesPage() {
                             title="حذف الخيار"
                           />
                         </div>
-                        <div className="grid grid-cols-3 gap-1.5">
+                        <div className="grid grid-cols-4 gap-1.5">
                           <div>
                             <span className={lbl}>تجزئة</span>
                             <input
@@ -969,7 +1081,7 @@ export default function AccessoriesPage() {
                             />
                           </div>
                           <div>
-                            <span className={lbl}>مصلح</span>
+                            <span className={lbl}>تاجر أو صاحب محل</span>
                             <input
                               type="number"
                               min={1}
@@ -980,6 +1092,25 @@ export default function AccessoriesPage() {
                                 setPricedOptionRows((prev) =>
                                   prev.map((r) =>
                                     r.id === row.id ? { ...r, repairPrice: e.target.value } : r
+                                  )
+                                )
+                              }
+                              className={fldNum}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <span className={lbl}>المخزون</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="1"
+                              inputMode="numeric"
+                              value={row.stock}
+                              onChange={(e) =>
+                                setPricedOptionRows((prev) =>
+                                  prev.map((r) =>
+                                    r.id === row.id ? { ...r, stock: e.target.value } : r
                                   )
                                 )
                               }
@@ -1022,7 +1153,7 @@ export default function AccessoriesPage() {
 
       <AdminCard
         title="منتجات الأكسسوارات المُضافة"
-        description={`المجموع: ${items.length}`}
+        description={`المجموع: ${filteredItems.length}`}
         icon={<Package className="h-5 w-5" />}
       >
         {hasIncompleteRows && (
@@ -1038,8 +1169,65 @@ export default function AccessoriesPage() {
             </p>
           </div>
         )}
+        <div className="mb-3 flex flex-col gap-2">
+          <div className="relative max-w-xl">
+            <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="admin-input w-full py-2 ps-3 pe-9 text-sm"
+              placeholder="ابحث بالاسم، النوع، الماركة، الموديل..."
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <AdminButton
+              variant={selectionMode ? "outline" : "primary"}
+              size="sm"
+              onClick={toggleSelectionMode}
+            >
+              {selectionMode ? "إلغاء وضع التحديد" : "تفعيل التحديد"}
+            </AdminButton>
+            {selectionMode && (
+              <>
+                <AdminButton
+                  variant="outline"
+                  size="sm"
+                  onClick={() => selectAllVisibleAccessories(paginatedItems)}
+                  disabled={paginatedItems.length === 0}
+                >
+                  تحديد الكل (المعروض)
+                </AdminButton>
+                <AdminButton
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSelectedAccessories}
+                  disabled={selectedAccessoryIds.length === 0}
+                >
+                  إلغاء التحديد
+                </AdminButton>
+                <AdminButton
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setBulkDeleteOpen(true)}
+                  disabled={selectedAccessoryIds.length === 0}
+                  loading={bulkDeleting}
+                >
+                  حذف المحدد
+                </AdminButton>
+                <span className="text-xs font-medium text-slate-600">
+                  تم تحديد {selectedAccessoryIds.length} منتج
+                </span>
+              </>
+            )}
+          </div>
+        </div>
         <AdminTable
           columns={[
+            ...(selectionMode ? [{ key: "select", label: "" }] : []),
             { key: "image", label: "الصورة" },
             { key: "name", label: "الاسم" },
             { key: "type", label: "النوع" },
@@ -1047,10 +1235,25 @@ export default function AccessoriesPage() {
             { key: "model", label: "الموديل" },
             { key: "price", label: "السعر" },
             { key: "stock", label: "الكمية" },
+            { key: "stockStatus", label: "حالة المخزون" },
             { key: "actions", label: "إجراءات", className: "w-24" },
           ]}
           rows={paginatedItems.map((a) => ({
             _id: a._id,
+            ...(selectionMode
+              ? {
+                  select: (
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedAccessoryIds.includes(a._id)}
+                        onChange={() => toggleAccessorySelection(a._id)}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                    </div>
+                  ),
+                }
+              : {}),
             image: <AdminTableCellImage src={a.image} alt={a.name} />,
             name: <span className="font-medium text-slate-800">{a.name}</span>,
             type: <span className="text-slate-600">{typeName(a)}</span>,
@@ -1062,6 +1265,25 @@ export default function AccessoriesPage() {
               </span>
             ),
             stock: <span className="text-slate-600">{a.stock ?? 0}</span>,
+            stockStatus: (
+              <span className={`text-xs font-semibold ${
+                !a.manageStock
+                  ? "text-slate-400"
+                  : Number(a.stock || 0) <= 0
+                    ? "text-rose-600"
+                    : Number(a.stock || 0) <= 1
+                      ? "text-amber-600"
+                      : "text-emerald-700"
+              }`}>
+                {!a.manageStock
+                  ? "غير مُفعّل"
+                  : Number(a.stock || 0) <= 0
+                    ? "نفذ المخزون"
+                    : Number(a.stock || 0) <= 1
+                      ? "آخر قطعة"
+                      : "متوفر"}
+              </span>
+            ),
             actions: (
               <div className="flex items-center gap-2">
                 <AdminButton
@@ -1097,18 +1319,54 @@ export default function AccessoriesPage() {
           emptyMessage="لا توجد منتجات مسجلة بعد."
           loading={loading}
         />
-        {items.length > PAGE_SIZE && (
+        {filteredItems.length > PAGE_SIZE && (
           <div className="mt-4 border-t border-slate-200 pt-4">
             <AdminPagination
               page={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
-              totalItems={items.length}
+              totalItems={filteredItems.length}
               pageSize={PAGE_SIZE}
             />
           </div>
         )}
       </AdminCard>
+
+      <AdminModal
+        open={bulkDeleteOpen}
+        onClose={() => !bulkDeleting && setBulkDeleteOpen(false)}
+        title="تأكيد الحذف الجماعي"
+        description="سيتم حذف المنتجات المحددة نهائياً."
+        icon={<Trash2 className="h-5 w-5 text-rose-600" />}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            هل أنت متأكد من حذف {selectedAccessoryIds.length} منتج؟
+            <br />
+            لا يمكن التراجع عن هذه العملية.
+          </p>
+          <div className="flex gap-2">
+            <AdminButton
+              variant="outline"
+              className="flex-1"
+              onClick={() => setBulkDeleteOpen(false)}
+              disabled={bulkDeleting}
+            >
+              إلغاء
+            </AdminButton>
+            <AdminButton
+              variant="danger"
+              className="flex-1"
+              onClick={handleBulkDeleteAccessories}
+              loading={bulkDeleting}
+              disabled={bulkDeleting || selectedAccessoryIds.length === 0}
+            >
+              حذف المحدد
+            </AdminButton>
+          </div>
+        </div>
+      </AdminModal>
     </div>
   );
 }

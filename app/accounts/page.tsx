@@ -248,7 +248,7 @@ function AccountsPageContent() {
                 أنت مسجل الدخول كـ{" "}
                 <span className="font-semibold">
                   {account.firstName} {account.lastName} (
-                  {account.role === "reparateur" ? "Réparateur" : "Grossiste"})
+                  {account.role === "reparateur" ? "تاجر أو صاحب محل" : "Grossiste"})
                 </span>
                 . يمكنك المتابعة في تصفح الموقع أو{" "}
                 <button
@@ -313,7 +313,7 @@ function AccountsPageContent() {
                     </p>
                     <p className="text-xs text-slate-500 sm:text-sm">
                       نوع الحساب:{" "}
-                      {account.role === "reparateur" ? "Réparateur" : "Grossiste"}
+                      {account.role === "reparateur" ? "تاجر أو صاحب محل" : "Grossiste"}
                     </p>
                   </div>
                 </div>
@@ -400,7 +400,7 @@ function AccountsPageContent() {
                 اختر نوع الحساب المهني
               </h1>
               <p className="text-xs text-slate-600 sm:text-sm">
-                اختر بين حساب <span className="font-semibold">Réparateur</span> أو{" "}
+                اختر بين حساب <span className="font-semibold">تاجر أو صاحب محل</span> أو{" "}
                 <span className="font-semibold">Grossiste</span> للاستفادة من التخفيضات.
               </p>
             </div>
@@ -408,12 +408,12 @@ function AccountsPageContent() {
 
             {!account && (
             <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              {/* حساب Réparateur */}
+              {/* حساب تاجر أو صاحب محل */}
               <article className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300/70 hover:bg-white sm:p-5">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="text-sm font-bold text-slate-900 sm:text-base">
-                      حساب Réparateur
+                      حساب تاجر أو صاحب محل
                     </h2>
                     <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm sm:text-xs">
                       -15% تخفيض
@@ -433,7 +433,7 @@ function AccountsPageContent() {
                   }`}
                   onClick={() => setRole("reparateur")}
                 >
-                  اختيار حساب Réparateur
+                  اختيار حساب تاجر أو صاحب محل
                 </button>
               </article>
 
@@ -475,7 +475,7 @@ function AccountsPageContent() {
                 className="mt-6 scroll-mt-28 space-y-3 border-t border-slate-100 pt-4 sm:scroll-mt-32"
               >
                 <h2 className="text-sm font-bold text-slate-900 sm:text-base">
-                  {isReparateur ? "معلومات حساب Réparateur" : "معلومات حساب Grossiste"}
+                  {isReparateur ? "معلومات حساب تاجر أو صاحب محل" : "معلومات حساب Grossiste"}
                 </h2>
                 <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
                   <div className="space-y-1">

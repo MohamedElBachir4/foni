@@ -579,7 +579,7 @@ export default function CheckoutPage() {
               <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
                 أنت مسجّل الدخول كـ{" "}
                 <span className="font-bold">
-                  {account.role === "grossiste" ? "بائع جملة" : "مصلح"}
+                  {account.role === "grossiste" ? "بائع جملة" : "تاجر أو صاحب محل"}
                 </span>
                 {" — "}
                 سيُسجّل الطلب تلقائياً بهذا النوع.

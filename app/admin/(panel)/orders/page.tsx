@@ -46,7 +46,7 @@ const statusClasses: Record<string, string> = {
 const customerTypeLabels: Record<string, string> = {
   retail: "زبون عادي",
   wholesale: "بائع جملة",
-  repairer: "مصلح",
+  repairer: "تاجر أو صاحب محل",
 };
 
 function orderItemLineTotal(item: OrderItem): number {

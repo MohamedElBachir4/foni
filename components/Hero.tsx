@@ -92,7 +92,7 @@ export function Hero() {
             <div className="mb-3 flex flex-wrap justify-center gap-1.5 sm:mb-5 sm:justify-start sm:gap-3 lg:mb-6">
               <div className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-white/30 bg-white/20 px-2 py-1.5 backdrop-blur-md sm:gap-2 sm:rounded-2xl sm:px-4 sm:py-2.5">
                 <Tag className="h-2.5 w-2.5 text-yellow-300 sm:h-4 sm:w-4" />
-                <span className="text-xs font-medium sm:text-base">مصلح أو بائع -15%</span>
+                <span className="text-xs font-medium sm:text-base">تاجر أو صاحب محل -15%</span>
               </div>
               <div className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-white/30 bg-white/20 px-2 py-1.5 backdrop-blur-md sm:gap-2 sm:rounded-2xl sm:px-4 sm:py-2.5">
                 <Truck className="h-2.5 w-2.5 text-yellow-300 sm:h-4 sm:w-4" />

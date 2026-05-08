@@ -227,6 +227,7 @@ export default async function ProductDetailPage({
     pricedOptions?: PricedVariant[];
     hasVariants?: boolean;
     stock?: number;
+    manageStock?: boolean;
   } | null = null;
   let source: "static" | "phone" | "sparePart" | "accessory" = "static";
   let brandLabel = "";
@@ -302,6 +303,7 @@ export default async function ProductDetailPage({
               : [],
           pricedOptions: priced.length ? priced : undefined,
           stock: typeof phone.stock === "number" ? phone.stock : undefined,
+          manageStock: Boolean(phone.manageStock),
         };
         source = "phone";
       }
@@ -381,6 +383,8 @@ export default async function ProductDetailPage({
               : [],
           pricedOptions: pricedPart.length ? pricedPart : undefined,
           hasVariants: Boolean(part.hasVariants),
+          stock: typeof part.stock === "number" ? (part.stock as number) : undefined,
+          manageStock: Boolean(part.manageStock),
         };
         source = "sparePart";
         sparePartContext = {
@@ -461,6 +465,7 @@ export default async function ProductDetailPage({
           pricedOptions: pricedAcc.length ? pricedAcc : undefined,
           hasVariants: Boolean(acc.hasVariants),
           stock: typeof acc.stock === "number" ? acc.stock : undefined,
+          manageStock: Boolean(acc.manageStock),
         };
         source = "accessory";
       }
@@ -668,6 +673,7 @@ export default async function ProductDetailPage({
             pricedOptions: product.pricedOptions,
             hasVariants: product.hasVariants,
             stock: product.stock,
+            manageStock: product.manageStock,
           }}
           relatedProducts={relatedProducts}
         />
