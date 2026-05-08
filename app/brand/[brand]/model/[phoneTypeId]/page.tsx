@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Smartphone, Headphones, Wrench } from "lucide-react";
+import { Smartphone, Headphones, Wrench, Heart } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { ProductImage } from "@/components/ProductImage";
+import { ProductCardActions } from "@/components/ProductCardActions";
+import { formatDzd } from "@/lib/pricing";
 
 import { publicFetch } from "@/lib/publicFetch";
 
@@ -131,24 +134,50 @@ export default async function ModelHubPage({
                 لا توجد هواتف لهذا الموديل حالياً.
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
                 {phones.map((item) => (
-                  <Link
+                  <article
                     key={item._id}
-                    href={`/product/${item._id}`}
-                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                    className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl sm:rounded-[1.25rem]"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.image || "/LOGO.jpeg"}
-                      alt={item.name}
-                      className="h-40 w-full object-contain bg-slate-50 p-2"
-                    />
-                    <div className="p-3">
-                      <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.name}</p>
-                      <p className="mt-1 text-sm font-bold text-blue-600">{effectivePrice(item).toLocaleString()} دج</p>
+                    <div className="relative flex min-h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:min-h-[130px] sm:py-4">
+                      <ProductImage
+                        src={item.image || "/LOGO.jpeg"}
+                        alt={item.name}
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="w-full max-w-[100px] object-contain sm:max-w-[130px]"
+                      />
+                      <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm sm:start-4 sm:top-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
+                        هواتف
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="إضافة للمفضلة"
+                        className="absolute end-3 top-3 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-red-500 sm:end-4 sm:top-4 sm:p-2"
+                      >
+                        <Heart className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5" strokeWidth={1.5} />
+                      </button>
                     </div>
-                  </Link>
+                    <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
+                      <h3 className="mb-2 text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">
+                        {item.name}
+                      </h3>
+                      <p className="mb-2 text-center">
+                        <span className="text-xl font-black text-slate-900 sm:text-2xl">
+                          {formatDzd(effectivePrice(item))}
+                        </span>
+                        <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
+                      </p>
+                      <ProductCardActions
+                        id={item._id}
+                        name={item.name}
+                        price={effectivePrice(item)}
+                      alt={item.name}
+                        image={item.image || ""}
+                        category="هواتف"
+                      />
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
@@ -164,24 +193,48 @@ export default async function ModelHubPage({
                 لا توجد قطع غيار لهذا الموديل حالياً.
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
                 {spareParts.map((item) => (
-                  <Link
+                  <article
                     key={item._id}
-                    href={`/product/${item._id}`}
-                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                    className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl sm:rounded-[1.25rem]"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.image || "/LOGO.jpeg"}
-                      alt={item.name}
-                      className="h-40 w-full object-contain bg-slate-50 p-2"
-                    />
-                    <div className="p-3">
-                      <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.name}</p>
-                      <p className="mt-1 text-sm font-bold text-emerald-600">{effectivePrice(item).toLocaleString()} دج</p>
+                    <div className="relative flex min-h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:min-h-[130px] sm:py-4">
+                      <ProductImage
+                        src={item.image || "/LOGO.jpeg"}
+                        alt={item.name}
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="w-full max-w-[100px] object-contain sm:max-w-[130px]"
+                      />
+                      <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm sm:start-4 sm:top-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
+                        قطعة غيار
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="إضافة للمفضلة"
+                        className="absolute end-3 top-3 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-red-500 sm:end-4 sm:top-4 sm:p-2"
+                      >
+                        <Heart className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5" strokeWidth={1.5} />
+                      </button>
                     </div>
-                  </Link>
+                    <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
+                      <p className="mb-2 text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">{item.name}</p>
+                      <p className="mb-2 text-center">
+                        <span className="text-xl font-black text-slate-900 sm:text-2xl">
+                          {formatDzd(effectivePrice(item))}
+                        </span>
+                        <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
+                      </p>
+                      <ProductCardActions
+                        id={item._id}
+                        name={item.name}
+                        price={effectivePrice(item)}
+                      alt={item.name}
+                        image={item.image || ""}
+                        category="قطع غيار"
+                      />
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
@@ -197,24 +250,48 @@ export default async function ModelHubPage({
                 لا توجد إكسسوارات لهذا الموديل حالياً.
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
                 {accessories.map((item) => (
-                  <Link
+                  <article
                     key={item._id}
-                    href={`/product/${item._id}`}
-                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                    className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl sm:rounded-[1.25rem]"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.image || "/LOGO.jpeg"}
-                      alt={item.name}
-                      className="h-40 w-full object-contain bg-slate-50 p-2"
-                    />
-                    <div className="p-3">
-                      <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.name}</p>
-                      <p className="mt-1 text-sm font-bold text-fuchsia-600">{effectivePrice(item).toLocaleString()} دج</p>
+                    <div className="relative flex min-h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:min-h-[130px] sm:py-4">
+                      <ProductImage
+                        src={item.image || "/LOGO.jpeg"}
+                        alt={item.name}
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="w-full max-w-[100px] object-contain sm:max-w-[130px]"
+                      />
+                      <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm sm:start-4 sm:top-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
+                        أكسسوارات
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="إضافة للمفضلة"
+                        className="absolute end-3 top-3 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-red-500 sm:end-4 sm:top-4 sm:p-2"
+                      >
+                        <Heart className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5" strokeWidth={1.5} />
+                      </button>
                     </div>
-                  </Link>
+                    <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
+                      <p className="mb-2 text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">{item.name}</p>
+                      <p className="mb-2 text-center">
+                        <span className="text-xl font-black text-slate-900 sm:text-2xl">
+                          {formatDzd(effectivePrice(item))}
+                        </span>
+                        <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
+                      </p>
+                      <ProductCardActions
+                        id={item._id}
+                        name={item.name}
+                        price={effectivePrice(item)}
+                      alt={item.name}
+                        image={item.image || ""}
+                        category="أكسسوارات"
+                      />
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
