@@ -16,6 +16,7 @@ type ProductGridProps = {
   selectedBrandId: string | null;
   /** موديل نوع الهاتف (ObjectId) — يضيّق قائمة الهواتف عند الوجود */
   phoneTypeId?: string | null;
+  mixedLatest?: boolean;
 };
 
 const MONGO_ID = /^[a-f0-9]{24}$/i;
@@ -57,7 +58,11 @@ function mapApiPhoneToProduct(phone: {
   return base;
 }
 
-export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: ProductGridProps) {
+export function ProductGrid({
+  selectedBrandId,
+  phoneTypeId: phoneTypeIdProp,
+  mixedLatest = false,
+}: ProductGridProps) {
   const phoneTypeId = useMemo(() => {
     if (!phoneTypeIdProp || !MONGO_ID.test(phoneTypeIdProp)) return null;
     return phoneTypeIdProp;
@@ -110,14 +115,18 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
     let cancelled = false;
     setApiLoading(true);
 
-    const q = new URLSearchParams();
-    if (selectedBrandId && selectedBrandId !== "all") {
-      q.set("brand", selectedBrandId);
-    }
-    if (phoneTypeId) q.set("phoneType", phoneTypeId);
-    const query = q.toString() ? `?${q.toString()}` : "";
+    const isMixedHome = mixedLatest && !selectedBrandId && !phoneTypeId;
+    const endpoint = (() => {
+      if (isMixedHome) return "/api/home/latest-products";
+      const q = new URLSearchParams();
+      if (selectedBrandId && selectedBrandId !== "all") {
+        q.set("brand", selectedBrandId);
+      }
+      if (phoneTypeId) q.set("phoneType", phoneTypeId);
+      return `/api/phones${q.toString() ? `?${q.toString()}` : ""}`;
+    })();
 
-    publicFetch(`/api/phones${query}`, {
+    publicFetch(endpoint, {
       // LTE: avoid very long blocking spinner on home page.
       timeoutMs: 18_000,
       maxRetries: 1,
@@ -128,6 +137,25 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
         if (cancelled) return;
         const mapped = Array.isArray(data)
           ? (() => {
+              if (isMixedHome) {
+                return data.map((row: any) => ({
+                  id: String(row.id || row._id || ""),
+                  name: String(row.name || ""),
+                  price: Number(row.price ?? 0),
+                  priceRetail:
+                    typeof row.priceRetail === "number" ? row.priceRetail : undefined,
+                  priceWholesale:
+                    typeof row.priceWholesale === "number" ? row.priceWholesale : undefined,
+                  priceReparateur:
+                    typeof row.priceReparateur === "number" ? row.priceReparateur : undefined,
+                  brand: "",
+                  category: String(row.category || "هواتف"),
+                  image: String(row.image || ""),
+                  colors: Array.isArray(row.colors) ? row.colors : [],
+                  options: Array.isArray(row.options) ? row.options : [],
+                  createdAt: row.createdAt,
+                }));
+              }
               const list = data.map(mapApiPhoneToProduct);
               const isApple =
                 list.length > 0 && list[0]!.brand === "apple";
@@ -166,7 +194,7 @@ export function ProductGrid({ selectedBrandId, phoneTypeId: phoneTypeIdProp }: P
     return () => {
       cancelled = true;
     };
-  }, [selectedBrandId, phoneTypeId, queryKey]);
+  }, [selectedBrandId, phoneTypeId, queryKey, mixedLatest]);
 
   const isBrandPage = !!(selectedBrandId && selectedBrandId !== "all");
 

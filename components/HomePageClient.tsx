@@ -85,7 +85,7 @@ export function HomePageClient() {
         </section>
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <CategorySlider />
-          <ProductGrid selectedBrandId={selectedBrandId} />
+          <ProductGrid selectedBrandId={selectedBrandId} mixedLatest />
           <BrandGrid
             selectedBrandId={selectedBrandId}
             onSelectBrand={setSelectedBrandId}
