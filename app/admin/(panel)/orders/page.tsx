@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAuthHeaders } from "@/lib/adminAuth";
+import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
 import { User, Phone, MapPin, Package, Calendar, Loader2 } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 const YALIDINE_MAX_PRICE = 150000;
 
 type OrderVariantLine = { label: string; price: number; quantity: number };

@@ -6,12 +6,24 @@ export function getBrowserApiBase(): string {
   const raw = process.env.NEXT_PUBLIC_API_URL;
   const trimmed = raw != null ? String(raw).trim() : "";
   if (trimmed && /^https?:\/\//i.test(trimmed)) {
-    return trimmed.replace(/\/+$/, "");
+    const cleaned = trimmed.replace(/\/+$/, "");
+    try {
+      const u = new URL(cleaned);
+      // بعض البيئات تُضبط خطأً على www.api.foni-dz.com (غير مستقر على بعض الشبكات).
+      // نطبّعه إلى api.foni-dz.com لتفادي أعطال LTE/DNS المتقطعة.
+      if (u.hostname === "www.api.foni-dz.com") {
+        u.hostname = "api.foni-dz.com";
+        return u.toString().replace(/\/+$/, "");
+      }
+      return cleaned;
+    } catch {
+      return cleaned;
+    }
   }
   if (typeof window !== "undefined") {
     return "";
   }
-  return "http://localhost:5000";
+  return "http://localhost:5001";
 }
 
 export function apiUrl(path: string): string {

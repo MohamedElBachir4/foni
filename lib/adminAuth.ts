@@ -4,7 +4,7 @@ function getApiBase(): string {
   // Browser: use same-origin /api (handled by Next rewrites/proxy in deployment).
   if (typeof window !== "undefined") return "";
   // Server-side fallback for local dev/runtime scripts.
-  return "http://localhost:5000";
+  return "http://localhost:5001";
 }
 
 const API_URL = getApiBase();

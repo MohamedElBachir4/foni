@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/seo";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();
