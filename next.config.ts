@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "www.spiringo.com", pathname: "/**" },
       { protocol: "http", hostname: "localhost", pathname: "/**" },
       { protocol: "https", hostname: "localhost", pathname: "/**" },
-      { protocol: "http", hostname: "127.0.0.1", pathname: "/**" },
+      { protocol: "https", hostname: "api.foni-dz.com", pathname: "/**" },
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1440, 1920, 2048],
     imageSizes: [96, 128, 160, 256, 384, 512, 640],
@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
   async rewrites() {
-    const raw = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001";
+    const raw = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
     const base = String(raw).replace(/\/+$/, "");
     return [
       {
