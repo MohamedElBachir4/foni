@@ -209,12 +209,22 @@ export default function AdminSparePartsPage() {
           // Backward-compatible: some deployed backends still read `q` instead of `search`.
           query += `&search=${encoded}&q=${encoded}`;
         }
-        const listPath = getToken()
-          ? `${API_URL}/api/admin/spare-parts`
-          : `${API_URL}/api/spare-parts`;
-        const res = await fetch(`${listPath}${query}`, {
+        // أساسي: /api/spare-parts/_admin/list — احتياطي: /api/admin/spare-parts (كلاهما في المستودع الحالي)
+        const primaryUrl = getToken()
+          ? `${API_URL}/api/spare-parts/_admin/list${query}`
+          : `${API_URL}/api/spare-parts${query}`;
+        const fallbackUrl =
+          getToken() ? `${API_URL}/api/admin/spare-parts${query}` : null;
+
+        let res = await fetch(primaryUrl, {
           headers: getAuthHeaders(), credentials: 'include',
          });
+        if (!res.ok && res.status === 404 && fallbackUrl) {
+          res = await fetch(fallbackUrl, {
+            headers: getAuthHeaders(),
+            credentials: "include",
+          });
+        }
         if (res.ok) {
           const data = await res.json();
           const list = data.parts ?? (Array.isArray(data) ? data : []);
