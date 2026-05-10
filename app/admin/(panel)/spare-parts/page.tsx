@@ -210,7 +210,7 @@ export default function AdminSparePartsPage() {
           query += `&search=${encoded}&q=${encoded}`;
         }
         const listPath = getToken()
-          ? `${API_URL}/api/spare-parts/panel`
+          ? `${API_URL}/api/admin/spare-parts`
           : `${API_URL}/api/spare-parts`;
         const res = await fetch(`${listPath}${query}`, {
           headers: getAuthHeaders(), credentials: 'include',
