@@ -209,7 +209,10 @@ export default function AdminSparePartsPage() {
           // Backward-compatible: some deployed backends still read `q` instead of `search`.
           query += `&search=${encoded}&q=${encoded}`;
         }
-        const res = await fetch(`${API_URL}/api/spare-parts${query}`, {
+        const listPath = getToken()
+          ? `${API_URL}/api/spare-parts/panel`
+          : `${API_URL}/api/spare-parts`;
+        const res = await fetch(`${listPath}${query}`, {
           headers: getAuthHeaders(), credentials: 'include',
          });
         if (res.ok) {
