@@ -14,11 +14,17 @@ export function parsePricedVariantsFromApi(raw: unknown): PricedVariant[] {
     if (!x || typeof x !== "object") continue;
     const o = x as Record<string, unknown>;
     const label = String(o.label ?? "").trim();
-    const retailPrice = Number(o.retailPrice);
-    const wholesalePrice = Number(o.wholesalePrice);
-    const repairPrice = Number(o.repairPrice);
+    const retailRaw = Number(o.retailPrice);
+    const wholesaleRaw = Number(o.wholesalePrice);
+    const repairRaw = Number(o.repairPrice);
     const stockRaw = Number(o.stock);
-    if (!label || !(retailPrice > 0) || !(wholesalePrice > 0) || !(repairPrice > 0)) continue;
+    if (!label || !(retailRaw > 0)) continue;
+    // استجابة الزبائن بعد sanitize تحوي غالباً تجزئة فقط؛ حسابات أخرى قد تعيد حقلين فقط.
+    const retailPrice = retailRaw;
+    const wholesalePrice =
+      Number.isFinite(wholesaleRaw) && wholesaleRaw > 0 ? wholesaleRaw : retailPrice;
+    const repairPrice =
+      Number.isFinite(repairRaw) && repairRaw > 0 ? repairRaw : retailPrice;
     out.push({
       label,
       retailPrice,
