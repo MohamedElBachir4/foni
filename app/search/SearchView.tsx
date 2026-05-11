@@ -83,7 +83,7 @@ function SearchBody() {
       try {
         const u = new URLSearchParams();
         u.set("q", query.trim());
-        u.set("limit", "24");
+        u.set("limit", "50");
         if (sectionApi) u.set("section", sectionApi);
         const res = await publicFetch(`/api/search?${u.toString()}`, {
           cache: "no-store",

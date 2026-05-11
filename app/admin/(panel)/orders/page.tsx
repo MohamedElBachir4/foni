@@ -59,6 +59,13 @@ function orderItemLineTotal(item: OrderItem): number {
   return (Number(item.price) || 0) * (Number(item.quantity) || 0);
 }
 
+/** كمية آمنة قبل الإرسال إلى Yalidine (الحد الأدنى 1، حد أعلى معقول) */
+function clampOrderQty(raw: string | number): number {
+  const n = typeof raw === "number" ? raw : parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(99999, Math.floor(n));
+}
+
 const customerTypeClasses: Record<string, string> = {
   retail: "bg-slate-100 text-slate-700",
   wholesale: "bg-violet-100 text-violet-800",
@@ -83,16 +90,6 @@ export default function AdminOrdersPage() {
 
     console.log("Updating order status:", { orderId: cleanId, status });
 
-    if (status === "cancelled") {
-      if (
-        !confirm(
-          "هل تريد إلغاء هذا الطلب؟ سيبقى في سجل الطلبات ويظهر للزبون كحالة «ملغى»."
-        )
-      ) {
-        return;
-      }
-    }
-
     setUpdatingId(cleanId);
     try {
       const url = `${API_URL}/api/orders/${cleanId}/status`;
@@ -111,7 +108,6 @@ export default function AdminOrdersPage() {
         if (status === "completed") {
           console.log("Order completed, removing from list");
           setOrders((prev) => prev.filter((o) => o._id !== cleanId));
-          alert("تم نقل الطلب إلى الأرشيف");
         } else {
           setOrders((prev) =>
             prev.map((o) => (o._id === cleanId ? { ...o, ...data } : o))
@@ -186,15 +182,52 @@ export default function AdminOrdersPage() {
     );
   }
 
+  function updateOrderItemQuantity(orderId: string, idx: number, value: string) {
+    const qty = clampOrderQty(value);
+    setOrders((prev) =>
+      prev.map((order) => {
+        if (order._id !== orderId) return order;
+        const nextItems = order.items.map((item, itemIdx) => {
+          if (itemIdx !== idx) return item;
+          return { ...item, quantity: qty };
+        });
+        const nextTotal = nextItems.reduce((sum, i) => sum + orderItemLineTotal(i), 0);
+        return { ...order, items: nextItems, totalPrice: nextTotal };
+      })
+    );
+  }
+
+  function updateOrderVariantQuantity(
+    orderId: string,
+    itemIdx: number,
+    variantLabel: string,
+    value: string
+  ) {
+    const qty = clampOrderQty(value);
+    setOrders((prev) =>
+      prev.map((order) => {
+        if (order._id !== orderId) return order;
+        const nextItems = order.items.map((item, i) => {
+          if (i !== itemIdx) return item;
+          const vs = item.variantSelections;
+          if (!Array.isArray(vs) || vs.length === 0) return item;
+          const nextVs = vs.map((v) =>
+            v.label === variantLabel ? { ...v, quantity: qty } : v
+          );
+          const sumQty = nextVs.reduce((s, v) => s + clampOrderQty(v.quantity), 0);
+          return { ...item, variantSelections: nextVs, quantity: sumQty };
+        });
+        const nextTotal = nextItems.reduce((sum, it) => sum + orderItemLineTotal(it), 0);
+        return { ...order, items: nextItems, totalPrice: nextTotal };
+      })
+    );
+  }
+
   async function sendOrderToYalidine(order: Order) {
     if (order.yalidineTracking) {
-      alert("تم إرسال هذا الطلب مسبقاً إلى Yalidine");
       return;
     }
     if ((Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE) {
-      alert(
-        `Yalidine تقبل مبلغ تحصيل حتى ${YALIDINE_MAX_PRICE.toLocaleString()} دج فقط. عدّل أسعار المنتجات قبل الإرسال.`
-      );
       return;
     }
     setSendingId(order._id);
@@ -227,9 +260,8 @@ export default function AdminOrdersPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "فشل الإرسال إلى Yalidine");
       setOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, ...data } : o)));
-      alert("تم إرسال الطلب إلى Yalidine بنجاح");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "فشل الإرسال");
+      console.error("sendOrderToYalidine error:", err);
     } finally {
       setSendingId(null);
     }
@@ -281,7 +313,7 @@ export default function AdminOrdersPage() {
     <div className="mx-auto max-w-4xl">
       <AdminPageHeader
         title="الطلبات"
-        description="جميع الطلبات القادمة من الموقع"
+        description="عدّل الكمية أو السعر قبل «إرسال إلى Yalidine» — تُحفظ في الطلب عند نجاح الإرسال؛ قبل ذلك التعديلات في هذه الصفحة فقط."
         icon={<Package className="h-5 w-5" />}
       />
 
@@ -409,11 +441,37 @@ export default function AdminOrdersPage() {
                             />
                             <span className="mt-1 inline-block text-xs text-slate-500">
                               {item.variantSelections?.length ? (
-                                <span className="block space-y-0.5">
+                                <span className="block space-y-1.5">
                                   {item.variantSelections.map((v) => (
-                                    <span key={v.label} className="block">
-                                      {v.label} × {v.quantity} —{" "}
-                                      {(Number(v.price) * Number(v.quantity)).toLocaleString()} دج
+                                    <span
+                                      key={v.label}
+                                      className="flex flex-wrap items-center gap-2 rounded border border-slate-200/80 bg-white px-2 py-1.5"
+                                    >
+                                      <span className="min-w-0 flex-1 font-medium text-slate-700">
+                                        {v.label}
+                                      </span>
+                                      <label className="flex shrink-0 items-center gap-1 text-slate-600">
+                                        <span className="whitespace-nowrap">كمية</span>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          step={1}
+                                          disabled={Boolean(order.yalidineTracking)}
+                                          value={v.quantity}
+                                          onChange={(e) =>
+                                            updateOrderVariantQuantity(
+                                              order._id,
+                                              i,
+                                              v.label,
+                                              e.target.value
+                                            )
+                                          }
+                                          className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center text-slate-800"
+                                        />
+                                      </label>
+                                      <span className="shrink-0 text-slate-500">
+                                        {(Number(v.price) * Number(v.quantity)).toLocaleString()} دج
+                                      </span>
                                     </span>
                                   ))}
                                   <span className="font-semibold text-slate-600">
@@ -421,10 +479,25 @@ export default function AdminOrdersPage() {
                                   </span>
                                 </span>
                               ) : (
-                                <>
-                                  الكمية: {item.quantity}
-                                  {item.option ? ` - الخيار: ${item.option}` : ""}
-                                </>
+                                <span className="flex flex-wrap items-center gap-2">
+                                  <label className="flex items-center gap-1 text-slate-600">
+                                    <span>الكمية</span>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      step={1}
+                                      disabled={Boolean(order.yalidineTracking)}
+                                      value={item.quantity}
+                                      onChange={(e) =>
+                                        updateOrderItemQuantity(order._id, i, e.target.value)
+                                      }
+                                      className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center text-slate-800"
+                                    />
+                                  </label>
+                                  {item.option ? (
+                                    <span className="text-slate-600">— الخيار: {item.option}</span>
+                                  ) : null}
+                                </span>
                               )}
                             </span>
                           </span>

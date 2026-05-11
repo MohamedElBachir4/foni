@@ -12,6 +12,7 @@ import {
 } from "@/lib/productPricedOptions";
 
 export const dynamic = "force-dynamic";
+const DIGITS_ONLY = /^\d+$/;
 
 function normalizeExtraImages(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -50,7 +51,7 @@ type RelatedPhone = {
 };
 
 async function getProductSeoData(id: string) {
-  const numericId = Number.parseInt(id, 10);
+  const numericId = DIGITS_ONLY.test(id) ? Number.parseInt(id, 10) : Number.NaN;
   if (!Number.isNaN(numericId)) {
     const staticProduct = getProductById(numericId);
     if (staticProduct) {
@@ -206,7 +207,7 @@ export default async function ProductDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const numericId = Number.parseInt(id, 10);
+  const numericId = DIGITS_ONLY.test(id) ? Number.parseInt(id, 10) : Number.NaN;
   const isNumericId = !Number.isNaN(numericId);
 
   let product: {
