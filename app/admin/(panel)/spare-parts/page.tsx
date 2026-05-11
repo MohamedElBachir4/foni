@@ -28,6 +28,7 @@ import {
   Search,
   Copy,
   Plus,
+  Eye,
 } from "lucide-react";
 import {
   AdminButton,
@@ -81,6 +82,30 @@ type InlinePriceDraft = {
   priceRetail: string;
   priceWholesale: string;
   priceReparateur: string;
+};
+
+type ImportArchiveStatus = "success" | "partial" | "failed" | "deleted";
+
+type ImportArchiveItem = {
+  _id: string;
+  fileName: string;
+  uploadedByAdminEmail?: string;
+  status: ImportArchiveStatus;
+  createdAt: string;
+  report?: {
+    createdProducts?: number;
+    errorRows?: number;
+  };
+};
+
+type ImportArchiveProduct = {
+  _id: string;
+  name: string;
+  image?: string;
+  priceRetail?: number;
+  price?: number;
+  createdAt?: string;
+  phoneType?: { _id?: string; name?: string } | string | null;
 };
 
 const fld =
@@ -156,6 +181,25 @@ export default function AdminSparePartsPage() {
   const [selectedPartIds, setSelectedPartIds] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [archives, setArchives] = useState<ImportArchiveItem[]>([]);
+  const [archivePage, setArchivePage] = useState(1);
+  const [archiveTotalPages, setArchiveTotalPages] = useState(1);
+  const [archiveTotal, setArchiveTotal] = useState(0);
+  const [archivesLoading, setArchivesLoading] = useState(false);
+  const [archiveDetailsOpen, setArchiveDetailsOpen] = useState(false);
+  const [selectedArchive, setSelectedArchive] = useState<ImportArchiveItem | null>(null);
+  const [archiveProducts, setArchiveProducts] = useState<ImportArchiveProduct[]>([]);
+  const [archiveProductsLoading, setArchiveProductsLoading] = useState(false);
+  const [archiveProductsPage, setArchiveProductsPage] = useState(1);
+  const [archiveProductsTotalPages, setArchiveProductsTotalPages] = useState(1);
+  const [archiveProductsTotal, setArchiveProductsTotal] = useState(0);
+  const [archiveDeleting, setArchiveDeleting] = useState(false);
+  const [archiveConfirm, setArchiveConfirm] = useState<{
+    mode: "single" | "all";
+    archiveId: string;
+    productId?: string;
+    productName?: string;
+  } | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 400);
@@ -247,6 +291,60 @@ export default function AdminSparePartsPage() {
     []
   );
 
+  const fetchImportArchives = useCallback(async (page = 1) => {
+    setArchivesLoading(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/spare-parts/import-archives?page=${page}&limit=8`,
+        { headers: getAuthHeaders(), credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setArchives([]);
+        setArchiveTotalPages(1);
+        setArchiveTotal(0);
+        return;
+      }
+      const list = Array.isArray(data.archives) ? data.archives : [];
+      setArchives(list);
+      setArchiveTotalPages(data.totalPages ?? 1);
+      setArchiveTotal(data.total ?? list.length);
+    } catch {
+      setArchives([]);
+      setArchiveTotalPages(1);
+      setArchiveTotal(0);
+    } finally {
+      setArchivesLoading(false);
+    }
+  }, []);
+
+  const fetchArchiveProducts = useCallback(async (archiveId: string, page = 1) => {
+    setArchiveProductsLoading(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/spare-parts/import-archives/${archiveId}/products?page=${page}&limit=10`,
+        { headers: getAuthHeaders(), credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setArchiveProducts([]);
+        setArchiveProductsTotalPages(1);
+        setArchiveProductsTotal(0);
+        return;
+      }
+      const list = Array.isArray(data.products) ? data.products : [];
+      setArchiveProducts(list);
+      setArchiveProductsTotalPages(data.totalPages ?? 1);
+      setArchiveProductsTotal(data.total ?? list.length);
+    } catch {
+      setArchiveProducts([]);
+      setArchiveProductsTotalPages(1);
+      setArchiveProductsTotal(0);
+    } finally {
+      setArchiveProductsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchBrands();
   }, [fetchBrands]);
@@ -264,6 +362,15 @@ export default function AdminSparePartsPage() {
   useEffect(() => {
     fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
   }, [fetchParts, brandFilter, currentPage, debouncedSearch]);
+
+  useEffect(() => {
+    fetchImportArchives(archivePage);
+  }, [fetchImportArchives, archivePage]);
+
+  useEffect(() => {
+    if (!selectedArchive?._id) return;
+    fetchArchiveProducts(selectedArchive._id, archiveProductsPage);
+  }, [fetchArchiveProducts, selectedArchive, archiveProductsPage]);
 
   function sparePartPhoneTypeIds(item: SparePart): string[] {
     const out: string[] = [];
@@ -390,6 +497,68 @@ export default function AdminSparePartsPage() {
   function retailValueOf(item: SparePart): number {
     const v = item.priceRetail ?? item.price ?? 0;
     return Number.isFinite(Number(v)) ? Number(v) : 0;
+  }
+
+  function formatDateTime(v?: string): string {
+    if (!v) return "—";
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("ar-DZ");
+  }
+
+  function archiveStatusBadge(status: ImportArchiveStatus) {
+    if (status === "success") {
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    }
+    if (status === "partial") {
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    }
+    return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+
+  async function openArchiveDetails(archive: ImportArchiveItem) {
+    setSelectedArchive(archive);
+    setArchiveProductsPage(1);
+    setArchiveDetailsOpen(true);
+    await fetchArchiveProducts(archive._id, 1);
+  }
+
+  async function executeArchiveDelete() {
+    if (!archiveConfirm) return;
+    setArchiveDeleting(true);
+    try {
+      const url =
+        archiveConfirm.mode === "all"
+          ? `${API_URL}/api/spare-parts/import-archives/${archiveConfirm.archiveId}/products`
+          : `${API_URL}/api/spare-parts/import-archives/${archiveConfirm.archiveId}/products/${archiveConfirm.productId}`;
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "فشل الحذف" });
+        return;
+      }
+      setMessage({ type: "success", text: data.message || "تم الحذف بنجاح" });
+      setArchiveConfirm(null);
+      await fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
+      await fetchImportArchives(archivePage);
+      if (selectedArchive?._id === archiveConfirm.archiveId) {
+        if (archiveConfirm.mode === "all") {
+          setArchiveDetailsOpen(false);
+          setSelectedArchive(null);
+          setArchiveProducts([]);
+        } else {
+          await fetchArchiveProducts(archiveConfirm.archiveId, archiveProductsPage);
+        }
+      }
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم أثناء الحذف" });
+    } finally {
+      setArchiveDeleting(false);
+    }
   }
 
   function getInlineDraft(item: SparePart): InlinePriceDraft {
@@ -837,6 +1006,8 @@ export default function AdminSparePartsPage() {
         });
         setMessage({ type: "success", text: data.message || "تم انتهاء الاستيراد" });
         fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
+        setArchivePage(1);
+        fetchImportArchives(1);
         setImportFile(null);
         setImportOpen(false);
       } else {
@@ -857,6 +1028,8 @@ export default function AdminSparePartsPage() {
           });
           setImportOpen(false);
           setImportFile(null);
+          setArchivePage(1);
+          fetchImportArchives(1);
         }
       }
     } catch (err) {
@@ -1162,6 +1335,68 @@ export default function AdminSparePartsPage() {
         </AdminCard>
         </div>
       )}
+
+      <AdminCard
+        title="أرشيف الرفع"
+        description={`إجمالي العمليات: ${archivesLoading ? "—" : archiveTotal}`}
+        icon={<FileSpreadsheet className="h-5 w-5 text-emerald-600" />}
+      >
+        <div className="space-y-3">
+          {archivesLoading ? (
+            <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-500">
+              جارٍ تحميل أرشيف الرفع...
+            </div>
+          ) : archives.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+              لا توجد عمليات رفع محفوظة بعد.
+            </div>
+          ) : (
+            archives.map((archive) => (
+              <div
+                key={archive._id}
+                className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold text-slate-800">{archive.fileName}</div>
+                    <div className="text-xs text-slate-500">
+                      {formatDateTime(archive.createdAt)} •
+                      {" "}أنشئ {Number(archive.report?.createdProducts || 0)} منتج
+                      {" "}• {archive.uploadedByAdminEmail || "—"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full border px-2 py-1 text-xs font-semibold ${archiveStatusBadge(
+                        archive.status
+                      )}`}
+                    >
+                      {archive.status}
+                    </span>
+                    <AdminButton
+                      size="sm"
+                      variant="outline"
+                      icon={<Eye className="h-4 w-4" />}
+                      onClick={() => void openArchiveDetails(archive)}
+                    >
+                      عرض المنتجات المرفوعة
+                    </AdminButton>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+          {archiveTotalPages > 1 && (
+            <AdminPagination
+              page={archivePage}
+              totalPages={archiveTotalPages}
+              onPageChange={setArchivePage}
+              totalItems={archiveTotal}
+              pageSize={8}
+            />
+          )}
+        </div>
+      </AdminCard>
 
       <AdminModal
         open={partModalOpen}
@@ -2049,6 +2284,150 @@ export default function AdminSparePartsPage() {
           >
             إغلاق النافذة
           </AdminButton>
+        </div>
+      </AdminModal>
+
+      <AdminModal
+        open={archiveDetailsOpen}
+        onClose={() => {
+          if (archiveDeleting) return;
+          setArchiveDetailsOpen(false);
+          setSelectedArchive(null);
+          setArchiveProducts([]);
+        }}
+        title="تفاصيل المنتجات المرفوعة"
+        description={selectedArchive ? `الملف: ${selectedArchive.fileName}` : ""}
+        icon={<FileSpreadsheet className="h-5 w-5 text-emerald-600" />}
+        size="lg"
+      >
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <AdminButton
+              variant="danger"
+              size="sm"
+              disabled={!selectedArchive || archiveDeleting || archiveProductsTotal === 0}
+              loading={archiveDeleting && archiveConfirm?.mode === "all"}
+              onClick={() =>
+                selectedArchive &&
+                setArchiveConfirm({
+                  mode: "all",
+                  archiveId: selectedArchive._id,
+                })
+              }
+            >
+              حذف جميع المنتجات
+            </AdminButton>
+          </div>
+          <div className="max-h-[420px] overflow-auto rounded-xl border border-slate-200">
+            <table className="w-full text-right text-sm">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-slate-200 text-slate-600">
+                  <th className="px-3 py-2">الصورة</th>
+                  <th className="px-3 py-2">المنتج</th>
+                  <th className="px-3 py-2">السعر</th>
+                  <th className="px-3 py-2">الهاتف</th>
+                  <th className="px-3 py-2">تاريخ الإنشاء</th>
+                  <th className="px-3 py-2">إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {archiveProductsLoading ? (
+                  <tr>
+                    <td className="px-3 py-5 text-center text-slate-500" colSpan={6}>
+                      جارٍ تحميل المنتجات...
+                    </td>
+                  </tr>
+                ) : archiveProducts.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-5 text-center text-slate-500" colSpan={6}>
+                      لا توجد منتجات مرتبطة بهذه العملية.
+                    </td>
+                  </tr>
+                ) : (
+                  archiveProducts.map((product) => (
+                    <tr key={product._id} className="border-b border-slate-100">
+                      <td className="px-3 py-2">
+                        <AdminTableCellImage src={product.image} alt={product.name} />
+                      </td>
+                      <td className="px-3 py-2 font-medium text-slate-800">{product.name}</td>
+                      <td className="px-3 py-2">{Number(product.priceRetail ?? product.price ?? 0)} دج</td>
+                      <td className="px-3 py-2">
+                        {typeof product.phoneType === "object"
+                          ? product.phoneType?.name || "—"
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-500">
+                        {formatDateTime(product.createdAt)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <AdminButton
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-rose-50 hover:text-rose-600"
+                          onClick={() =>
+                            selectedArchive &&
+                            setArchiveConfirm({
+                              mode: "single",
+                              archiveId: selectedArchive._id,
+                              productId: product._id,
+                              productName: product.name,
+                            })
+                          }
+                        >
+                          حذف
+                        </AdminButton>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {archiveProductsTotalPages > 1 && selectedArchive && (
+            <AdminPagination
+              page={archiveProductsPage}
+              totalPages={archiveProductsTotalPages}
+              onPageChange={setArchiveProductsPage}
+              totalItems={archiveProductsTotal}
+              pageSize={10}
+            />
+          )}
+        </div>
+      </AdminModal>
+
+      <AdminModal
+        open={!!archiveConfirm}
+        onClose={() => !archiveDeleting && setArchiveConfirm(null)}
+        title="تأكيد الحذف"
+        description="لن يمكن التراجع بعد تنفيذ العملية."
+        icon={<Trash2 className="h-5 w-5 text-rose-600" />}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            {archiveConfirm?.mode === "all"
+              ? "هل تريد حذف جميع المنتجات المرتبطة بعملية الرفع هذه؟"
+              : `هل تريد حذف المنتج "${archiveConfirm?.productName || ""}" من هذه العملية؟`}
+          </p>
+          <div className="flex gap-2">
+            <AdminButton
+              variant="outline"
+              className="flex-1"
+              disabled={archiveDeleting}
+              onClick={() => setArchiveConfirm(null)}
+            >
+              إلغاء
+            </AdminButton>
+            <AdminButton
+              variant="danger"
+              className="flex-1"
+              loading={archiveDeleting}
+              disabled={archiveDeleting}
+              onClick={executeArchiveDelete}
+            >
+              تأكيد الحذف
+            </AdminButton>
+          </div>
         </div>
       </AdminModal>
     </div>

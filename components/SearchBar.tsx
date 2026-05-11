@@ -151,24 +151,31 @@ export function SearchBar() {
     Boolean(interpretedQuery) &&
     collapseForCompare(interpretedQuery || "") !== collapseForCompare(debouncedQuery);
 
-  /** صفحة نتائج البحث — كل المنتجات المطابقة (هواتف، قطع غيار، إكسسوارات) */
-  const goToSearchResultsPage = useCallback(() => {
+  /**
+   * عند وجود نتائج في قسم الهواتف نوجّه مباشرةً إلى هذا القسم
+   * ليختار الزبون الموديل المناسب لما كتبه.
+   */
+  const goToSearchLanding = useCallback(() => {
     const q = query.trim();
     if (!q) return;
-    router.push(`/search?q=${encodeURIComponent(q)}`);
+    if (grouped.phones.length > 0) {
+      router.push(`/search?q=${encodeURIComponent(q)}&section=phones`);
+    } else {
+      router.push(`/search?q=${encodeURIComponent(q)}`);
+    }
     setOpen(false);
-  }, [query, router]);
+  }, [grouped.phones.length, query, router]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!open && e.key === "Enter" && query.trim()) {
       e.preventDefault();
-      goToSearchResultsPage();
+      goToSearchLanding();
       return;
     }
     if (!open || total === 0) {
       if (e.key === "Enter" && query.trim()) {
         e.preventDefault();
-        goToSearchResultsPage();
+        goToSearchLanding();
       }
       return;
     }
@@ -186,7 +193,7 @@ export function SearchBar() {
       e.preventDefault();
       // السطر 0 = «لم تجد قطعتك» — Enter يفتح صفحة الأقسام وليس طلب قطعة (يمكن فتح الطلب بالنقر)
       if (highlightIndex === 0) {
-        goToSearchResultsPage();
+        goToSearchLanding();
         return;
       }
       const cur = list[highlightIndex - 1];
@@ -196,7 +203,7 @@ export function SearchBar() {
         setQuery("");
         return;
       }
-      goToSearchResultsPage();
+      goToSearchLanding();
       return;
     }
     if (e.key === "Escape") {

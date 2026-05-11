@@ -119,7 +119,10 @@ function SearchBody() {
 
   const listForSection = useMemo(() => {
     if (!grouped) return [];
-    if (sectionApi === "phones") return grouped.phones;
+    if (sectionApi === "phones") {
+      // في قسم الهواتف نعرض "بطاقات الموديل" فقط — لا نعرض منتجات الهاتف هنا.
+      return grouped.phones.filter((x) => x.type === "phoneType");
+    }
     if (sectionApi === "spareParts") return grouped.spareParts;
     if (sectionApi === "accessories") return grouped.accessories;
     return [];
@@ -195,12 +198,19 @@ function SearchBody() {
             </p>
           </div>
         ) : sectionApi && grouped ? (
-          <ResultGrid
-            highlightQuery={highlightSource}
-            items={listForSection}
-            account={account}
-            categoryLabel={categoryLabel}
-          />
+          sectionApi === "phones" ? (
+            <PhoneModelGrid
+              highlightQuery={highlightSource}
+              items={listForSection}
+            />
+          ) : (
+            <ResultGrid
+              highlightQuery={highlightSource}
+              items={listForSection}
+              account={account}
+              categoryLabel={categoryLabel}
+            />
+          )
         ) : grouped ? (
           <div className="space-y-12">
             {(["phones", "spareParts", "accessories"] as const).map((key) => {
@@ -329,6 +339,63 @@ function ResultGrid({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function PhoneModelGrid({
+  highlightQuery,
+  items,
+}: {
+  highlightQuery: string;
+  items: SearchResult[];
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {items.map((item) => (
+        <Link
+          key={`${item.type}-${item._id}`}
+          href={item.href}
+          className="group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-right shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:ring-1 hover:ring-slate-300/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:rounded-[1.25rem]"
+        >
+          <div className="relative flex min-h-[140px] items-center justify-center bg-gradient-to-b from-slate-50/95 to-white px-4 py-8 sm:min-h-[160px]">
+            <ProductImage
+              src={item.image}
+              alt={item.name}
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="max-h-[120px] w-full max-w-[120px] object-contain transition-transform duration-300 group-hover:scale-105 sm:max-h-[140px] sm:max-w-[140px]"
+            />
+            <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+              موديل
+            </span>
+          </div>
+          <div className="flex flex-1 flex-col border-t border-slate-100 p-4">
+            <h3
+              className="mb-3 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-slate-800 group-hover:text-blue-700"
+              dir="auto"
+            >
+              {highlightQueryInText(item.name, highlightQuery)}
+            </h3>
+            <span className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-sm transition-colors group-hover:bg-blue-700">
+              عرض قطع الغيار
+              <svg
+                className="h-4 w-4 rtl:rotate-180"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </span>
+          </div>
+        </Link>
+      ))}
     </div>
   );
 }
