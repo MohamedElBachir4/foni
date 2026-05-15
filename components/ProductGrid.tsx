@@ -290,12 +290,12 @@ export function ProductGrid({
                 return (
                   <div
                     key={product.id}
-                    className={`group flex h-full min-h-[390px] flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:min-h-[420px] ${
+                    className={`group flex h-full min-h-[372px] flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:min-h-[402px] ${
                       ""
                     }`}
                   >
                     {/* منطقة الصورة - احترافية ومساحة أوضح للصورة */}
-                    <div className="relative flex h-[180px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 via-white to-blue-50/40 px-4 pb-3 pt-6 sm:h-[210px] sm:px-5">
+                    <div className="relative flex h-[162px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 via-white to-blue-50/40 px-4 pb-2.5 pt-5 sm:h-[190px] sm:px-5 sm:pb-3 sm:pt-5">
                       <ProductImage
                         src={product.image}
                         alt={product.name}

@@ -1,0 +1,19 @@
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+import { seoKeywordPages } from "@/lib/seoKeywordPages";
+import { KeywordLandingPage } from "@/components/seo/KeywordLandingPage";
+
+const config = seoKeywordPages.iphone;
+
+export const metadata: Metadata = buildMetadata({
+  title: config.title,
+  description: config.description,
+  keywords: config.keywords,
+  path: "/iphone",
+  image: "/LOGO.jpeg",
+});
+
+export default function IphoneSeoPage() {
+  return <KeywordLandingPage config={config} />;
+}
+

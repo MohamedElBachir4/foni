@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowRight,
   User,
@@ -62,6 +62,7 @@ function formatMoney(n: number) {
 }
 
 export default function AdminAccountOrdersPage() {
+  const router = useRouter();
   const params = useParams();
   const accountId = typeof params?.accountId === "string" ? params.accountId : "";
 
@@ -131,6 +132,10 @@ export default function AdminAccountOrdersPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "فشل تحديث حالة الحساب");
+      if (status === "rejected" || data.deleted === true) {
+        router.push("/admin/accounts");
+        return;
+      }
       setAccount(data.account || null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "فشل تحديث حالة الحساب");
