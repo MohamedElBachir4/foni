@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
-import { User, Phone, MapPin, Package, Calendar, Loader2 } from "lucide-react";
+import { User, Phone, MapPin, Package, Calendar, Loader2, Send } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin";
 
 const YALIDINE_MAX_PRICE = 150000;
@@ -72,12 +72,47 @@ const customerTypeClasses: Record<string, string> = {
   repairer: "bg-teal-100 text-teal-800",
 };
 
+function canSendOrderToYalidine(order: Order): boolean {
+  return (
+    !order.yalidineTracking &&
+    (Number(order.totalPrice) || 0) <= YALIDINE_MAX_PRICE
+  );
+}
+
+function buildItemsPayload(order: Order) {
+  return order.items.map((item) => {
+    const base = {
+      name: String(item.name || "").trim(),
+      quantity: Math.max(1, Number(item.quantity) || 1),
+      price: Math.max(0, Number(item.price) || 0),
+    };
+    const vs = item.variantSelections;
+    if (Array.isArray(vs) && vs.length > 0) {
+      return {
+        ...base,
+        variantSelections: vs.map((v) => ({
+          label: String(v.label || "").trim(),
+          price: Math.max(0, Number(v.price) || 0),
+          quantity: Math.max(1, Number(v.quantity) || 1),
+        })),
+      };
+    }
+    return base;
+  });
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendingBulk, setSendingBulk] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkMessage, setBulkMessage] = useState<{
+    type: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
 
   async function updateOrderStatus(orderId: string, status: string) {
     // التحقق من أن المعرف موجود وصحيح
@@ -223,47 +258,133 @@ export default function AdminOrdersPage() {
     );
   }
 
+  const eligibleForYalidine = orders.filter(canSendOrderToYalidine);
+  const selectedCount = selectedIds.size;
+
+  function toggleOrderSelection(orderId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  }
+
+  function selectAllEligible() {
+    setSelectedIds(new Set(eligibleForYalidine.map((o) => o._id)));
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
   async function sendOrderToYalidine(order: Order) {
-    if (order.yalidineTracking) {
-      return;
-    }
-    if ((Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE) {
+    if (!canSendOrderToYalidine(order)) {
       return;
     }
     setSendingId(order._id);
+    setBulkMessage(null);
     try {
-      const itemsPayload = order.items.map((item) => {
-        const base = {
-          name: String(item.name || "").trim(),
-          quantity: Math.max(1, Number(item.quantity) || 1),
-          price: Math.max(0, Number(item.price) || 0),
-        };
-        const vs = item.variantSelections;
-        if (Array.isArray(vs) && vs.length > 0) {
-          return {
-            ...base,
-            variantSelections: vs.map((v) => ({
-              label: String(v.label || "").trim(),
-              price: Math.max(0, Number(v.price) || 0),
-              quantity: Math.max(1, Number(v.quantity) || 1),
-            })),
-          };
-        }
-        return base;
-      });
       const res = await fetch(`${API_URL}/api/orders/${order._id}/send-to-yalidine`, {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ items: itemsPayload }),
+        body: JSON.stringify({ items: buildItemsPayload(order) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "فشل الإرسال إلى Yalidine");
       setOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, ...data } : o)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(order._id);
+        return next;
+      });
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "فشل الإرسال";
+      setBulkMessage({ type: "error", text: msg });
       console.error("sendOrderToYalidine error:", err);
     } finally {
       setSendingId(null);
+    }
+  }
+
+  async function sendSelectedToYalidine() {
+    const selected = orders.filter((o) => selectedIds.has(o._id) && canSendOrderToYalidine(o));
+    if (selected.length === 0) {
+      setBulkMessage({ type: "error", text: "حدّد طلباً واحداً على الأقل قابلاً للإرسال" });
+      return;
+    }
+    if (
+      !confirm(
+        `إرسال ${selected.length} طلب إلى Yalidine دفعة واحدة؟\nسيتم استخدام الأسعار والكميات المعروضة حالياً.`
+      )
+    ) {
+      return;
+    }
+
+    setSendingBulk(true);
+    setBulkMessage(null);
+    try {
+      const res = await fetch(`${API_URL}/api/orders/bulk-send-to-yalidine`, {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          orders: selected.map((o) => ({ id: o._id, items: buildItemsPayload(o) })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const succeeded = Array.isArray(data.succeeded) ? data.succeeded : [];
+      const failed = Array.isArray(data.failed) ? data.failed : [];
+
+      if (succeeded.length > 0) {
+        const byId = new Map(
+          succeeded.map((s: { id: string; order?: Order; yalidineTracking?: string }) => [
+            s.id,
+            s.order || { yalidineTracking: s.yalidineTracking },
+          ])
+        );
+        setOrders((prev) =>
+          prev.map((o) => {
+            const patch = byId.get(o._id);
+            if (!patch) return o;
+            return { ...o, ...patch, yalidineTracking: patch.yalidineTracking || o.yalidineTracking };
+          })
+        );
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          for (const s of succeeded) next.delete(s.id);
+          return next;
+        });
+      }
+
+      if (succeeded.length === 0 && failed.length === 0 && !res.ok) {
+        throw new Error(data.error || "فشل الإرسال إلى Yalidine");
+      }
+
+      if (failed.length === 0) {
+        setBulkMessage({
+          type: "success",
+          text: `تم إرسال ${succeeded.length} طلب إلى Yalidine بنجاح`,
+        });
+      } else if (succeeded.length === 0) {
+        setBulkMessage({
+          type: "error",
+          text: `فشل إرسال جميع الطلبات (${failed.length}). ${failed[0]?.error || ""}`,
+        });
+      } else {
+        setBulkMessage({
+          type: "info",
+          text: `نجح ${succeeded.length} طلب، وفشل ${failed.length}. راجع الطلبات الفاشلة وحاول مجدداً.`,
+        });
+      }
+    } catch (err) {
+      setBulkMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "فشل الإرسال الجماعي",
+      });
+    } finally {
+      setSendingBulk(false);
     }
   }
 
@@ -313,9 +434,66 @@ export default function AdminOrdersPage() {
     <div className="mx-auto max-w-4xl">
       <AdminPageHeader
         title="الطلبات"
-        description="عدّل الكمية أو السعر قبل «إرسال إلى Yalidine» — تُحفظ في الطلب عند نجاح الإرسال؛ قبل ذلك التعديلات في هذه الصفحة فقط."
+        description="حدّد عدة طلبات وأرسلها دفعة واحدة إلى Yalidine، أو عدّل الكمية/السعر ثم أرسل — التعديلات تُحفظ عند نجاح الإرسال."
         icon={<Package className="h-5 w-5" />}
       />
+
+      {bulkMessage ? (
+        <div
+          className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${
+            bulkMessage.type === "success"
+              ? "bg-emerald-50 text-emerald-800"
+              : bulkMessage.type === "error"
+              ? "bg-rose-50 text-rose-800"
+              : "bg-amber-50 text-amber-900"
+          }`}
+        >
+          {bulkMessage.text}
+        </div>
+      ) : null}
+
+      {orders.length > 0 && eligibleForYalidine.length > 0 ? (
+        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={
+                eligibleForYalidine.length > 0 &&
+                eligibleForYalidine.every((o) => selectedIds.has(o._id))
+              }
+              onChange={(e) => (e.target.checked ? selectAllEligible() : clearSelection())}
+              disabled={sendingBulk || Boolean(sendingId)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            تحديد الكل القابل للإرسال ({eligibleForYalidine.length})
+          </label>
+          {selectedCount > 0 ? (
+            <button
+              type="button"
+              onClick={clearSelection}
+              disabled={sendingBulk}
+              className="text-sm font-medium text-slate-600 underline-offset-2 hover:underline disabled:opacity-50"
+            >
+              إلغاء التحديد
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={sendSelectedToYalidine}
+            disabled={selectedCount === 0 || sendingBulk || Boolean(sendingId)}
+            className="mr-auto inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50"
+          >
+            {sendingBulk ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Send className="h-4 w-4" aria-hidden />
+            )}
+            {sendingBulk
+              ? "جاري الإرسال الجماعي..."
+              : `إرسال المحدد إلى Yalidine (${selectedCount})`}
+          </button>
+        </div>
+      ) : null}
 
       {orders.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
@@ -332,6 +510,20 @@ export default function AdminOrdersPage() {
               <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex flex-wrap items-center gap-4">
+                    {canSendOrderToYalidine(order) ? (
+                      <label
+                        className="inline-flex cursor-pointer items-center"
+                        title="تحديد للإرسال الجماعي إلى Yalidine"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(order._id)}
+                          onChange={() => toggleOrderSelection(order._id)}
+                          disabled={sendingBulk || sendingId === order._id}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </label>
+                    ) : null}
                     <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
                       <User className="h-4 w-4" />
                       {order.fullName}
@@ -381,6 +573,7 @@ export default function AdminOrdersPage() {
                       onClick={() => sendOrderToYalidine(order)}
                       disabled={
                         sendingId === order._id ||
+                        sendingBulk ||
                         Boolean(order.yalidineTracking) ||
                         (Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE
                       }
