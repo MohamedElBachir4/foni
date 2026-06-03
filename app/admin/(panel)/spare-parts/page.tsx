@@ -156,6 +156,7 @@ export default function AdminSparePartsPage() {
     createdPhones: number;
     createdPhonesList: string[];
     imagesRecovered?: number;
+    createdWithoutImage?: number;
     emptyRowsSkipped: number;
     duplicateInDb: number;
     duplicateInFile: number;
@@ -1003,6 +1004,8 @@ export default function AdminSparePartsPage() {
           errorRows: data.report.errorRows ?? 0,
           errors: Array.isArray(data.report.errors) ? data.report.errors : [],
           totalInDb: data.report.totalInDb ?? 0,
+          imagesRecovered: data.report.imagesRecovered ?? 0,
+          createdWithoutImage: data.report.createdWithoutImage ?? 0,
         });
         setMessage({ type: "success", text: data.message || "تم انتهاء الاستيراد" });
         fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
@@ -1025,6 +1028,8 @@ export default function AdminSparePartsPage() {
             errorRows: data.report.errorRows ?? 0,
             errors: Array.isArray(data.report.errors) ? data.report.errors : [],
             totalInDb: data.report.totalInDb ?? 0,
+            imagesRecovered: data.report.imagesRecovered ?? 0,
+            createdWithoutImage: data.report.createdWithoutImage ?? 0,
           });
           setImportOpen(false);
           setImportFile(null);
@@ -1292,6 +1297,12 @@ export default function AdminSparePartsPage() {
                <div className="text-cyan-600 text-3xl font-bold">{importReport.totalInDb - importReport.createdProducts > 0 ? (importReport.totalInDb - importReport.createdProducts).toLocaleString() : '0'}</div>
                <div className="text-cyan-800 text-sm mt-2 font-medium">منتجات سابقة محفوظة</div>
             </div>
+            {(importReport.createdWithoutImage ?? 0) > 0 && (
+            <div className="bg-violet-50 border border-violet-200 rounded-lg p-5 text-center shadow-sm col-span-2 lg:col-span-7">
+               <div className="text-violet-600 text-3xl font-bold">{importReport.createdWithoutImage}</div>
+               <div className="text-violet-900 text-sm mt-2 font-medium">منتجات جديدة محفوظة بدون صورة (فشل Serper/Cloudinary)</div>
+            </div>
+            )}
             {(importReport.imagesRecovered ?? 0) > 0 && (
             <div className="bg-teal-50 border border-teal-200 rounded-lg p-5 text-center shadow-sm col-span-2 lg:col-span-7">
                <div className="text-teal-600 text-3xl font-bold">{importReport.imagesRecovered}</div>
