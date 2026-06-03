@@ -41,51 +41,33 @@ export function ProductImage({
     !resolvedSrc.toLowerCase().startsWith("///");
   const useNativeImg = !isLocalPathForOptimizer && resolvedSrc !== DEFAULT_PHONE_IMAGE;
 
-  const overlayLogo = (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/watermark-foni.png"
-      alt="Foni watermark"
-      aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 top-1/2 z-[2] w-[68%] max-w-[300px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-55 brightness-100 contrast-110"
-      loading="lazy"
-      decoding="async"
-    />
-  );
-
   if (useFallback) {
     return (
-      <div className="relative h-full w-full">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={DEFAULT_PHONE_IMAGE}
-          alt={alt}
-          className={className}
-          loading="lazy"
-          decoding="async"
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
-        />
-        {overlayLogo}
-      </div>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={DEFAULT_PHONE_IMAGE}
+        alt={alt}
+        className={className}
+        loading="lazy"
+        decoding="async"
+        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+      />
     );
   }
 
   if (useNativeImg) {
     return (
-      <div className="relative h-full w-full">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={resolvedSrc}
-          alt={alt}
-          className={className}
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : "auto"}
-          decoding={priority ? "sync" : "async"}
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          onError={() => setUseFallback(true)}
-        />
-        {overlayLogo}
-      </div>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={resolvedSrc}
+        alt={alt}
+        className={className}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
+        decoding={priority ? "sync" : "async"}
+        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        onError={() => setUseFallback(true)}
+      />
     );
   }
 
@@ -105,23 +87,19 @@ export function ProductImage({
           quality={jpegQuality}
           onError={() => setUseFallback(true)}
         />
-        {overlayLogo}
       </div>
     );
   } catch {
     return (
-      <div className="relative h-full w-full">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={DEFAULT_PHONE_IMAGE}
-          alt={alt}
-          className={className}
-          loading="lazy"
-          decoding="async"
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
-        />
-        {overlayLogo}
-      </div>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={DEFAULT_PHONE_IMAGE}
+        alt={alt}
+        className={className}
+        loading="lazy"
+        decoding="async"
+        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+      />
     );
   }
 }
