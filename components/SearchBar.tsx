@@ -8,7 +8,10 @@ import { getProductImageUrl } from "@/lib/productImage";
 import { formatDzd } from "@/lib/pricing";
 import { highlightQueryInText } from "@/lib/highlightSearch";
 import { publicFetch } from "@/lib/publicFetch";
+
 const DEBOUNCE_MS = 300;
+const SEARCH_FETCH_TIMEOUT_MS = 22_000;
+const SEARCH_FETCH_MAX_RETRIES = 2;
 /** لكل قسم (هواتف، قطع غيار، إكسسوارات) — الحد الفعلي يفرضه الخادم */
 const LIMIT = 24;
 
@@ -66,6 +69,8 @@ export function SearchBar() {
   const [highlightIndex, setHighlightIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fetchGenRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const debouncedQuery = useDebounce(query.trim(), DEBOUNCE_MS);
 
@@ -82,20 +87,31 @@ export function SearchBar() {
     return out;
   };
 
-  const fetchSuggestions = useCallback(async (q: string) => {
+  const fetchSuggestions = useCallback(async (q: string, signal?: AbortSignal) => {
+    const gen = ++fetchGenRef.current;
+    const isStale = () => gen !== fetchGenRef.current || signal?.aborted;
+
     if (!q) {
       setGrouped(emptyGrouped);
       setInterpretedQuery(null);
+      setLoading(false);
       return;
     }
     setLoading(true);
     try {
       const res = await publicFetch(
         `/api/search?q=${encodeURIComponent(q)}&limit=${LIMIT}`,
-        { cache: "no-store" }
+        {
+          cache: "no-store",
+          signal,
+          timeoutMs: SEARCH_FETCH_TIMEOUT_MS,
+          maxRetries: SEARCH_FETCH_MAX_RETRIES,
+        }
       );
+      if (isStale()) return;
       if (res.ok) {
         const data = await res.json();
+        if (isStale()) return;
         if (data && data.phones && data.spareParts && data.accessories) {
           const iq =
             typeof data.interpretedQuery === "string" ? data.interpretedQuery.trim() : "";
@@ -116,21 +132,30 @@ export function SearchBar() {
         setInterpretedQuery(null);
       }
     } catch {
+      if (isStale()) return;
       setGrouped(emptyGrouped);
       setInterpretedQuery(null);
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
     if (debouncedQuery) {
-      fetchSuggestions(debouncedQuery);
+      fetchSuggestions(debouncedQuery, ac.signal);
       setOpen(true);
     } else {
       setGrouped(emptyGrouped);
+      setInterpretedQuery(null);
+      setLoading(false);
       setOpen(false);
     }
+
+    return () => ac.abort();
   }, [debouncedQuery, fetchSuggestions]);
 
   useEffect(() => {

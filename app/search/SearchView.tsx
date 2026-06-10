@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
@@ -11,7 +11,10 @@ import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount, type AccountInfo } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 import { highlightQueryInText } from "@/lib/highlightSearch";
-import { publicFetch } from "@/lib/publicFetch";
+import { formatPublicFetchError, publicFetch } from "@/lib/publicFetch";
+
+const SEARCH_FETCH_TIMEOUT_MS = 22_000;
+const SEARCH_FETCH_MAX_RETRIES = 2;
 
 type SearchResult = {
   type: string;
@@ -61,7 +64,9 @@ function SearchBody() {
   const section = searchParams.get("section") || "";
   const [grouped, setGrouped] = useState<Grouped | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [interpretedQuery, setInterpretedQuery] = useState<string>("");
+  const fetchGenRef = useRef(0);
   const { account } = useAccount();
 
   const sectionApi =
@@ -72,14 +77,19 @@ function SearchBody() {
       : "";
 
   const fetchResults = useCallback(
-    async (query: string) => {
+    async (query: string, signal?: AbortSignal) => {
+      const gen = ++fetchGenRef.current;
+      const isStale = () => gen !== fetchGenRef.current || signal?.aborted;
+
       if (!query.trim()) {
         setGrouped({ phones: [], spareParts: [], accessories: [] });
         setInterpretedQuery("");
+        setFetchError(null);
         setLoading(false);
         return;
       }
       setLoading(true);
+      setFetchError(null);
       try {
         const u = new URLSearchParams();
         u.set("q", query.trim());
@@ -87,9 +97,14 @@ function SearchBody() {
         if (sectionApi) u.set("section", sectionApi);
         const res = await publicFetch(`/api/search?${u.toString()}`, {
           cache: "no-store",
+          signal,
+          timeoutMs: SEARCH_FETCH_TIMEOUT_MS,
+          maxRetries: SEARCH_FETCH_MAX_RETRIES,
         });
+        if (isStale()) return;
         if (res.ok) {
           const data = await res.json();
+          if (isStale()) return;
           if (data && typeof data === "object" && Array.isArray(data.phones)) {
             const iq =
               typeof data.interpretedQuery === "string" ? data.interpretedQuery.trim() : "";
@@ -102,19 +117,26 @@ function SearchBody() {
         } else {
           setGrouped({ phones: [], spareParts: [], accessories: [] });
           setInterpretedQuery("");
+          if (res.status === 504) {
+            setFetchError("انتهت مهلة البحث. حاول مجدداً.");
+          }
         }
-      } catch {
+      } catch (err) {
+        if (isStale()) return;
         setGrouped({ phones: [], spareParts: [], accessories: [] });
         setInterpretedQuery("");
+        setFetchError(formatPublicFetchError(err, "تعذّر إكمال البحث. حاول مجدداً."));
       } finally {
-        setLoading(false);
+        if (!isStale()) setLoading(false);
       }
     },
     [sectionApi]
   );
 
   useEffect(() => {
-    fetchResults(q);
+    const ac = new AbortController();
+    fetchResults(q, ac.signal);
+    return () => ac.abort();
   }, [q, fetchResults]);
 
   const listForSection = useMemo(() => {
@@ -189,6 +211,17 @@ function SearchBody() {
           <div className="flex items-center justify-center gap-2 py-16 text-gray-500">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
             <span>جاري البحث...</span>
+          </div>
+        ) : fetchError ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-12 text-center shadow-sm">
+            <p className="text-slate-700">{fetchError}</p>
+            <button
+              type="button"
+              onClick={() => fetchResults(q)}
+              className="mt-4 rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              إعادة المحاولة
+            </button>
           </div>
         ) : !hasAny ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
