@@ -9,7 +9,9 @@ import { publicFetch } from "@/lib/publicFetch";
 import { useAccount } from "@/context/AccountContext";
 import { MyOrdersTab } from "@/components/accounts/MyOrdersTab";
 
-type Role = "reparateur" | "grossiste" | null;
+import { roleLabelAr, isMerchantRole } from "@/lib/accountRoles";
+
+type Role = "customer" | "merchant" | null;
 
 const WILAYAS = [
   "01 - أدرار",
@@ -73,7 +75,7 @@ const WILAYAS = [
 ];
 
 function AccountsPageContent() {
-  const { account, setFromApi, logout } = useAccount();
+  const { account, setFromApi, logout, setUseWholesalePricing } = useAccount();
   const searchParams = useSearchParams();
   const [role, setRole] = useState<Role>(null);
   const [firstName, setFirstName] = useState("");
@@ -95,7 +97,23 @@ function AccountsPageContent() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [accountTab, setAccountTab] = useState<"profile" | "orders">("profile");
+  const [wholesaleSaving, setWholesaleSaving] = useState(false);
+  const [wholesaleError, setWholesaleError] = useState("");
   const registrationFormRef = useRef<HTMLDivElement>(null);
+
+  async function handleWholesaleToggle(enabled: boolean) {
+    setWholesaleError("");
+    setWholesaleSaving(true);
+    try {
+      await setUseWholesalePricing(enabled);
+    } catch (err) {
+      setWholesaleError(
+        err instanceof Error ? err.message : "تعذّر تحديث الإعداد"
+      );
+    } finally {
+      setWholesaleSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!account) return;
@@ -107,7 +125,8 @@ function AccountsPageContent() {
   useEffect(() => {
     if (account) return;
     const reg = searchParams.get("register");
-    if (reg === "reparateur" || reg === "grossiste") setRole(reg);
+    if (reg === "customer" || reg === "merchant") setRole(reg);
+    if (reg === "reparateur") setRole("merchant");
   }, [account, searchParams]);
 
   /** بعد اختيار نوع الحساب أو فتح ?register= — التمرير إلى نموذج المعلومات (مع هامش للشريط العلوي). */
@@ -131,8 +150,8 @@ function AccountsPageContent() {
     };
   }, [successModalOpen]);
 
-  const isReparateur = role === "reparateur";
-  const isGrossiste = role === "grossiste";
+  const isMerchant = role === "merchant";
+  const isCustomer = role === "customer";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -186,7 +205,9 @@ function AccountsPageContent() {
       }
       setSuccess(
         data.message ||
-          "تم إرسال طلب إنشاء الحساب بنجاح. حسابك الآن قيد المراجعة وسيتم تفعيله بعد موافقة الإدارة."
+          (isMerchant
+            ? "تم إرسال طلب إنشاء الحساب بنجاح. حسابك الآن قيد المراجعة وسيتم تفعيله بعد موافقة الإدارة."
+            : "تم إنشاء حسابك بنجاح. يمكنك تسجيل الدخول الآن.")
       );
       setSuccessModalOpen(true);
       setFirstName("");
@@ -248,7 +269,7 @@ function AccountsPageContent() {
                 أنت مسجل الدخول كـ{" "}
                 <span className="font-semibold">
                   {account.firstName} {account.lastName} (
-                  {account.role === "reparateur" ? "تاجر أو صاحب محل" : "Grossiste"})
+                  {roleLabelAr(account.role)})
                 </span>
                 . يمكنك المتابعة في تصفح الموقع أو{" "}
                 <button
@@ -312,8 +333,7 @@ function AccountsPageContent() {
                       {account.firstName} {account.lastName}
                     </p>
                     <p className="text-xs text-slate-500 sm:text-sm">
-                      نوع الحساب:{" "}
-                      {account.role === "reparateur" ? "تاجر أو صاحب محل" : "Grossiste"}
+                      نوع الحساب: {roleLabelAr(account.role)}
                     </p>
                   </div>
                 </div>
@@ -342,13 +362,44 @@ function AccountsPageContent() {
               </div>
             )}
 
+            {account && isMerchantRole(account.role) && account.approvalStatus === "approved" && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 sm:p-5">
+                <h3 className="text-sm font-bold text-amber-950 sm:text-base">
+                  تفعيل الشراء بالجملة
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-amber-900/90 sm:text-sm">
+                  عند التفعيل تُعرض أسعار الجملة في المنتجات والسلة والدفع. عند الإلغاء تُعرض
+                  أسعار التاجر/صاحب المحل.
+                </p>
+                <button
+                  type="button"
+                  disabled={wholesaleSaving}
+                  onClick={() => handleWholesaleToggle(!account.useWholesalePricing)}
+                  className={`mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-xs font-bold sm:w-auto sm:text-sm ${
+                    account.useWholesalePricing
+                      ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                      : "bg-amber-600 text-white hover:bg-amber-700"
+                  } disabled:opacity-60`}
+                >
+                  {wholesaleSaving
+                    ? "جاري الحفظ..."
+                    : account.useWholesalePricing
+                      ? "مفعّل: أسعار الجملة — إلغاء التفعيل"
+                      : "تفعيل الشراء بالجملة"}
+                </button>
+                {wholesaleError && (
+                  <p className="mt-2 text-xs font-medium text-red-600">{wholesaleError}</p>
+                )}
+              </div>
+            )}
+
             {!account && (
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
               <h2 className="mb-3 text-sm font-bold text-slate-900 sm:text-base">
                 لديك حساب مسبقاً ؟ قم بتسجيل الدخول
               </h2>
               <p className="mb-3 text-xs text-amber-700 sm:text-sm">
-                ملاحظة: تسجيل الدخول متاح فقط بعد موافقة الإدارة على الحساب.
+                ملاحظة: حساب التاجر يحتاج موافقة الإدارة قبل تسجيل الدخول. حساب الزبون يُفعَّل فوراً.
               </p>
               <form
                 onSubmit={handleLogin}
@@ -397,18 +448,44 @@ function AccountsPageContent() {
             {!account && (
             <div className="space-y-2 text-center">
               <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
-                اختر نوع الحساب المهني
+                إنشاء حساب جديد
               </h1>
               <p className="text-xs text-slate-600 sm:text-sm">
-                اختر بين حساب <span className="font-semibold">تاجر أو صاحب محل</span> أو{" "}
-                <span className="font-semibold">Grossiste</span> للاستفادة من التخفيضات.
+                اختر بين حساب <span className="font-semibold">زبون</span> أو{" "}
+                <span className="font-semibold">تاجر أو صاحب محل</span>.
               </p>
             </div>
             )}
 
             {!account && (
             <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              {/* حساب تاجر أو صاحب محل */}
+              <article className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300/70 hover:bg-white sm:p-5">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-sm font-bold text-slate-900 sm:text-base">
+                      حساب زبون
+                    </h2>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700 shadow-sm sm:text-xs">
+                      أسعار التجزئة
+                    </span>
+                  </div>
+                  <p className="text-[12px] leading-relaxed text-slate-600 sm:text-sm">
+                    للشراء الشخصي بأسعار التجزئة. يُفعَّل فوراً ويمكنك تسجيل الدخول مباشرة.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={`mt-4 inline-flex items-center justify-center rounded-xl px-4 py-2 text-[12px] font-semibold shadow-sm sm:text-sm ${
+                    isCustomer
+                      ? "bg-blue-700 text-white"
+                      : "bg-slate-900 text-white hover:bg-blue-800"
+                  }`}
+                  onClick={() => setRole("customer")}
+                >
+                  اختيار حساب زبون
+                </button>
+              </article>
+
               <article className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300/70 hover:bg-white sm:p-5">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
@@ -416,53 +493,24 @@ function AccountsPageContent() {
                       حساب تاجر أو صاحب محل
                     </h2>
                     <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm sm:text-xs">
-                      -15% تخفيض
+                      أسعار مهنية
                     </span>
                   </div>
                   <p className="text-[12px] leading-relaxed text-slate-600 sm:text-sm">
-                    تخفيض ثابت بـ <span className="font-semibold">15%</span> على أغلب
-                    القطع لمراكز الصيانة والفنيين.
+                    أسعار خاصة للتجار. بعد الموافقة يمكنك تفعيل{" "}
+                    <span className="font-semibold">الشراء بالجملة</span> من ملفك الشخصي.
                   </p>
                 </div>
                 <button
                   type="button"
                   className={`mt-4 inline-flex items-center justify-center rounded-xl px-4 py-2 text-[12px] font-semibold shadow-sm sm:text-sm ${
-                    isReparateur
-                      ? "bg-blue-700 text-white"
-                      : "bg-slate-900 text-white hover:bg-blue-800"
-                  }`}
-                  onClick={() => setRole("reparateur")}
-                >
-                  اختيار حساب تاجر أو صاحب محل
-                </button>
-              </article>
-
-              {/* حساب Grossiste */}
-              <article className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-slate-50/70 p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300/70 hover:bg-white sm:p-5">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-sm font-bold text-slate-900 sm:text-base">
-                      حساب Grossiste
-                    </h2>
-                    <span className="shrink-0 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-semibold text-sky-700 shadow-sm sm:text-xs">
-                      -30% تخفيض
-                    </span>
-                  </div>
-                  <p className="text-[12px] leading-relaxed text-slate-600 sm:text-sm">
-                    تخفيض قوي بـ <span className="font-semibold">30%</span> عند شراء
-                    الكميات الكبيرة كتاجر جملة.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className={`mt-4 inline-flex items-center justify-center rounded-xl px-4 py-2 text-[12px] font-semibold shadow-sm sm:text-sm ${
-                    isGrossiste
+                    isMerchant
                       ? "bg-blue-700 text-white"
                       : "bg-blue-600 text-white hover:bg-blue-700"
                   }`}
-                  onClick={() => setRole("grossiste")}
+                  onClick={() => setRole("merchant")}
                 >
-                  اختيار حساب Grossiste
+                  اختيار حساب تاجر أو صاحب محل
                 </button>
               </article>
             </div>
@@ -475,7 +523,9 @@ function AccountsPageContent() {
                 className="mt-6 scroll-mt-28 space-y-3 border-t border-slate-100 pt-4 sm:scroll-mt-32"
               >
                 <h2 className="text-sm font-bold text-slate-900 sm:text-base">
-                  {isReparateur ? "معلومات حساب تاجر أو صاحب محل" : "معلومات حساب Grossiste"}
+                  {isMerchant
+                    ? "معلومات حساب تاجر أو صاحب محل"
+                    : "معلومات حساب زبون"}
                 </h2>
                 <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
                   <div className="space-y-1">
@@ -567,7 +617,7 @@ function AccountsPageContent() {
                       ))}
                     </select>
                   </div>
-                  {isReparateur && (
+                  {isMerchant && (
                     <div className="space-y-1">
                       <label className="block text-xs font-medium text-slate-700">
                         اسم المحل
@@ -650,8 +700,18 @@ function AccountsPageContent() {
             </div>
             <h3 className="text-center text-xl font-extrabold text-slate-900">تم التسجيل بنجاح</h3>
             <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
-              تم إنشاء حسابك بنجاح، وطلب تفعيل الحساب الآن <span className="font-bold text-amber-700">قيد المراجعة</span> من الإدارة.
-              ستتمكن من تسجيل الدخول فور الموافقة.
+              {role === "merchant" ? (
+                <>
+                  تم إنشاء حسابك بنجاح، وطلب تفعيل الحساب الآن{" "}
+                  <span className="font-bold text-amber-700">قيد المراجعة</span> من الإدارة.
+                  ستتمكن من تسجيل الدخول فور الموافقة.
+                </>
+              ) : (
+                <>
+                  تم إنشاء حساب الزبون بنجاح. يمكنك{" "}
+                  <span className="font-bold text-emerald-700">تسجيل الدخول الآن</span>.
+                </>
+              )}
             </p>
             <button
               type="button"

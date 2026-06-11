@@ -1,5 +1,21 @@
 import { apiUrl } from "./apiUrl";
 
+const ACCOUNT_STORAGE_KEY = "foni_account";
+
+/** قراءة توكن الحساب من localStorage لإرفاقه بطلبات المنتجات (أسعار حسب الدور). */
+export function readStoredAccountToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ACCOUNT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { token?: string | null };
+    const token = parsed?.token;
+    return typeof token === "string" && token.trim() ? token.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * يحلّ مسار API نسبياً عبر نفس نطاق الواجهة عند الإمكان (أقل مشاكل على LTE من طلبات كاملة إلى نطاق فرعي آخر).
  */
@@ -100,10 +116,16 @@ export async function publicFetch(
   const maxAttempts = allowRetry ? maxRetries : 1;
   const url = resolvePublicApiUrl(pathOrAbsolute);
 
+  const headers = new Headers(rest.headers);
+  if (!headers.has("Authorization")) {
+    const token = readStoredAccountToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const { signal, cleanup } = mergeUserAndTimeoutSignal(userSignal, timeoutMs);
     try {
-      const res = await fetch(url, { ...rest, signal });
+      const res = await fetch(url, { ...rest, headers, signal });
       if (res.ok) {
         cleanup();
         return res;

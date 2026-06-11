@@ -3,14 +3,20 @@
 import Link from "next/link";
 import { ProductImage } from "@/components/ProductImage";
 import { cartLineKey, cartLineSubtotal, useCart } from "@/context/CartContext";
+import { useAccount } from "@/context/AccountContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft } from "lucide-react";
-import { formatDzd } from "@/lib/pricing";
+import {
+  formatDzd,
+  resolveCartLineUnitPrice,
+  resolveCartVariantUnitPrice,
+} from "@/lib/pricing";
 import { getProductColorLabelAr } from "@/lib/productColors";
 import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 
 export default function CartPage() {
+  const { account } = useAccount();
   const {
     items,
     removeFromCart,
@@ -87,7 +93,7 @@ export default function CartPage() {
                           >
                             <span className="min-w-0 flex-1 font-medium text-slate-800">{v.label}</span>
                             <span className="font-mono text-xs text-slate-600">
-                              {formatDzd(v.price)} DA × {v.quantity}
+                              {formatDzd(resolveCartVariantUnitPrice(v, account))} DA × {v.quantity}
                             </span>
                             <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white">
                               <button
@@ -143,7 +149,7 @@ export default function CartPage() {
                       </p>
                     ) : null}
                     <p className="mt-1 text-lg font-bold text-slate-700">
-                      {formatDzd(item.price)}{" "}
+                      {formatDzd(resolveCartLineUnitPrice(item, account))}{" "}
                       <span className="text-sm font-medium text-slate-500">
                         DA
                       </span>
@@ -180,7 +186,7 @@ export default function CartPage() {
                       </p>
                     )}
                     <p className="min-w-[5rem] text-left text-lg font-bold text-blue-600">
-                      {formatDzd(cartLineSubtotal(item))} DA
+                      {formatDzd(cartLineSubtotal(item, account))} DA
                     </p>
                     <button
                       type="button"

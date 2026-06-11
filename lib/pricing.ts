@@ -1,5 +1,9 @@
 import type { AccountInfo } from "@/context/AccountContext";
 import type { PricedVariant } from "@/lib/productPricedOptions";
+import {
+  isMerchantRole,
+  resolveUseWholesalePricing,
+} from "@/lib/accountRoles";
 
 export type TieredPrice = {
   price?: number | null;
@@ -8,20 +12,21 @@ export type TieredPrice = {
   priceReparateur?: number | null;
 };
 
-/** لا يُطبَّق سوى سعر التجزئة قبل موافقة الأدمن على الحساب (أو بعد الرفض). */
+/** لا يُطبَّق سوى سعر التجزئة قبل موافقة الأدمن على حساب التاجر (أو بعد الرفض). */
 export function getPricingAccount(account: AccountInfo | null): AccountInfo | null {
   if (!account) return null;
   const s = account.approvalStatus;
-  if (s === "pending" || s === "rejected") return null;
+  if (isMerchantRole(account.role) && (s === "pending" || s === "rejected")) {
+    return null;
+  }
   return account;
 }
 
 /**
  * سعر الواجهة حسب نوع الحساب:
- * - بدون حساب B2B معتمد ← تجزئة (priceRetail ثم price)
- * - Grossiste معتمد ← جملة
- * - حساب تاجر/صاحب محل معتمد بدون شراء بالجملة ← سعر تاجر/صاحب محل
- * - حساب تاجر/صاحب محل مع تفعيل «الشراء بالجملة» ← جملة
+ * - زبون أو بدون حساب ← تجزئة
+ * - تاجر/صاحب محل معتمد بدون شراء بالجملة ← سعر reparateur
+ * - تاجر/صاحب محل مع تفعيل «الشراء بالجملة» ← جملة
  */
 export function getEffectivePrice(
   tiered: TieredPrice,
@@ -34,18 +39,11 @@ export function getEffectivePrice(
       ? tiered.price
       : 0) || 0;
 
-  if (!account) return baseRetail;
+  const pricingAccount = getPricingAccount(account);
+  if (!pricingAccount) return baseRetail;
 
-  if (account.role === "grossiste" || (account.role as string) === "wholesale") {
-    const v =
-      typeof tiered.priceWholesale === "number" && !Number.isNaN(tiered.priceWholesale)
-        ? tiered.priceWholesale
-        : null;
-    return v ?? baseRetail;
-  }
-
-  if (account.role === "reparateur" || (account.role as string) === "repair") {
-    if (account.useWholesalePricing) {
+  if (isMerchantRole(pricingAccount.role)) {
+    if (resolveUseWholesalePricing(pricingAccount)) {
       const wholesale =
         typeof tiered.priceWholesale === "number" &&
         !Number.isNaN(tiered.priceWholesale)
@@ -53,21 +51,17 @@ export function getEffectivePrice(
           : null;
       return wholesale ?? baseRetail;
     }
-    const v =
+    const repair =
       typeof tiered.priceReparateur === "number" &&
       !Number.isNaN(tiered.priceReparateur)
         ? tiered.priceReparateur
-      : null;
-    return v ?? baseRetail;
+        : null;
+    return repair ?? baseRetail;
   }
 
   return baseRetail;
 }
 
-/**
- * سعر خيار بأسعار ثلاثية (تجزئة / جملة / تاجر/صاحب محل) حسب نفس منطق الحساب B2B:
- * grossiste → جملة، reparateur → تاجر/صاحب محل (أو جملة إن فُعّل الشراء بالجملة)، غير ذلك → تجزئة.
- */
 export function getEffectivePriceForVariant(
   variant: PricedVariant,
   account: AccountInfo | null
@@ -83,22 +77,17 @@ export function getEffectivePriceForVariant(
   );
 }
 
-/** وصف قصير لما يعرض تحت السعر (شفافية للمستخدم). */
 export function describeActivePriceTier(account: AccountInfo | null): string {
   const acc = getPricingAccount(account);
   if (!acc) return "سعر التجزئة — العرض العام";
-  if (acc.role === "grossiste" || (acc.role as string) === "wholesale") return "سعر الجملة لحسابك";
-  if (acc.role === "reparateur" || (acc.role as string) === "repair") {
-    return acc.useWholesalePricing
+  if (isMerchantRole(acc.role)) {
+    return resolveUseWholesalePricing(acc)
       ? "سعر الجملة — بعد تفعيل الشراء بالجملة"
       : "سعر تاجر أو صاحب محل — حسابك";
   }
-  return "سعر التجزئة — العرض العام";
+  return "سعر التجزئة — حسابك";
 }
 
-/**
- * تنسيق السعر لعرض الواجهة: بدون فواصل عند الآلاف (لا «15,000») — يلحق بـ «DA» في الواجهة
- */
 export function formatDzd(n: number | null | undefined): string {
   const v = n == null ? NaN : Number(n);
   if (Number.isNaN(v)) return "0";
@@ -109,3 +98,51 @@ export function formatDzd(n: number | null | undefined): string {
   }).format(v);
 }
 
+export type CartPriceTiers = {
+  price?: number;
+  priceRetail?: number;
+  priceWholesale?: number;
+  priceReparateur?: number;
+};
+
+export type CartVariantPriceTiers = {
+  label: string;
+  price: number;
+  quantity: number;
+  retailPrice?: number;
+  wholesalePrice?: number;
+  repairPrice?: number;
+};
+
+/** سعر وحدة سطر السلة حسب الحساب الحالي (مع fallback للسعر المخزّن). */
+export function resolveCartLineUnitPrice(
+  tiers: CartPriceTiers,
+  account: AccountInfo | null
+): number {
+  const hasTiers =
+    tiers.priceRetail != null ||
+    tiers.priceWholesale != null ||
+    tiers.priceReparateur != null;
+  if (!hasTiers) return Math.max(0, Number(tiers.price) || 0);
+  return getEffectivePrice(tiers, account);
+}
+
+export function resolveCartVariantUnitPrice(
+  variant: CartVariantPriceTiers,
+  account: AccountInfo | null
+): number {
+  const hasTiers =
+    variant.retailPrice != null ||
+    variant.wholesalePrice != null ||
+    variant.repairPrice != null;
+  if (!hasTiers) return Math.max(0, Number(variant.price) || 0);
+  return getEffectivePrice(
+    {
+      price: variant.retailPrice ?? variant.price,
+      priceRetail: variant.retailPrice ?? variant.price,
+      priceWholesale: variant.wholesalePrice,
+      priceReparateur: variant.repairPrice,
+    },
+    account
+  );
+}

@@ -8,6 +8,13 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useAccount } from "@/context/AccountContext";
+import {
+  getPricingAccount,
+  resolveCartLineUnitPrice,
+  resolveCartVariantUnitPrice,
+} from "@/lib/pricing";
+import type { AccountInfo } from "@/context/AccountContext";
 
 const CART_STORAGE_KEY = "foni_cart";
 
@@ -15,6 +22,9 @@ export type CartVariantSelection = {
   label: string;
   price: number;
   quantity: number;
+  retailPrice?: number;
+  wholesalePrice?: number;
+  repairPrice?: number;
 };
 
 export type CartItem = {
@@ -23,6 +33,9 @@ export type CartItem = {
   price: number;
   image: string;
   quantity: number;
+  priceRetail?: number;
+  priceWholesale?: number;
+  priceReparateur?: number;
   color?: string;
   /** ألوان المنتج المعروضة للزبون (للتحقق عند الطلب وتغيير اللون من السلة/الدفع) */
   availableColors?: string[];
@@ -52,14 +65,21 @@ export function cartLineKey(i: CartItem): string {
   return `${i.id}${colorPart}${optionPart}${mv}`;
 }
 
-export function cartLineSubtotal(i: CartItem): number {
+export function cartLineSubtotal(i: CartItem, account?: AccountInfo | null): number {
+  const pricingAccount = getPricingAccount(account ?? null);
   if (i.hasVariants && i.variantSelections?.length) {
     return i.variantSelections.reduce(
-      (sum, v) => sum + Math.max(0, Number(v.price) || 0) * Math.max(1, Math.floor(Number(v.quantity)) || 1),
+      (sum, v) =>
+        sum +
+        resolveCartVariantUnitPrice(v, pricingAccount) *
+          Math.max(1, Math.floor(Number(v.quantity)) || 1),
       0
     );
   }
-  return Math.max(0, Number(i.price) || 0) * Math.max(1, Math.floor(Number(i.quantity)) || 1);
+  return (
+    resolveCartLineUnitPrice(i, pricingAccount) *
+    Math.max(1, Math.floor(Number(i.quantity)) || 1)
+  );
 }
 
 export function cartLineTotalQty(i: CartItem): number {
@@ -176,6 +196,7 @@ function saveToStorage(items: CartItem[]) {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { account } = useAccount();
   const [items, setItems] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
 
@@ -237,6 +258,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             price: avg,
             image: item.image ?? "",
             quantity: totalQty,
+            priceRetail: (item as CartItem).priceRetail,
+            priceWholesale: (item as CartItem).priceWholesale,
+            priceReparateur: (item as CartItem).priceReparateur,
             color: nextColor,
             availableColors: nextAc,
             productType: (item as CartItem).productType,
@@ -317,6 +341,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             price: item.price,
             image: item.image ?? "",
             quantity: q || 1,
+            priceRetail: (item as CartItem).priceRetail,
+            priceWholesale: (item as CartItem).priceWholesale,
+            priceReparateur: (item as CartItem).priceReparateur,
             color: nextColor,
             availableColors: nextAc,
             option: nextOption,
@@ -422,7 +449,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const totalItems = useMemo(() => items.reduce((sum, i) => sum + cartLineTotalQty(i), 0), [items]);
-  const totalPrice = useMemo(() => items.reduce((sum, i) => sum + cartLineSubtotal(i), 0), [items]);
+  const totalPrice = useMemo(
+    () => items.reduce((sum, i) => sum + cartLineSubtotal(i, account), 0),
+    [items, account]
+  );
 
   const value = useMemo(
     () => ({

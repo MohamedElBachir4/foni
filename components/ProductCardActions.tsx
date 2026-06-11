@@ -25,6 +25,9 @@ export function ProductCardActions({
   colors,
   options,
   category,
+  priceRetail,
+  priceWholesale,
+  priceReparateur,
 }: {
   id: string;
   name: string;
@@ -33,6 +36,9 @@ export function ProductCardActions({
   colors?: string[];
   options?: string[];
   category?: string;
+  priceRetail?: number;
+  priceWholesale?: number;
+  priceReparateur?: number;
 }) {
   const colorsFingerprint = useMemo(() => {
     if (!Array.isArray(colors) || !colors.length) return "";
@@ -152,6 +158,9 @@ export function ProductCardActions({
           id={id}
           name={name}
           price={price}
+          priceRetail={priceRetail ?? price}
+          priceWholesale={priceWholesale}
+          priceReparateur={priceReparateur}
           image={image}
           colors={list}
           lockColorToSelection={list.length > 0}

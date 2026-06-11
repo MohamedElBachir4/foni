@@ -5,6 +5,7 @@ import Link from "next/link";
 import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
 import { User, Phone, MapPin, Mail, Loader2, ChevronLeft, Search } from "lucide-react";
 import { AdminPageHeader, AdminButton, AdminModal } from "@/components/admin";
+import { isMerchantRole, roleLabelAr } from "@/lib/accountRoles";
 
 type Account = {
   _id: string;
@@ -15,7 +16,8 @@ type Account = {
   wilaya?: string;
   shopName?: string;
   address?: string;
-  role: "reparateur" | "grossiste";
+  role: "customer" | "merchant" | "reparateur" | "grossiste";
+  useWholesalePricing?: boolean;
   approvalStatus?: "pending" | "approved" | "rejected";
   approvalNote?: string;
   createdAt: string;
@@ -339,7 +341,10 @@ export default function AdminAccountsPage() {
                           {acc.firstName} {acc.lastName}
                         </p>
                         <p className="text-xs text-slate-500">
-                          {acc.role === "reparateur" ? "تاجر أو صاحب محل" : "Grossiste"}
+                          {roleLabelAr(acc.role)}
+                          {isMerchantRole(acc.role) && acc.useWholesalePricing ? (
+                            <span className="mr-1 text-emerald-600"> (جملة)</span>
+                          ) : null}
                         </p>
                         <span
                           className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusClass(acc.approvalStatus)}`}

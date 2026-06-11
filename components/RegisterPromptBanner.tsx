@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { X, Wrench, Building2 } from "lucide-react";
+import { X, Wrench, UserRound } from "lucide-react";
 import { useAccount } from "@/context/AccountContext";
 
 const OPEN_DELAY_MS = 5000;
@@ -102,32 +102,31 @@ export function RegisterPromptBanner() {
             id="register-prompt-title"
             className="text-base font-bold leading-snug text-slate-900 sm:text-lg"
           >
-            سجّل كحساب مهني
+            أنشئ حسابك على FONI
           </p>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            استفد من التخفيضات وسهولة الطلبات. اختر{" "}
-            <span className="font-semibold text-slate-800">تاجراً أو صاحب محل</span> أو{" "}
-            <span className="font-semibold text-slate-800">تاجر جملة</span> — خطوات
-            بسيطة مثل المتاجر الاحترافية.
+            سجّل كـ <span className="font-semibold text-slate-800">زبون</span> أو{" "}
+            <span className="font-semibold text-slate-800">تاجر/صاحب محل</span> — التجار
+            يمكنهم تفعيل الشراء بالجملة من الملف الشخصي.
           </p>
         </div>
 
         <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
           <Link
-            href="/accounts?register=reparateur"
+            href="/accounts?register=customer"
+            onClick={dismiss}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-800 px-4 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-slate-700"
+          >
+            <UserRound className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
+            حساب زبون
+          </Link>
+          <Link
+            href="/accounts?register=merchant"
             onClick={dismiss}
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-md shadow-emerald-600/25 transition hover:bg-emerald-500"
           >
             <Wrench className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
-            تسجيل كتاجر أو صاحب محل
-          </Link>
-          <Link
-            href="/accounts?register=grossiste"
-            onClick={dismiss}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-3.5 text-sm font-bold text-white shadow-md shadow-sky-600/20 transition hover:bg-sky-500"
-          >
-            <Building2 className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
-            تسجيل كجملة
+            تاجر أو صاحب محل
           </Link>
         </div>
 

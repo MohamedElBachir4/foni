@@ -356,6 +356,9 @@ function ResultGrid({
                 id={item._id}
                 name={item.name}
                 price={effectivePrice}
+                priceRetail={item.priceRetail ?? item.price}
+                priceWholesale={item.priceWholesale}
+                priceReparateur={item.priceReparateur}
                 image={item.image}
                 colors={(item as { colors?: string[] }).colors}
                 category={

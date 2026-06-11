@@ -17,7 +17,7 @@ const shopLinks = [
 const serviceLinks = [
   { href: "/services", label: "خدماتنا" },
   { href: "/contact", label: "تواصل معنا" },
-  { href: "/accounts", label: "حساب الجملة / تاجر أو صاحب محل" },
+  { href: "/accounts", label: "حساب التاجر / الزبون" },
   { href: "/cart", label: "سلة الشراء" },
 ];
 
@@ -124,7 +124,7 @@ export function Footer() {
                   <span className="font-bold text-[var(--color-luxury-slate)]">للمهنيّين والكميات</span>
                 </div>
                 <p className="mb-5 text-[14px] leading-relaxed text-slate-600">
-                  أسعار تاجر أو صاحب محل و Grossiste بعد الموافقة — تسريع الشراء وفوائد حساب موحّد.
+                  أسعار التاجر بعد الموافقة — مع إمكانية تفعيل الشراء بالجملة من الملف الشخصي.
                 </p>
                 <Link
                   href="/accounts"

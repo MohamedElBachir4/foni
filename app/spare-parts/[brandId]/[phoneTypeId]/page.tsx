@@ -255,6 +255,9 @@ export default function SparePartsListPage() {
                         id={part._id}
                         name={part.name}
                         price={effectivePrice ?? 0}
+                        priceRetail={part.priceRetail ?? part.price}
+                        priceWholesale={part.priceWholesale}
+                        priceReparateur={part.priceReparateur}
                         image={part.image ?? ""}
                         colors={Array.isArray(part.colors) ? part.colors : []}
                         options={Array.isArray(part.options) ? part.options : []}

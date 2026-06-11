@@ -9,7 +9,8 @@ import { useAccount } from "@/context/AccountContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { formatDzd } from "@/lib/pricing";
+import { formatDzd, resolveCartLineUnitPrice, resolveCartVariantUnitPrice } from "@/lib/pricing";
+import { checkoutRoleLabel } from "@/lib/accountRoles";
 import { getProductColorLabelAr } from "@/lib/productColors";
 import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 import {
@@ -493,14 +494,18 @@ export default function CheckoutPage() {
                         <ul className="mt-1 space-y-0.5 text-[11px] text-slate-600">
                           {item.variantSelections.map((v) => (
                             <li key={v.label}>
-                              {v.label} × {v.quantity} — {formatDzd(v.price * v.quantity)} DA
+                              {v.label} × {v.quantity} —{" "}
+                              {formatDzd(
+                                resolveCartVariantUnitPrice(v, account) * v.quantity
+                              )}{" "}
+                              DA
                             </li>
                           ))}
                         </ul>
                       ) : (
                         <>
                           <p className="text-xs text-slate-500">
-                            {item.quantity} × {formatDzd(item.price)} DA
+                            {item.quantity} × {formatDzd(resolveCartLineUnitPrice(item, account))} DA
                           </p>
                           {item.option ? (
                             <p className="mt-1 text-[10px] text-slate-500">الخيار: {item.option}</p>
@@ -533,7 +538,7 @@ export default function CheckoutPage() {
                       ) : null}
                     </div>
                     <p className="shrink-0 text-sm font-bold text-slate-800">
-                      {formatDzd(cartLineSubtotal(item))} DA
+                      {formatDzd(cartLineSubtotal(item, account))} DA
                     </p>
                   </li>
                 ))}
@@ -579,7 +584,7 @@ export default function CheckoutPage() {
               <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
                 أنت مسجّل الدخول كـ{" "}
                 <span className="font-bold">
-                  {account.role === "grossiste" ? "بائع جملة" : "تاجر أو صاحب محل"}
+                  {checkoutRoleLabel(account)}
                 </span>
                 {" — "}
                 سيُسجّل الطلب تلقائياً بهذا النوع.

@@ -9,6 +9,13 @@ import {
   useState,
 } from "react";
 import { clearGuestCheckoutShippingPrefs } from "@/lib/guestCheckoutPrefs";
+import {
+  isMerchantRole,
+  normalizeAccountRole,
+  resolveUseWholesalePricing,
+  type AccountRole,
+} from "@/lib/accountRoles";
+import { publicFetch } from "@/lib/publicFetch";
 
 export type AccountInfo = {
   id: string;
@@ -16,7 +23,7 @@ export type AccountInfo = {
   lastName: string;
   email: string;
   phone: string;
-  role: "reparateur" | "grossiste";
+  role: AccountRole;
   approvalStatus?: "pending" | "approved" | "rejected";
   useWholesalePricing?: boolean;
   wilaya?: string;
@@ -33,17 +40,40 @@ type StoredAccount = {
 type AccountContextValue = {
   account: AccountInfo | null;
   token: string | null;
-  /** true after reading localStorage on the client (avoid flash for logged-in users). */
   hydrated: boolean;
   getAuthToken: () => string | null;
   setFromApi: (payload: { account: any; token?: string }) => void;
   logout: () => void;
-  setUseWholesalePricing: (enabled: boolean) => void;
+  setUseWholesalePricing: (enabled: boolean) => Promise<void>;
 };
 
 const STORAGE_KEY = "foni_account";
 
 const AccountContext = createContext<AccountContextValue | null>(null);
+
+function mapApiAccount(raw: any): AccountInfo {
+  const role = normalizeAccountRole(raw?.role);
+  const useWholesalePricing =
+    role === "merchant"
+      ? resolveUseWholesalePricing({
+          role: raw?.role,
+          useWholesalePricing: raw?.useWholesalePricing,
+        })
+      : false;
+  return {
+    id: String(raw?._id ?? raw?.id ?? ""),
+    firstName: raw?.firstName ?? "",
+    lastName: raw?.lastName ?? "",
+    email: raw?.email ?? "",
+    phone: raw?.phone ?? "",
+    role,
+    approvalStatus: raw?.approvalStatus ?? "approved",
+    wilaya: raw?.wilaya ?? "",
+    shopName: raw?.shopName ?? "",
+    address: raw?.address ?? "",
+    useWholesalePricing,
+  };
+}
 
 function loadFromStorage(): StoredAccount | null {
   if (typeof window === "undefined") return null;
@@ -80,15 +110,33 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = loadFromStorage();
     if (stored?.account) {
-      setAccount({
-        ...stored.account,
-        useWholesalePricing: !!stored.useWholesalePricing,
-      });
+      const acc = mapApiAccount(stored.account);
+      setAccount(acc);
       setToken(stored.token ?? null);
-      setUseWholesalePricingState(!!stored.useWholesalePricing);
+      setUseWholesalePricingState(!!acc.useWholesalePricing);
     }
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || !token) return;
+    let cancelled = false;
+    publicFetch("/api/accounts/me", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.account) return;
+        const acc = mapApiAccount(data.account);
+        setAccount(acc);
+        setUseWholesalePricingState(!!acc.useWholesalePricing);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, token]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -101,22 +149,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   const setFromApi = useCallback((payload: { account: any; token?: string }) => {
     if (!payload?.account) return;
-    const acc: AccountInfo = {
-      id: String(payload.account._id ?? payload.account.id ?? ""),
-      firstName: payload.account.firstName ?? "",
-      lastName: payload.account.lastName ?? "",
-      email: payload.account.email ?? "",
-      phone: payload.account.phone ?? "",
-      role: payload.account.role === "grossiste" ? "grossiste" : "reparateur",
-      approvalStatus: payload.account.approvalStatus ?? "approved",
-      wilaya: payload.account.wilaya ?? "",
-      shopName: payload.account.shopName ?? "",
-      address: payload.account.address ?? "",
-      useWholesalePricing: false,
-    };
+    const acc = mapApiAccount(payload.account);
     setAccount(acc);
     setToken(payload.token ?? null);
-    setUseWholesalePricingState(false);
+    setUseWholesalePricingState(!!acc.useWholesalePricing);
     clearGuestCheckoutShippingPrefs();
   }, []);
 
@@ -126,13 +162,27 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     setUseWholesalePricingState(false);
   }, []);
 
-  const setUseWholesalePricing = useCallback((enabled: boolean) => {
-    setUseWholesalePricingState(enabled);
-    setAccount((prev) => {
-      if (!prev || prev.role !== "reparateur") return prev;
-      return { ...prev, useWholesalePricing: enabled };
-    });
-  }, []);
+  const setUseWholesalePricing = useCallback(
+    async (enabled: boolean) => {
+      if (!token) return;
+      const res = await publicFetch("/api/accounts/me/wholesale-pricing", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ enabled }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "تعذّر تحديث إعداد الشراء بالجملة");
+      }
+      const acc = mapApiAccount(data.account);
+      setAccount(acc);
+      setUseWholesalePricingState(!!acc.useWholesalePricing);
+    },
+    [token]
+  );
 
   const getAuthToken = useCallback(() => {
     if (token) return token;
@@ -171,3 +221,6 @@ export function useAccount() {
   return ctx;
 }
 
+export function useIsMerchant(account: AccountInfo | null): boolean {
+  return isMerchantRole(account?.role);
+}

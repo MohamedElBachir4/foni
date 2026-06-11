@@ -26,6 +26,8 @@ import type { PricedVariant } from "@/lib/productPricedOptions";
 import { useAccount } from "@/context/AccountContext";
 import { useCart } from "@/context/CartContext";
 import { slugifyProductName } from "@/lib/seo";
+import { publicFetch } from "@/lib/publicFetch";
+import { parsePricedVariantsFromApi } from "@/lib/productPricedOptions";
 
 type RelatedProduct = {
   _id: string;
@@ -93,23 +95,65 @@ export function ProductDetailsModern({
   const { addToCart } = useCart();
   const { account } = useAccount();
 
+  const [tierOverrides, setTierOverrides] = useState<{
+    priceRetail?: number;
+    priceWholesale?: number;
+    priceReparateur?: number;
+    pricedOptions?: PricedVariant[];
+  } | null>(null);
+
   const tiered: TieredPrice = useMemo(
     () => ({
-      price: product.price,
-      priceRetail: product.priceRetail ?? product.price,
-      priceWholesale: product.priceWholesale,
-      priceReparateur: product.priceReparateur,
+      price: tierOverrides?.priceRetail ?? product.price,
+      priceRetail: tierOverrides?.priceRetail ?? product.priceRetail ?? product.price,
+      priceWholesale: tierOverrides?.priceWholesale ?? product.priceWholesale,
+      priceReparateur: tierOverrides?.priceReparateur ?? product.priceReparateur,
     }),
-    [product.price, product.priceRetail, product.priceWholesale, product.priceReparateur]
+    [
+      product.price,
+      product.priceRetail,
+      product.priceWholesale,
+      product.priceReparateur,
+      tierOverrides,
+    ]
   );
 
-  const variantList = useMemo(
-    () =>
-      Array.isArray(product.pricedOptions) && product.pricedOptions.length > 0
+  const variantList = useMemo(() => {
+    const opts =
+      tierOverrides?.pricedOptions ??
+      (Array.isArray(product.pricedOptions) && product.pricedOptions.length > 0
         ? product.pricedOptions
-        : [],
-    [product.pricedOptions]
-  );
+        : []);
+    return opts;
+  }, [product.pricedOptions, tierOverrides?.pricedOptions]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cat = product.category;
+    const path =
+      cat === "قطع غيار"
+        ? `/api/spare-parts/${product.id}`
+        : cat === "أكسسوارات" || cat === "اكسسوارات"
+          ? `/api/accessories/${product.id}`
+          : `/api/phones/${product.id}`;
+
+    publicFetch(path, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setTierOverrides({
+          priceRetail: data.priceRetail ?? data.price,
+          priceWholesale: data.priceWholesale,
+          priceReparateur: data.priceReparateur,
+          pricedOptions: parsePricedVariantsFromApi(data.pricedOptions),
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id, product.category, account?.id, account?.useWholesalePricing]);
 
   const multiVariantMode = useMemo(() => {
     const cat = product.category;
@@ -183,6 +227,9 @@ export function ProductDetailsModern({
         label: v.label,
         price: getEffectivePriceForVariant(v, pricingAccount),
         quantity: variantQtys[v.label] ?? 0,
+        retailPrice: v.retailPrice,
+        wholesalePrice: v.wholesalePrice,
+        repairPrice: v.repairPrice,
       })),
     [variantList, variantQtys, pricingAccount]
   );
@@ -246,6 +293,9 @@ export function ProductDetailsModern({
           label: v.label,
           price: getEffectivePriceForVariant(v, pricingAccount),
           quantity: variantQtys[v.label] ?? 0,
+          retailPrice: v.retailPrice,
+          wholesalePrice: v.wholesalePrice,
+          repairPrice: v.repairPrice,
         }))
         .filter((x) => x.quantity > 0);
       if (selections.length === 0) {
@@ -277,6 +327,9 @@ export function ProductDetailsModern({
       id: product.id,
       name: product.name,
       price: effectivePrice,
+      priceRetail: tiered.priceRetail ?? effectivePrice,
+      priceWholesale: tiered.priceWholesale ?? undefined,
+      priceReparateur: tiered.priceReparateur ?? undefined,
       image: product.image,
       quantity: 1,
       color: colorNorm,
@@ -603,6 +656,9 @@ export function ProductDetailsModern({
                 id={product.id}
                 name={product.name}
                 price={effectivePrice}
+                priceRetail={tiered.priceRetail ?? effectivePrice}
+                priceWholesale={tiered.priceWholesale ?? undefined}
+                priceReparateur={tiered.priceReparateur ?? undefined}
                 image={product.image}
                 colors={product.colors || []}
                 lockColorToSelection={!!(product.colors && product.colors.length > 0)}

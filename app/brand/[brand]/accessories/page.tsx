@@ -100,6 +100,15 @@ export default async function BrandAccessoriesPage({
     phoneTypeParam
   );
 
+  const accessoriesApiPath = (() => {
+    const q = new URLSearchParams();
+    q.set("brand", brandId);
+    if (phoneTypeParam && MONGO_ID.test(phoneTypeParam)) {
+      q.set("phoneType", phoneTypeParam);
+    }
+    return `/api/accessories?${q.toString()}`;
+  })();
+
   return (
     <div className="min-h-screen w-full antialiased bg-slate-50">
       <Navbar />
@@ -122,7 +131,11 @@ export default async function BrandAccessoriesPage({
             لا توجد أكسسوارات مطابقة لهذه الفلترة حالياً.
           </p>
         ) : (
-          <BrandAccessoriesList accessories={accessories} />
+          <BrandAccessoriesList
+            accessories={accessories}
+            apiPath={accessoriesApiPath}
+            phoneTypeFilterId={phoneTypeParam}
+          />
         )}
       </main>
       <Footer />

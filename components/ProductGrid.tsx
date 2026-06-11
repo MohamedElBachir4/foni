@@ -82,9 +82,10 @@ export function ProductGrid({
   const [hasHydratedCache, setHasHydratedCache] = useState(false);
   const { account } = useAccount();
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
+  const accountFetchKey = account?.id ?? "guest";
   const queryKey = useMemo(
-    () => `${selectedBrandId || "all"}|${phoneTypeId || "all"}`,
-    [selectedBrandId, phoneTypeId]
+    () => `${selectedBrandId || "all"}|${phoneTypeId || "all"}|${accountFetchKey}`,
+    [selectedBrandId, phoneTypeId, accountFetchKey]
   );
 
   useEffect(() => {
@@ -194,7 +195,7 @@ export function ProductGrid({
     return () => {
       cancelled = true;
     };
-  }, [selectedBrandId, phoneTypeId, queryKey, mixedLatest]);
+  }, [selectedBrandId, phoneTypeId, queryKey, mixedLatest, accountFetchKey]);
 
   const isBrandPage = !!(selectedBrandId && selectedBrandId !== "all");
 
@@ -337,6 +338,9 @@ export function ProductGrid({
                         id={String(product.id)}
                         name={product.name}
                         price={effectivePrice}
+                        priceRetail={tiered.priceRetail ?? tiered.price}
+                        priceWholesale={tiered.priceWholesale}
+                        priceReparateur={tiered.priceReparateur}
                         image={product.image}
                         colors={Array.isArray((product as Product & { colors?: string[] }).colors) ? (product as Product & { colors?: string[] }).colors : undefined}
                         category={product.category}

@@ -31,7 +31,17 @@ const CATEGORIES = [
   },
 ];
 
-export function CategorySlider() {
+type CategorySliderProps = {
+  heading?: string;
+  subheading?: string;
+  className?: string;
+};
+
+export function CategorySlider({
+  heading = "تصفح حسب التصنيف",
+  subheading = "اكتشف مجموعتنا المتنوعة",
+  className = "mb-20",
+}: CategorySliderProps = {}) {
   const router = useRouter();
 
   const handleClick = (catId: string) => {
@@ -44,12 +54,10 @@ export function CategorySlider() {
   };
 
   return (
-    <section className="mb-20">
+    <section className={className}>
       <div className="mb-10 text-center">
-        <h2 className="mb-3 text-4xl font-bold text-gray-800">
-          تصفح حسب التصنيف
-        </h2>
-        <p className="text-gray-500">اكتشف مجموعتنا المتنوعة</p>
+        <h2 className="mb-3 text-4xl font-bold text-gray-800">{heading}</h2>
+        <p className="text-gray-500">{subheading}</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

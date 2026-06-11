@@ -3,14 +3,13 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { API_URL, getAuthHeaders, getToken } from "@/lib/adminAuth";
 import { getProductImageUrl } from "@/lib/productImage";
-import { Smartphone, CheckCircle, AlertCircle, Pencil, Trash2, Search, ChevronDown, ChevronUp, FileSpreadsheet } from "lucide-react";
+import { Smartphone, CheckCircle, AlertCircle, Pencil, Trash2, Search, ChevronDown, ChevronUp, FileSpreadsheet, Plus } from "lucide-react";
 import { SPARE_PARTS_STATIC_BRANDS } from "@/lib/sparePartsStaticBrands";
 import {
   AdminButton,
   AdminCard,
   AdminModal,
   AdminPageHeader,
-  AdminTableCellImage,
 } from "@/components/admin";
 
 type Brand = { _id: string; name: string };
@@ -41,6 +40,12 @@ export default function SpareModelsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedBrandId, setExpandedBrandId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false);
+  const [phoneModalNotice, setPhoneModalNotice] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [savingPhone, setSavingPhone] = useState(false);
   const [editing, setEditing] = useState<PhoneType | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
@@ -99,6 +104,25 @@ export default function SpareModelsPage() {
     setImage("");
     setSelectedBrand("");
     setEditing(null);
+    setPhoneModalNotice(null);
+  }
+
+  function closePhoneModal() {
+    if (savingPhone) return;
+    setPhoneModalOpen(false);
+    setPhoneModalNotice(null);
+    resetForm();
+  }
+
+  function openCreatePhoneModal() {
+    resetForm();
+    setPhoneModalOpen(true);
+  }
+
+  function openEditPhoneModal(item: PhoneType) {
+    startEdit(item);
+    setPhoneModalNotice(null);
+    setPhoneModalOpen(true);
   }
 
   function closeImportModal() {
@@ -132,21 +156,23 @@ export default function SpareModelsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMessage(null);
+    setPhoneModalNotice(null);
     if (!name.trim()) {
-      setMessage({ type: "error", text: "اسم الهاتف مطلوب" });
+      setPhoneModalNotice({ type: "error", text: "اسم الهاتف مطلوب" });
       return;
     }
     if (!selectedBrand) {
-      setMessage({ type: "error", text: "الرجاء اختيار الماركة" });
+      setPhoneModalNotice({ type: "error", text: "الرجاء اختيار الماركة" });
       return;
     }
 
+    setSavingPhone(true);
     let resolvedBrandId = selectedBrand;
     if (selectedBrand.startsWith("static:")) {
       const selectedStatic = brandsForDisplay.find((b) => b._id === selectedBrand);
       if (!selectedStatic) {
-        setMessage({ type: "error", text: "تعذر تحديد الماركة المختارة" });
+        setPhoneModalNotice({ type: "error", text: "تعذر تحديد الماركة المختارة" });
+        setSavingPhone(false);
         return;
       }
 
@@ -169,10 +195,11 @@ export default function SpareModelsPage() {
           setBrands((prev) => [...prev, { _id: createBrandData._id, name: createBrandData.name || selectedStatic.name }]);
           setSelectedBrand(createBrandData._id);
         } else {
-          setMessage({
+          setPhoneModalNotice({
             type: "error",
             text: createBrandData.error || "تعذر إنشاء الماركة تلقائياً",
           });
+          setSavingPhone(false);
           return;
         }
       }
@@ -191,17 +218,23 @@ export default function SpareModelsPage() {
        });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        setPhoneModalOpen(false);
+        resetForm();
         setMessage({
           type: "success",
           text: isEdit ? "تم تحديث هاتف قطع الغيار" : "تم إنشاء هاتف لقطع الغيار",
         });
-        resetForm();
         fetchTypes();
       } else {
-        setMessage({ type: "error", text: data.error || (isEdit ? "فشل التحديث" : "فشل الإنشاء") });
+        setPhoneModalNotice({
+          type: "error",
+          text: data.error || (isEdit ? "فشل التحديث" : "فشل الإنشاء"),
+        });
       }
     } catch {
-      setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
+      setPhoneModalNotice({ type: "error", text: "تعذر الاتصال بالخادم" });
+    } finally {
+      setSavingPhone(false);
     }
   }
 
@@ -270,14 +303,6 @@ export default function SpareModelsPage() {
     }
   }
 
-  function startEdit(item: PhoneType) {
-    setEditing(item);
-    setName(item.name || "");
-    setImage((item.image as string) || "");
-    const brandId = typeof item.brand === "string" ? item.brand : item.brand?._id;
-    setSelectedBrand(brandId || "");
-  }
-
   // نفس الماركات الموجودة في /spare-parts (قائمة ثابتة) لكن مربوطة ببيانات API عند التوفر
   const brandsForDisplay = useMemo(() => {
     const apiByKey = new Map<string, Brand>();
@@ -290,6 +315,21 @@ export default function SpareModelsPage() {
       return fromApi || { _id: `static:${sb.slug}`, name: sb.name };
     });
   }, [brands]);
+
+  function startEdit(item: PhoneType) {
+    setEditing(item);
+    setName(item.name || "");
+    setImage((item.image as string) || "");
+    const brandId = typeof item.brand === "string" ? item.brand : item.brand?._id;
+    const brandName =
+      typeof item.brand === "object" && item.brand?.name
+        ? item.brand.name
+        : brands.find((b) => b._id === brandId)?.name || "";
+    const matchedStatic = brandsForDisplay.find(
+      (b) => b._id === brandId || normalizeKey(b.name) === normalizeKey(brandName)
+    );
+    setSelectedBrand(matchedStatic?._id || brandId || "");
+  }
 
   // تجميع الهواتف حسب الماركة مع إظهار كل الماركات الثابتة حتى لو كانت بدون هواتف
   const groupedByBrand = useMemo(() => {
@@ -353,10 +393,18 @@ export default function SpareModelsPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <AdminPageHeader
         title="هواتف خاصة بقطع الغيار"
-        description="نظّم موديلات الهواتف (الاسم + الصورة + الماركة) لاستخدامها مع قطع الغيار."
+        description="إنشاء وتعديل موديلات الهواتف (الاسم + الصورة + الماركة) من نافذة منبثقة."
         icon={<Smartphone className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">
+            <AdminButton
+              variant="primary"
+              size="md"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={openCreatePhoneModal}
+            >
+              إضافة هاتف
+            </AdminButton>
             <AdminButton
               variant="success"
               size="md"
@@ -378,6 +426,125 @@ export default function SpareModelsPage() {
           </div>
         }
       />
+
+      {messageEl}
+
+      <AdminModal
+        open={phoneModalOpen}
+        onClose={closePhoneModal}
+        size="md"
+        frameClassName="!p-3"
+        panelClassName="!max-w-[min(26rem,calc(100vw-1.75rem))] !w-full sm:!max-w-[min(32rem,calc(100vw-1.75rem))]"
+        headerDense
+        bodyScroll={true}
+        closeOnBackdrop={!savingPhone}
+        disableClose={savingPhone}
+        icon={<Smartphone className="h-4 w-4 text-blue-600 sm:h-[18px] sm:w-[18px]" />}
+        title={editing ? "تعديل هاتف قطع الغيار" : "إضافة هاتف لقطع الغيار"}
+        description={editing ? "عدّل البيانات ثم احفظ." : "الماركة واسم الهاتف إلزاميان."}
+        contentClassName="!px-3 !py-2 sm:!px-3.5 sm:!py-2.5"
+      >
+        {phoneModalNotice && (
+          <div
+            className={`mb-1.5 flex shrink-0 items-start gap-1.5 rounded-md border px-2 py-1 text-[10px] leading-snug ${
+              phoneModalNotice.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-rose-200 bg-rose-50 text-rose-900"
+            }`}
+          >
+            {phoneModalNotice.type === "success" ? (
+              <CheckCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            )}
+            {phoneModalNotice.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-0">
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                الماركة <span className="text-rose-600">*</span>
+              </label>
+              <select
+                value={selectedBrand}
+                onChange={(e) => setSelectedBrand(e.target.value)}
+                className="admin-select !h-9 w-full text-sm"
+              >
+                <option value="">اختر الماركة</option>
+                {brandsForDisplay.map((b) => (
+                  <option key={b._id} value={b._id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                اسم الهاتف <span className="text-rose-600">*</span>
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="admin-input !h-9 w-full text-sm"
+                placeholder="مثال: Samsung S24 Ultra"
+                dir="auto"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                رابط صورة الهاتف (اختياري)
+              </label>
+              <input
+                type="text"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                className="admin-input !h-9 w-full text-sm"
+                placeholder="https://example.com/image.jpg"
+                dir="ltr"
+              />
+            </div>
+            {image.trim() ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                <p className="mb-1.5 text-[10px] font-medium text-slate-500">معاينة الصورة</p>
+                <div className="mx-auto h-24 w-24 overflow-hidden rounded-md bg-white">
+                  <img
+                    src={getProductImageUrl(image.trim())}
+                    alt="معاينة"
+                    className="h-full w-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-3 flex shrink-0 flex-wrap items-center justify-end gap-1.5 border-t border-slate-100/90 pt-2">
+            <AdminButton
+              type="button"
+              variant="outline"
+              onClick={closePhoneModal}
+              disabled={savingPhone}
+              size="sm"
+            >
+              إغلاق
+            </AdminButton>
+            <AdminButton
+              type="submit"
+              variant="success"
+              loading={savingPhone}
+              className="min-w-[100px]"
+              size="sm"
+            >
+              حفظ
+            </AdminButton>
+          </div>
+        </form>
+      </AdminModal>
 
       <AdminModal
         open={importOpen}
@@ -474,64 +641,6 @@ export default function SpareModelsPage() {
         </AdminCard>
       )}
 
-      <AdminCard
-        title={editing ? "تعديل هاتف قطع غيار" : "إضافة هاتف جديد لقطع الغيار"}
-        icon={<Smartphone className="h-5 w-5" />}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {messageEl}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">الماركة</label>
-              <select
-                value={selectedBrand}
-                onChange={(e) => setSelectedBrand(e.target.value)}
-                className="admin-select"
-              >
-                <option value="">اختر الماركة</option>
-                {brandsForDisplay.map((b) => (
-                  <option key={b._id} value={b._id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">اسم الهاتف</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="admin-input"
-                placeholder="مثال: Samsung S24 Ultra"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                رابط صورة الهاتف (اختياري)
-              </label>
-              <input
-                type="text"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                className="admin-input"
-                placeholder="https://example.com/image.jpg"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            {editing && (
-              <AdminButton type="button" variant="outline" onClick={() => resetForm()}>
-                إلغاء التعديل
-              </AdminButton>
-            )}
-            <AdminButton type="submit" variant="success">
-              {editing ? "حفظ التعديلات" : "حفظ الهاتف"}
-            </AdminButton>
-          </div>
-        </form>
-      </AdminCard>
-
       <AdminCard title="قائمة هواتف قطع الغيار" icon={<Smartphone className="h-5 w-5" />}>
         {/* شريط البحث */}
         <div className="mb-6 relative">
@@ -606,7 +715,7 @@ export default function SpareModelsPage() {
                               variant="ghost"
                               size="sm"
                               icon={<Pencil className="h-4 w-4" />}
-                              onClick={() => startEdit(phone)}
+                              onClick={() => openEditPhoneModal(phone)}
                               title="تعديل"
                             />
                             <AdminButton

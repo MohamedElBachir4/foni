@@ -13,8 +13,18 @@ type AddToCartButtonProps = {
   image?: string;
   colors?: string[];
   options?: string[];
+  priceRetail?: number;
+  priceWholesale?: number;
+  priceReparateur?: number;
   /** عند التفعيل: إضافة سطر بعدة خيارات وكميات (لا يُستخدم مع الخيار النصي المفرد) */
-  variantCartSelections?: { label: string; price: number; quantity: number }[];
+  variantCartSelections?: {
+    label: string;
+    price: number;
+    quantity: number;
+    retailPrice?: number;
+    wholesalePrice?: number;
+    repairPrice?: number;
+  }[];
   /** عند true: إضافة مباشرة بلون محدّد من الأب (مثل صفحة المنتج بعد اختيار الدائرة) دون نافذة */
   lockColorToSelection?: boolean;
   /** اللون المستخدم مع lockColorToSelection (معرّف من القائمة) */
@@ -35,6 +45,9 @@ export function AddToCartButton({
   image = "",
   colors = [],
   options = [],
+  priceRetail,
+  priceWholesale,
+  priceReparateur,
   variantCartSelections,
   lockColorToSelection = false,
   lockedColor = "",
@@ -82,6 +95,9 @@ export function AddToCartButton({
         price,
         image,
         quantity: 1,
+        priceRetail: priceRetail ?? price,
+        priceWholesale,
+        priceReparateur,
         color: hasColors && c ? c : undefined,
         availableColors: hasColors ? colors.map((x) => String(x).toLowerCase()) : undefined,
         option: hasOptions && o ? o : undefined,
@@ -94,7 +110,7 @@ export function AddToCartButton({
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => setAdded(false), 1800);
     },
-    [added, addToCart, id, name, price, image, productType, colors, options]
+    [added, addToCart, id, name, price, image, productType, colors, options, priceRetail, priceWholesale, priceReparateur]
   );
 
   const handleAddVariantCart = useCallback(
@@ -129,6 +145,9 @@ export function AddToCartButton({
           label: String(x.label || "").trim(),
           price: Math.max(0, Number(x.price) || 0),
           quantity: Math.max(1, Math.floor(Number(x.quantity)) || 1),
+          retailPrice: x.retailPrice,
+          wholesalePrice: x.wholesalePrice,
+          repairPrice: x.repairPrice,
         })),
         productType,
       });

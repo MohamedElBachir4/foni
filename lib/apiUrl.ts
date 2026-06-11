@@ -5,6 +5,15 @@
 export function getBrowserApiBase(): string {
   const raw = process.env.NEXT_PUBLIC_API_URL;
   const trimmed = raw != null ? String(raw).trim() : "";
+  if (typeof window !== "undefined") {
+    // في المتصفح: نفس الأصل عبر rewrites في next.config (أكثر استقراراً من :5001 مباشرة).
+    if (
+      !trimmed ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i.test(trimmed)
+    ) {
+      return "";
+    }
+  }
   if (trimmed && /^https?:\/\//i.test(trimmed)) {
     const cleaned = trimmed.replace(/\/+$/, "");
     try {

@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ProductImage } from "@/components/ProductImage";
 import { Heart } from "lucide-react";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
+import { filterAccessoriesForBrandPage } from "@/lib/accessoryVisibility";
 import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
+import { publicFetch } from "@/lib/publicFetch";
 
 type Accessory = {
   _id: string;
@@ -20,8 +22,46 @@ type Accessory = {
   options?: string[];
 };
 
-export function BrandAccessoriesList({ accessories }: { accessories: Accessory[] }) {
+export function BrandAccessoriesList({
+  accessories: initialAccessories,
+  apiPath,
+  phoneTypeFilterId,
+}: {
+  accessories: Accessory[];
+  /** عند التوفير: إعادة جلب القائمة من المتصفح مع توكن الحساب لأسعار التاجر/الجملة */
+  apiPath?: string;
+  phoneTypeFilterId?: string | null;
+}) {
   const { account } = useAccount();
+  const accountFetchKey = account?.id ?? "guest";
+  const [accessories, setAccessories] = useState(initialAccessories);
+
+  useEffect(() => {
+    setAccessories(initialAccessories);
+  }, [initialAccessories]);
+
+  useEffect(() => {
+    if (!apiPath) return;
+    let cancelled = false;
+    publicFetch(apiPath, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (cancelled) return;
+        let list = Array.isArray(data) ? (data as Accessory[]) : [];
+        if (phoneTypeFilterId !== undefined) {
+          list = filterAccessoriesForBrandPage(
+            list as { phoneTypes?: unknown; phoneType?: unknown }[],
+            phoneTypeFilterId
+          ) as Accessory[];
+        }
+        setAccessories(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [apiPath, accountFetchKey, phoneTypeFilterId]);
+
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
 
   return (
@@ -88,6 +128,9 @@ export function BrandAccessoriesList({ accessories }: { accessories: Accessory[]
                 id={a._id}
                 name={a.name}
                 price={effectivePrice ?? 0}
+                priceRetail={a.priceRetail ?? a.price}
+                priceWholesale={a.priceWholesale}
+                priceReparateur={a.priceReparateur}
                 image={a.image ?? ""}
                 colors={Array.isArray(a.colors) ? a.colors : []}
                 options={Array.isArray(a.options) ? a.options : []}

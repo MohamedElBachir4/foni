@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
 import { AdminPageHeader, AdminCard, AdminTable } from "@/components/admin";
+import { isMerchantRole, roleLabelAr } from "@/lib/accountRoles";
 
 type AccountDetail = {
   _id: string;
@@ -24,7 +25,8 @@ type AccountDetail = {
   lastName: string;
   email: string;
   phone: string;
-  role: "reparateur" | "grossiste";
+  role: "customer" | "merchant" | "reparateur" | "grossiste";
+  useWholesalePricing?: boolean;
   approvalStatus?: "pending" | "approved" | "rejected";
   approvalNote?: string;
   approvalReviewedAt?: string | null;
@@ -206,7 +208,10 @@ export default function AdminAccountOrdersPage() {
               <span dir="ltr">{account.phone}</span>
             </p>
             <p className="text-xs text-slate-500">
-              النوع: {account.role === "reparateur" ? "تاجر أو صاحب محل" : "Grossiste"}
+              النوع: {roleLabelAr(account.role)}
+              {isMerchantRole(account.role) && account.useWholesalePricing
+                ? " — شراء بالجملة مفعّل"
+                : ""}
             </p>
             <span
               className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${approvalClass(
