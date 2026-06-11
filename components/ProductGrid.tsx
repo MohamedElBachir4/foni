@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Heart, RefreshCw } from "lucide-react";
 import { type Product } from "@/lib/productsData";
 import { ProductImage } from "@/components/ProductImage";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
 import { sortPhoneTypesForAppleIphone } from "@/lib/iphoneModelOrder";
-import { publicFetch } from "@/lib/publicFetch";
+import { formatPublicFetchError, publicFetch } from "@/lib/publicFetch";
+
+const HOME_LATEST_TIMEOUT_MS = 22_000;
+const HOME_LATEST_MAX_RETRIES = 2;
 
 export type { Product };
 
@@ -79,8 +82,11 @@ export function ProductGrid({
     })[]
   >([]);
   const [apiLoading, setApiLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [hasHydratedCache, setHasHydratedCache] = useState(false);
-  const { account } = useAccount();
+  const [retryNonce, setRetryNonce] = useState(0);
+  const fetchGenRef = useRef(0);
+  const { account, hydrated } = useAccount();
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
   const accountFetchKey = account?.id ?? "guest";
   const queryKey = useMemo(
@@ -112,9 +118,40 @@ export function ProductGrid({
     }
   }, [queryKey]);
 
+  const mapResponseToProducts = useCallback(
+    (data: unknown, isMixedHome: boolean) => {
+      if (!Array.isArray(data)) return [];
+      if (isMixedHome) {
+        return data.map((row: any) => ({
+          id: String(row.id || row._id || ""),
+          name: String(row.name || ""),
+          price: Number(row.price ?? 0),
+          priceRetail: typeof row.priceRetail === "number" ? row.priceRetail : undefined,
+          priceWholesale: typeof row.priceWholesale === "number" ? row.priceWholesale : undefined,
+          priceReparateur:
+            typeof row.priceReparateur === "number" ? row.priceReparateur : undefined,
+          brand: "",
+          category: String(row.category || "هواتف"),
+          image: String(row.image || ""),
+          colors: Array.isArray(row.colors) ? row.colors : [],
+          options: Array.isArray(row.options) ? row.options : [],
+          createdAt: row.createdAt,
+        }));
+      }
+      const list = data.map(mapApiPhoneToProduct);
+      const isApple = list.length > 0 && list[0]!.brand === "apple";
+      if (isApple) return sortPhoneTypesForAppleIphone(list);
+      return list.sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
+    },
+    []
+  );
+
   useEffect(() => {
-    let cancelled = false;
-    setApiLoading(true);
+    if (!hydrated) return;
 
     const isMixedHome = mixedLatest && !selectedBrandId && !phoneTypeId;
     const endpoint = (() => {
@@ -127,75 +164,73 @@ export function ProductGrid({
       return `/api/phones${q.toString() ? `?${q.toString()}` : ""}`;
     })();
 
+    const gen = ++fetchGenRef.current;
+    const isStale = () => gen !== fetchGenRef.current;
+    const ac = new AbortController();
+
+    setApiLoading(true);
+    setFetchError(null);
+
     publicFetch(endpoint, {
-      // LTE: avoid very long blocking spinner on home page.
-      timeoutMs: 18_000,
-      maxRetries: 1,
+      signal: ac.signal,
+      timeoutMs: HOME_LATEST_TIMEOUT_MS,
+      maxRetries: HOME_LATEST_MAX_RETRIES,
       cache: "no-store",
     })
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => {
+        if (isStale()) return;
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const msg =
+            typeof body?.error === "string" && body.error.trim()
+              ? body.error
+              : res.status === 504
+                ? "انتهت مهلة جلب المنتجات. حاول مجدداً."
+                : "تعذّر جلب المنتجات.";
+          throw new Error(msg);
+        }
+        return res.json();
+      })
       .then((data) => {
-        if (cancelled) return;
-        const mapped = Array.isArray(data)
-          ? (() => {
-              if (isMixedHome) {
-                return data.map((row: any) => ({
-                  id: String(row.id || row._id || ""),
-                  name: String(row.name || ""),
-                  price: Number(row.price ?? 0),
-                  priceRetail:
-                    typeof row.priceRetail === "number" ? row.priceRetail : undefined,
-                  priceWholesale:
-                    typeof row.priceWholesale === "number" ? row.priceWholesale : undefined,
-                  priceReparateur:
-                    typeof row.priceReparateur === "number" ? row.priceReparateur : undefined,
-                  brand: "",
-                  category: String(row.category || "هواتف"),
-                  image: String(row.image || ""),
-                  colors: Array.isArray(row.colors) ? row.colors : [],
-                  options: Array.isArray(row.options) ? row.options : [],
-                  createdAt: row.createdAt,
-                }));
-              }
-              const list = data.map(mapApiPhoneToProduct);
-              const isApple =
-                list.length > 0 && list[0]!.brand === "apple";
-              if (isApple) {
-                return sortPhoneTypesForAppleIphone(list);
-              }
-              return list.sort((a, b) => {
-                const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return bTime - aTime;
-              });
-            })()
-          : [];
+        if (isStale()) return;
+        const mapped = mapResponseToProducts(data, isMixedHome);
         setApiProducts(mapped);
-        if (typeof window !== "undefined") {
+        if (typeof window !== "undefined" && mapped.length > 0) {
           try {
-            window.sessionStorage.setItem(
-              `phones:grid:${queryKey}`,
-              JSON.stringify(mapped)
-            );
+            window.sessionStorage.setItem(`phones:grid:${queryKey}`, JSON.stringify(mapped));
           } catch {
             // ignore storage quota errors
           }
         }
       })
-      .catch(() => {
-        if (cancelled) return;
-        // Keep stale data (if any) instead of replacing UI with empty state on flaky LTE.
+      .catch((err) => {
+        if (isStale() || ac.signal.aborted) return;
         setApiProducts((prev) => prev);
+        setFetchError(
+          formatPublicFetchError(err, "تعذّر جلب المنتجات. تحقق من الاتصال وحاول مجدداً.")
+        );
       })
       .finally(() => {
-        if (cancelled) return;
-        setApiLoading(false);
+        if (!isStale()) setApiLoading(false);
       });
 
     return () => {
-      cancelled = true;
+      ac.abort();
     };
-  }, [selectedBrandId, phoneTypeId, queryKey, mixedLatest, accountFetchKey]);
+  }, [
+    selectedBrandId,
+    phoneTypeId,
+    queryKey,
+    mixedLatest,
+    accountFetchKey,
+    hydrated,
+    retryNonce,
+    mapResponseToProducts,
+  ]);
+
+  const retryFetch = useCallback(() => {
+    setRetryNonce((n) => n + 1);
+  }, []);
 
   const isBrandPage = !!(selectedBrandId && selectedBrandId !== "all");
 
@@ -247,10 +282,26 @@ export function ProductGrid({
         )}
 
         <div className={isBrandPage ? "" : "min-w-0 flex-1"}>
-          {apiLoading && !hasHydratedCache && filteredProducts.length === 0 ? (
+          {apiLoading && !hasHydratedCache && filteredProducts.length === 0 && !fetchError ? (
             <div className="py-20 text-center">
               <div className="rounded-[40px] bg-white/80 p-12 shadow-2xl backdrop-blur-sm">
                 <div className="mb-4 text-2xl font-medium text-slate-500">جاري التحميل...</div>
+              </div>
+            </div>
+          ) : fetchError && filteredProducts.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="rounded-[40px] border border-amber-200 bg-amber-50/90 p-8 shadow-lg sm:p-10">
+                <p className="mb-4 text-sm font-medium leading-relaxed text-amber-900 sm:text-base">
+                  {fetchError}
+                </p>
+                <button
+                  type="button"
+                  onClick={retryFetch}
+                  className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  إعادة المحاولة
+                </button>
               </div>
             </div>
           ) : filteredProducts.length === 0 ? (
