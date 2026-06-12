@@ -68,6 +68,7 @@ export default function CheckoutPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [notes, setNotes] = useState("");
 
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [communes, setCommunes] = useState<Commune[]>([]);
@@ -372,6 +373,7 @@ export default function CheckoutPage() {
           stopdeskId: deliveryType === "stopdesk" ? Number(stopdeskId) : null,
           deliveryFee,
           address: address.trim(),
+          notes: notes.trim(),
           items: items.map((i) => {
             const base = {
               productId: i.id,
@@ -770,6 +772,28 @@ export default function CheckoutPage() {
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   placeholder="العنوان الكامل للتوصيل"
                 />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="notes"
+                  className="mb-1.5 block text-sm font-semibold text-slate-700"
+                >
+                  ملاحظة{" "}
+                  <span className="font-normal text-slate-500">(اختياري)</span>
+                </label>
+                <textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  placeholder="أي تفاصيل إضافية للطلب أو التوصيل (مثال: وقت التوصيل المناسب، تعليمات الوصول...)"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  {notes.length}/500
+                </p>
               </div>
             </div>
 

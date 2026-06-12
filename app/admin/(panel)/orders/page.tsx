@@ -22,6 +22,7 @@ type Order = {
   phone: string;
   wilaya: string;
   address: string;
+  notes?: string;
   items: OrderItem[];
   totalPrice: number;
   status?: string;
@@ -610,6 +611,12 @@ export default function AdminOrdersPage() {
                   </h3>
                   <p className="text-slate-600">{order.wilaya}</p>
                   <p className="mt-1 text-slate-600">{order.address}</p>
+                  {order.notes?.trim() ? (
+                    <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50/80 px-3 py-2 text-sm text-amber-950">
+                      <span className="font-bold">ملاحظة الزبون: </span>
+                      {order.notes.trim()}
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700">
