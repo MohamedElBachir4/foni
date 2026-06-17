@@ -6,41 +6,12 @@ import { useRouter } from "next/navigation";
 import { Search, Smartphone, Wrench, Headphones } from "lucide-react";
 import { getProductImageUrl } from "@/lib/productImage";
 import { formatDzd } from "@/lib/pricing";
-import { highlightQueryInText } from "@/lib/highlightSearch";
-import { publicFetch } from "@/lib/publicFetch";
+import { highlightTokensInText } from "@/lib/highlightSearch";
+import { useSearchSuggestions, type SearchResultItem } from "@/lib/useSearch";
 
-const DEBOUNCE_MS = 300;
-const SEARCH_FETCH_TIMEOUT_MS = 22_000;
-const SEARCH_FETCH_MAX_RETRIES = 2;
-/** لكل قسم (هواتف، قطع غيار، إكسسوارات) — الحد الفعلي يفرضه الخادم */
 const LIMIT = 24;
 
-export type SearchSuggestion = {
-  type: string;
-  _id: string;
-  name: string;
-  price: number;
-  image: string;
-  href: string;
-};
-
-type Grouped = {
-  phones: SearchSuggestion[];
-  spareParts: SearchSuggestion[];
-  accessories: SearchSuggestion[];
-  interpretedQuery?: string;
-};
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debouncedValue;
-}
-
-const emptyGrouped: Grouped = { phones: [], spareParts: [], accessories: [] };
+export type SearchSuggestion = SearchResultItem;
 
 function typeLabel(t: string) {
   if (t === "phone") return "هاتف";
@@ -62,101 +33,37 @@ function collapseForCompare(s: string) {
 export function SearchBar() {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [grouped, setGrouped] = useState<Grouped>(emptyGrouped);
-  const [interpretedQuery, setInterpretedQuery] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const fetchGenRef = useRef(0);
-  const abortRef = useRef<AbortController | null>(null);
 
-  const debouncedQuery = useDebounce(query.trim(), DEBOUNCE_MS);
+  const { grouped, interpretedQuery, matchedTokens, debouncedQuery, loading } =
+    useSearchSuggestions(query, { limit: LIMIT });
 
-  const highlightSource =
-    interpretedQuery && collapseForCompare(interpretedQuery) !== collapseForCompare(debouncedQuery)
-      ? interpretedQuery
-      : debouncedQuery;
+  const highlightTokens =
+    matchedTokens.length > 0
+      ? matchedTokens
+      : interpretedQuery && collapseForCompare(interpretedQuery) !== collapseForCompare(debouncedQuery)
+        ? interpretedQuery.split(/\s+/).filter(Boolean)
+        : debouncedQuery.split(/\s+/).filter(Boolean);
 
-  const flatList = (g: Grouped) => {
-    const out: { item: SearchSuggestion; section: keyof Grouped }[] = [];
+  const flatList = (g: typeof grouped) => {
+    const out: { item: SearchResultItem; section: keyof typeof grouped }[] = [];
     for (const s of g.phones) out.push({ item: s, section: "phones" });
     for (const s of g.spareParts) out.push({ item: s, section: "spareParts" });
     for (const s of g.accessories) out.push({ item: s, section: "accessories" });
     return out;
   };
 
-  const fetchSuggestions = useCallback(async (q: string, signal?: AbortSignal) => {
-    const gen = ++fetchGenRef.current;
-    const isStale = () => gen !== fetchGenRef.current || signal?.aborted;
-
-    if (!q) {
-      setGrouped(emptyGrouped);
-      setInterpretedQuery(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await publicFetch(
-        `/api/search?q=${encodeURIComponent(q)}&limit=${LIMIT}`,
-        {
-          cache: "no-store",
-          signal,
-          timeoutMs: SEARCH_FETCH_TIMEOUT_MS,
-          maxRetries: SEARCH_FETCH_MAX_RETRIES,
-        }
-      );
-      if (isStale()) return;
-      if (res.ok) {
-        const data = await res.json();
-        if (isStale()) return;
-        if (data && data.phones && data.spareParts && data.accessories) {
-          const iq =
-            typeof data.interpretedQuery === "string" ? data.interpretedQuery.trim() : "";
-          setInterpretedQuery(iq || null);
-          setGrouped({
-            phones: Array.isArray(data.phones) ? data.phones : [],
-            spareParts: Array.isArray(data.spareParts) ? data.spareParts : [],
-            accessories: Array.isArray(data.accessories) ? data.accessories : [],
-            interpretedQuery: iq || undefined,
-          });
-        } else {
-          setGrouped(emptyGrouped);
-          setInterpretedQuery(null);
-        }
-        setHighlightIndex(0);
-      } else {
-        setGrouped(emptyGrouped);
-        setInterpretedQuery(null);
-      }
-    } catch {
-      if (isStale()) return;
-      setGrouped(emptyGrouped);
-      setInterpretedQuery(null);
-    } finally {
-      if (!isStale()) setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
-
     if (debouncedQuery) {
-      fetchSuggestions(debouncedQuery, ac.signal);
       setOpen(true);
+      setHighlightIndex(0);
     } else {
-      setGrouped(emptyGrouped);
-      setInterpretedQuery(null);
-      setLoading(false);
       setOpen(false);
     }
-
-    return () => ac.abort();
-  }, [debouncedQuery, fetchSuggestions]);
+  }, [debouncedQuery]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -364,7 +271,7 @@ export function SearchBar() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-sm font-semibold text-slate-900 sm:line-clamp-1 sm:text-[15px]">
-                                {highlightQueryInText(item.name, highlightSource)}
+                                {highlightTokensInText(item.name, highlightTokens)}
                               </p>
                               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                 <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
@@ -415,7 +322,7 @@ export function SearchBar() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-sm font-semibold text-slate-900">
-                                {highlightQueryInText(item.name, highlightSource)}
+                                {highlightTokensInText(item.name, highlightTokens)}
                               </p>
                               <div className="mt-1 text-xs text-slate-500">
                                 <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
@@ -460,7 +367,7 @@ export function SearchBar() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-sm font-semibold text-slate-900">
-                                {highlightQueryInText(item.name, highlightSource)}
+                                {highlightTokensInText(item.name, highlightTokens)}
                               </p>
                               <div className="mt-1 text-xs text-slate-500">
                                 <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-800">

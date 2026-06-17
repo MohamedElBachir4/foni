@@ -1,8 +1,5 @@
-/**
- * صورة افتراضية عند غياب صورة المنتج (data URL لتجنب 403 من المواقع الخارجية).
- */
-const DEFAULT_PHONE_IMAGE =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='%23f1f5f9' width='400' height='300'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='18'%3Eلا توجد صورة%3C/text%3E%3C/svg%3E";
+/** صورة افتراضية عند غياب صورة المنتج — PHOTO NON DISPONIBLE (foni/public). */
+const DEFAULT_PHONE_IMAGE = "/photo-non-disponible.jpeg";
 
 function hasExplicitPublicApiUrl(): boolean {
   const t = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
@@ -10,11 +10,8 @@ import { Heart, Search } from "lucide-react";
 import { ProductCardActions } from "@/components/ProductCardActions";
 import { useAccount, type AccountInfo } from "@/context/AccountContext";
 import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
-import { highlightQueryInText } from "@/lib/highlightSearch";
-import { formatPublicFetchError, publicFetch } from "@/lib/publicFetch";
-
-const SEARCH_FETCH_TIMEOUT_MS = 22_000;
-const SEARCH_FETCH_MAX_RETRIES = 2;
+import { highlightTokensInText } from "@/lib/highlightSearch";
+import { useSearchSuggestions } from "@/lib/useSearch";
 
 type SearchResult = {
   type: string;
@@ -26,13 +23,7 @@ type SearchResult = {
   priceReparateur?: number;
   image: string;
   href: string;
-};
-
-type Grouped = {
-  phones: SearchResult[];
-  spareParts: SearchResult[];
-  accessories: SearchResult[];
-  interpretedQuery?: string;
+  colors?: string[];
 };
 
 function collapseForCompare(s: string) {
@@ -62,11 +53,6 @@ function SearchBody() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q") || "";
   const section = searchParams.get("section") || "";
-  const [grouped, setGrouped] = useState<Grouped | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [interpretedQuery, setInterpretedQuery] = useState<string>("");
-  const fetchGenRef = useRef(0);
   const { account } = useAccount();
 
   const sectionApi =
@@ -76,73 +62,28 @@ function SearchBody() {
         : section
       : "";
 
-  const fetchResults = useCallback(
-    async (query: string, signal?: AbortSignal) => {
-      const gen = ++fetchGenRef.current;
-      const isStale = () => gen !== fetchGenRef.current || signal?.aborted;
+  const {
+    grouped,
+    interpretedQuery,
+    matchedTokens,
+    loading,
+    error: fetchError,
+    refetch,
+  } = useSearchSuggestions(q, {
+    limit: 50,
+    section: sectionApi as "" | "phones" | "spareParts" | "accessories",
+  });
 
-      if (!query.trim()) {
-        setGrouped({ phones: [], spareParts: [], accessories: [] });
-        setInterpretedQuery("");
-        setFetchError(null);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setFetchError(null);
-      try {
-        const u = new URLSearchParams();
-        u.set("q", query.trim());
-        u.set("limit", "50");
-        if (sectionApi) u.set("section", sectionApi);
-        const res = await publicFetch(`/api/search?${u.toString()}`, {
-          cache: "no-store",
-          signal,
-          timeoutMs: SEARCH_FETCH_TIMEOUT_MS,
-          maxRetries: SEARCH_FETCH_MAX_RETRIES,
-        });
-        if (isStale()) return;
-        if (res.ok) {
-          const data = await res.json();
-          if (isStale()) return;
-          if (data && typeof data === "object" && Array.isArray(data.phones)) {
-            const iq =
-              typeof data.interpretedQuery === "string" ? data.interpretedQuery.trim() : "";
-            setInterpretedQuery(iq);
-            setGrouped(data as Grouped);
-          } else {
-            setGrouped({ phones: [], spareParts: [], accessories: [] });
-            setInterpretedQuery("");
-          }
-        } else {
-          setGrouped({ phones: [], spareParts: [], accessories: [] });
-          setInterpretedQuery("");
-          if (res.status === 504) {
-            setFetchError("انتهت مهلة البحث. حاول مجدداً.");
-          }
-        }
-      } catch (err) {
-        if (isStale()) return;
-        setGrouped({ phones: [], spareParts: [], accessories: [] });
-        setInterpretedQuery("");
-        setFetchError(formatPublicFetchError(err, "تعذّر إكمال البحث. حاول مجدداً."));
-      } finally {
-        if (!isStale()) setLoading(false);
-      }
-    },
-    [sectionApi]
-  );
-
-  useEffect(() => {
-    const ac = new AbortController();
-    fetchResults(q, ac.signal);
-    return () => ac.abort();
-  }, [q, fetchResults]);
+  const highlightTokens =
+    matchedTokens.length > 0
+      ? matchedTokens
+      : interpretedQuery && collapseForCompare(interpretedQuery) !== collapseForCompare(q.trim())
+        ? interpretedQuery.split(/\s+/).filter(Boolean)
+        : q.trim().split(/\s+/).filter(Boolean);
 
   const listForSection = useMemo(() => {
     if (!grouped) return [];
     if (sectionApi === "phones") {
-      // في قسم الهواتف نعرض "بطاقات الموديل" فقط — لا نعرض منتجات الهاتف هنا.
       return grouped.phones.filter((x) => x.type === "phoneType");
     }
     if (sectionApi === "spareParts") return grouped.spareParts;
@@ -154,21 +95,12 @@ function SearchBody() {
     grouped &&
     (grouped.phones.length > 0 || grouped.spareParts.length > 0 || grouped.accessories.length > 0);
 
-  const highlightSource = useMemo(() => {
-    const raw = q.trim();
-    if (
-      interpretedQuery &&
-      collapseForCompare(interpretedQuery) !== collapseForCompare(raw)
-    ) {
-      return interpretedQuery;
-    }
-    return raw;
-  }, [interpretedQuery, q]);
+  const hasSimilar = Boolean(grouped?.similar?.length);
 
   const showInterpretedLine =
     Boolean(q.trim()) &&
     Boolean(interpretedQuery) &&
-    collapseForCompare(interpretedQuery) !== collapseForCompare(q.trim());
+    collapseForCompare(interpretedQuery || "") !== collapseForCompare(q.trim());
 
   return (
     <div className="min-h-screen w-full bg-slate-50 antialiased">
@@ -217,28 +149,38 @@ function SearchBody() {
             <p className="text-slate-700">{fetchError}</p>
             <button
               type="button"
-              onClick={() => fetchResults(q)}
+              onClick={() => refetch()}
               className="mt-4 rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
               إعادة المحاولة
             </button>
           </div>
         ) : !hasAny ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-            <Search className="mx-auto mb-4 h-12 w-12 text-slate-300" />
-            <p className="text-slate-600">
-              {q.trim() ? "لا توجد نتائج مطابقة." : "لم يتم إدخال كلمة بحث."}
-            </p>
+          <div className="space-y-8">
+            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+              <Search className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+              <p className="text-slate-600">
+                {q.trim() ? "لا توجد نتائج مطابقة." : "لم يتم إدخال كلمة بحث."}
+              </p>
+            </div>
+            {hasSimilar && grouped ? (
+              <section>
+                <h2 className="mb-4 text-lg font-bold text-slate-800">منتجات مشابهة</h2>
+                <ResultGrid
+                  highlightTokens={highlightTokens}
+                  items={grouped.similar || []}
+                  account={account}
+                  categoryLabel={categoryLabel}
+                />
+              </section>
+            ) : null}
           </div>
         ) : sectionApi && grouped ? (
           sectionApi === "phones" ? (
-            <PhoneModelGrid
-              highlightQuery={highlightSource}
-              items={listForSection}
-            />
+            <PhoneModelGrid highlightTokens={highlightTokens} items={listForSection} />
           ) : (
             <ResultGrid
-              highlightQuery={highlightSource}
+              highlightTokens={highlightTokens}
               items={listForSection}
               account={account}
               categoryLabel={categoryLabel}
@@ -255,7 +197,7 @@ function SearchBody() {
                     {sectionTitle(key)}
                   </h2>
                   <ResultGrid
-                    highlightQuery={highlightSource}
+                    highlightTokens={highlightTokens}
                     items={list}
                     account={account}
                     categoryLabel={categoryLabel}
@@ -263,6 +205,19 @@ function SearchBody() {
                 </section>
               );
             })}
+            {hasSimilar ? (
+              <section id="similar" className="scroll-mt-24">
+                <h2 className="mb-4 border-b border-slate-200 pb-2 text-lg font-bold text-slate-800">
+                  منتجات مشابهة
+                </h2>
+                <ResultGrid
+                  highlightTokens={highlightTokens}
+                  items={grouped.similar || []}
+                  account={account}
+                  categoryLabel={categoryLabel}
+                />
+              </section>
+            ) : null}
           </div>
         ) : null}
       </main>
@@ -272,12 +227,12 @@ function SearchBody() {
 }
 
 function ResultGrid({
-  highlightQuery,
+  highlightTokens,
   items,
   account,
   categoryLabel,
 }: {
-  highlightQuery: string;
+  highlightTokens: string[];
   items: SearchResult[];
   account: AccountInfo | null;
   categoryLabel: (t: string) => string;
@@ -334,7 +289,7 @@ function ResultGrid({
 
             <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
               <h3 className="mb-1.5 min-h-[2.5rem] text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">
-                {highlightQueryInText(item.name, highlightQuery)}
+                {highlightTokensInText(item.name, highlightTokens)}
               </h3>
 
               {effectivePrice != null && Number(effectivePrice) > 0 ? (
@@ -380,10 +335,10 @@ function ResultGrid({
 }
 
 function PhoneModelGrid({
-  highlightQuery,
+  highlightTokens,
   items,
 }: {
-  highlightQuery: string;
+  highlightTokens: string[];
   items: SearchResult[];
 }) {
   return (
