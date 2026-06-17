@@ -76,7 +76,7 @@ export function AdminModal({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${frameClassName}`}
+      className={`fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4 ${frameClassName}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -89,7 +89,7 @@ export function AdminModal({
       />
       {/* Content */}
       <div
-        className={`relative flex max-h-[min(92dvh,920px)] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl ${sizeStyles[size] ?? sizeStyles.md} ${panelClassName}`}
+        className={`relative flex max-h-[min(92dvh,920px)] w-full flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl sm:rounded-xl ${sizeStyles[size] ?? sizeStyles.md} ${panelClassName}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div

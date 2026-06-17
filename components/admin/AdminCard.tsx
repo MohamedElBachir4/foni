@@ -29,27 +29,35 @@ export function AdminCard({
     >
       {(title || icon || actions) && (
         <div
-          className={`shrink-0 border-b border-white/50 bg-white/40 px-5 py-4 sm:px-6 ${headerClassName}`}
+          className={`shrink-0 border-b border-white/50 bg-white/40 px-4 py-3 sm:px-6 sm:py-4 ${headerClassName}`}
         >
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               {icon && (
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition-transform group-hover:scale-110 sm:h-12 sm:w-12 sm:rounded-2xl">
                   {icon}
                 </div>
               )}
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 tracking-tight">{title}</h2>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                  {title}
+                </h2>
                 {description && (
-                  <p className="mt-0.5 text-sm font-medium text-slate-500">{description}</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500 sm:text-sm">
+                    {description}
+                  </p>
                 )}
               </div>
             </div>
-            {actions && <div className="flex shrink-0 items-center gap-3">{actions}</div>}
+            {actions && (
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
+                {actions}
+              </div>
+            )}
           </div>
         </div>
       )}
-      <div className={`relative z-10 p-6 ${contentClassName}`}>{children}</div>
+      <div className={`relative z-10 p-4 sm:p-6 ${contentClassName}`}>{children}</div>
     </section>
   );
 }

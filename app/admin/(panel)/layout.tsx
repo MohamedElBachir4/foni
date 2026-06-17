@@ -4,7 +4,23 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getToken, clearToken, getAuthHeaders, API_URL } from "@/lib/adminAuth";
-import { LayoutDashboard, Smartphone, LogOut, Package, ShoppingCart, User, Archive, Settings, ChevronRight, Tags, Wrench } from "lucide-react";
+import {
+  LayoutDashboard,
+  Smartphone,
+  LogOut,
+  Package,
+  ShoppingCart,
+  User,
+  Archive,
+  Settings,
+  ChevronRight,
+  Tags,
+  Wrench,
+  Menu,
+  X,
+} from "lucide-react";
+
+const LG_BREAKPOINT = 1024;
 
 export default function AdminPanelLayout({
   children,
@@ -16,7 +32,8 @@ export default function AdminPanelLayout({
   const [mounted, setMounted] = useState(false);
   const [hasToken, setHasToken] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   const fetchPendingCount = useCallback(async () => {
     const token = getToken();
@@ -70,6 +87,33 @@ export default function AdminPanelLayout({
     };
   }, [fetchPendingCount]);
 
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${LG_BREAKPOINT}px)`);
+    const sync = () => {
+      const desktop = mq.matches;
+      setIsDesktop(desktop);
+      setIsSidebarOpen(desktop);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktop) setIsSidebarOpen(false);
+  }, [pathname, isDesktop]);
+
+  useEffect(() => {
+    if (!isDesktop && isSidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isDesktop, isSidebarOpen]);
+
   function handleLogout() {
     clearToken();
     router.replace("/admin/login");
@@ -78,11 +122,13 @@ export default function AdminPanelLayout({
 
   if (!mounted || !hasToken) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4">
         <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-500 shadow-xl shadow-indigo-500/30">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" />
         </div>
-        <div className="mt-4 text-slate-500 animate-pulse font-medium">جاري تهيئة لوحة التحكم...</div>
+        <div className="mt-4 animate-pulse text-center font-medium text-slate-500">
+          جاري تهيئة لوحة التحكم...
+        </div>
       </div>
     );
   }
@@ -98,23 +144,30 @@ export default function AdminPanelLayout({
     return (
       <Link
         href={href}
-        className={`group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-300 ${active
+        onClick={() => {
+          if (!isDesktop) setIsSidebarOpen(false);
+        }}
+        className={`group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-300 ${
+          active
             ? "bg-indigo-50/80 text-indigo-700 shadow-[inset_0_1px_4px_rgba(0,0,0,0.03)]"
             : "text-slate-600 hover:bg-slate-50/80 hover:text-slate-900"
-          }`}
+        }`}
       >
         {active && (
           <div className="absolute right-0 top-1/2 -mt-2 h-4 w-1 rounded-l-full bg-indigo-600" />
         )}
-        <div className={`transition-colors duration-300 ${active ? "text-indigo-600" : colorClass}`}>
+        <div
+          className={`transition-colors duration-300 ${active ? "text-indigo-600" : colorClass}`}
+        >
           {icon}
         </div>
         <span className="flex-1">{label}</span>
         {badge != null && badge > 0 && (
           <span
-            className={`flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-bold shadow-sm ${active ? "bg-indigo-600 text-white" : "bg-rose-500 text-white"
-              }`}
-            style={{ animation: 'bounce-light 2s infinite' }}
+            className={`flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-bold shadow-sm ${
+              active ? "bg-indigo-600 text-white" : "bg-rose-500 text-white"
+            }`}
+            style={{ animation: "bounce-light 2s infinite" }}
           >
             {badge > 99 ? "99+" : badge}
           </span>
@@ -123,41 +176,77 @@ export default function AdminPanelLayout({
     );
   };
 
+  const sidebarOpenOnDesktop = isDesktop && isSidebarOpen;
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex selection:bg-indigo-100 selection:text-indigo-900">
-      <style dangerouslySetInnerHTML={{
-        __html: `
+    <div className="flex min-h-screen bg-[#F8FAFC] selection:bg-indigo-100 selection:text-indigo-900">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes bounce-light {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-2px); }
         }
-      `}} />
+      `,
+        }}
+      />
+
+      {/* خلفية معتمة — جوال فقط */}
+      {!isDesktop && isSidebarOpen ? (
+        <button
+          type="button"
+          aria-label="إغلاق القائمة"
+          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-[2px] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      ) : null}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 right-0 z-40 flex w-72 flex-col border-l border-slate-200/60 bg-white/80 backdrop-blur-xl transition-transform duration-300 ease-in-out shadow-[0_0_40px_rgba(0,0,0,0.02)] ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 flex w-[min(88vw,18rem)] flex-col border-l border-slate-200/60 bg-white/95 shadow-[0_0_40px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-transform duration-300 ease-in-out lg:w-72 ${
+          isSidebarOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {isDesktop ? (
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            aria-label={isSidebarOpen ? "طي القائمة" : "فتح القائمة"}
+            className="absolute -left-4 top-6 hidden h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:text-indigo-600 hover:shadow lg:flex"
+          >
+            <ChevronRight
+              className={`h-4 w-4 transition-transform ${!isSidebarOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-label="إغلاق القائمة"
+            className="absolute left-3 top-5 flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
 
-        {/* Toggle Button */}
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="absolute -left-4 top-6 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition-hover hover:text-indigo-600 hover:shadow"
-        >
-          <ChevronRight className={`h-4 w-4 transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        <div className="flex h-20 shrink-0 items-center justify-between gap-2 border-b border-slate-100/80 px-6">
+        <div className="flex h-16 shrink-0 items-center border-b border-slate-100/80 px-5 sm:h-20 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20">
               <span className="text-xl font-black tracking-tighter">F</span>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800 tracking-tight leading-none">FONI</h2>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mt-1">Admin Panel</p>
+              <h2 className="text-lg font-bold leading-none tracking-tight text-slate-800">
+                FONI
+              </h2>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                Admin Panel
+              </p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1 scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
-          <div className="mb-6 space-y-1">
+        <nav className="scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300 flex-1 space-y-1 overflow-y-auto p-3 sm:p-4">
+          <div className="mb-4 space-y-1 sm:mb-6">
             {navLink(
               "/admin/dashboard",
               <LayoutDashboard className="h-5 w-5 shrink-0" />,
@@ -167,8 +256,10 @@ export default function AdminPanelLayout({
             )}
           </div>
 
-          <div className="mb-2 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">المنتجات</div>
-          <div className="space-y-1 mb-6">
+          <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 sm:px-4">
+            المنتجات
+          </div>
+          <div className="mb-4 space-y-1 sm:mb-6">
             {navLink(
               "/admin/brands",
               <Tags className="h-5 w-5 shrink-0" />,
@@ -199,8 +290,10 @@ export default function AdminPanelLayout({
             )}
           </div>
 
-          <div className="mb-2 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">قطع الغيار</div>
-          <div className="space-y-1 mb-6">
+          <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 sm:px-4">
+            قطع الغيار
+          </div>
+          <div className="mb-4 space-y-1 sm:mb-6">
             {navLink(
               "/admin/spare-models",
               <Smartphone className="h-5 w-5 shrink-0" />,
@@ -217,7 +310,9 @@ export default function AdminPanelLayout({
             )}
           </div>
 
-          <div className="mb-2 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">إدارة النظام</div>
+          <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 sm:px-4">
+            إدارة النظام
+          </div>
           <div className="space-y-1">
             {navLink(
               "/admin/orders",
@@ -250,8 +345,7 @@ export default function AdminPanelLayout({
           </div>
         </nav>
 
-        {/* User / Logout */}
-        <div className="border-t border-slate-100 p-4">
+        <div className="border-t border-slate-100 p-3 sm:p-4">
           <button
             type="button"
             onClick={handleLogout}
@@ -265,18 +359,53 @@ export default function AdminPanelLayout({
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className={`flex-1 min-h-screen transition-all duration-300 ease-in-out ${isSidebarOpen ? 'mr-72 p-6 lg:p-10' : 'p-6 lg:p-10'} relative`}>
-        {/* Decorative ambient background */}
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-          <div className="absolute -left-[10%] -top-[10%] h-[40%] w-[40%] rounded-full bg-gradient-to-tr from-sky-100/40 to-indigo-100/40 blur-[100px]" />
-          <div className="absolute -bottom-[10%] flex h-[40%] w-[40%] rounded-full bg-gradient-to-tr from-rose-100/30 to-purple-100/30 blur-[100px] left-[20%]" />
-        </div>
+      {/* المحتوى الرئيسي */}
+      <div
+        className={`flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out ${
+          sidebarOpenOnDesktop ? "lg:mr-72" : ""
+        }`}
+      >
+        {/* شريط علوي — جوال */}
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-md lg:hidden">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            aria-label="فتح القائمة"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 text-sm font-black text-white">
+              F
+            </div>
+            <span className="truncate text-sm font-bold text-slate-800">لوحة التحكم</span>
+          </div>
+          {pendingCount > 0 ? (
+            <Link
+              href="/admin/orders"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm"
+              aria-label={`${pendingCount} طلبات معلقة`}
+            >
+              <ShoppingCart className="h-5 w-5" />
+              <span className="absolute -left-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                {pendingCount > 99 ? "99+" : pendingCount}
+              </span>
+            </Link>
+          ) : (
+            <div className="w-10 shrink-0" aria-hidden />
+          )}
+        </header>
 
-        <div className="relative z-10 w-full max-w-[1600px] mx-auto">
-          {children}
-        </div>
-      </main>
+        <main className="relative min-w-0 flex-1 p-4 sm:p-6 lg:p-10">
+          <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+            <div className="absolute -left-[10%] -top-[10%] h-[40%] w-[40%] rounded-full bg-gradient-to-tr from-sky-100/40 to-indigo-100/40 blur-[100px]" />
+            <div className="absolute -bottom-[10%] left-[20%] flex h-[40%] w-[40%] rounded-full bg-gradient-to-tr from-rose-100/30 to-purple-100/30 blur-[100px]" />
+          </div>
+
+          <div className="relative z-10 mx-auto w-full min-w-0 max-w-[1600px]">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

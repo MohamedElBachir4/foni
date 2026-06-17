@@ -39,7 +39,7 @@ export function AdminPagination({
         </p>
       )}
       {totalPages > 1 && (
-        <nav className="flex items-center gap-1">
+        <nav className="flex flex-wrap items-center justify-center gap-1 sm:justify-end">
           <button
             type="button"
             onClick={() => onPageChange(page - 1)}
