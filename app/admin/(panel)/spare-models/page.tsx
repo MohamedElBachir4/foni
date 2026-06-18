@@ -38,7 +38,7 @@ export default function SpareModelsPage() {
   const [image, setImage] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedBrandId, setExpandedBrandId] = useState<string | null>(null);
+  const [expandedBrandIds, setExpandedBrandIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
   const [phoneModalNotice, setPhoneModalNotice] = useState<{
@@ -49,6 +49,10 @@ export default function SpareModelsPage() {
   const [editing, setEditing] = useState<PhoneType | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedPhoneIds, setSelectedPhoneIds] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -292,6 +296,7 @@ export default function SpareModelsPage() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setMessage({ type: "success", text: "تم حذف هاتف قطع الغيار" });
+        setSelectedPhoneIds((prev) => prev.filter((id) => id !== item._id));
         fetchTypes();
       } else {
         setMessage({ type: "error", text: data.error || "فشل الحذف" });
@@ -300,6 +305,79 @@ export default function SpareModelsPage() {
       setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  function togglePhoneSelection(id: string) {
+    setSelectedPhoneIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function selectAllVisiblePhones() {
+    setSelectedPhoneIds((prev) => {
+      const merged = new Set(prev);
+      for (const phone of visiblePhones) merged.add(phone._id);
+      return [...merged];
+    });
+  }
+
+  function clearSelectedPhones() {
+    setSelectedPhoneIds([]);
+  }
+
+  function toggleSelectionMode() {
+    setSelectionMode((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedPhoneIds([]);
+        setExpandedBrandIds(new Set());
+      } else {
+        setExpandedBrandIds(
+          new Set(
+            filteredGroups.filter((g) => g.phones.length > 0).map((g) => g.brand._id)
+          )
+        );
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkDeletePhones() {
+    if (selectedPhoneIds.length === 0) {
+      setBulkDeleteOpen(false);
+      return;
+    }
+    setBulkDeleting(true);
+    setMessage(null);
+    try {
+      const idsToDelete = [...selectedPhoneIds];
+      const res = await fetch(`${API_URL}/api/phone-types/bulk-delete`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ ids: idsToDelete }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "فشل حذف الموديلات المحددة" });
+        return;
+      }
+      const deletedSet = new Set(idsToDelete);
+      setTypes((prev) => prev.filter((p) => !deletedSet.has(p._id)));
+      setSelectedPhoneIds((prev) => prev.filter((id) => !deletedSet.has(id)));
+      setBulkDeleteOpen(false);
+      setMessage({
+        type: "success",
+        text: `تم حذف ${Number(data.deletedCount || 0)} موديل بنجاح${
+          data.missingCount ? ` (غير موجود: ${data.missingCount})` : ""
+        }`,
+      });
+      await fetchTypes();
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم أثناء الحذف الجماعي" });
+    } finally {
+      setBulkDeleting(false);
     }
   }
 
@@ -371,6 +449,11 @@ export default function SpareModelsPage() {
       }))
       .filter(group => group.phones.length > 0 || group.brand.name.toLowerCase().includes(lowerSearch));
   }, [groupedByBrand, searchTerm]);
+
+  const visiblePhones = useMemo(
+    () => filteredGroups.flatMap((group) => group.phones),
+    [filteredGroups]
+  );
 
   const messageEl = message && (
     <div
@@ -643,7 +726,7 @@ export default function SpareModelsPage() {
 
       <AdminCard title="قائمة هواتف قطع الغيار" icon={<Smartphone className="h-5 w-5" />}>
         {/* شريط البحث */}
-        <div className="mb-6 relative">
+        <div className="mb-4 relative">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
@@ -652,6 +735,49 @@ export default function SpareModelsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="admin-input pl-10"
           />
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4">
+          <AdminButton
+            variant={selectionMode ? "primary" : "outline"}
+            size="sm"
+            onClick={toggleSelectionMode}
+          >
+            {selectionMode ? "إلغاء وضع التحديد" : "تفعيل التحديد"}
+          </AdminButton>
+          {selectionMode && (
+            <>
+              <AdminButton
+                variant="outline"
+                size="sm"
+                onClick={selectAllVisiblePhones}
+                disabled={visiblePhones.length === 0}
+              >
+                تحديد الكل (المعروض)
+              </AdminButton>
+              <AdminButton
+                variant="outline"
+                size="sm"
+                onClick={clearSelectedPhones}
+                disabled={selectedPhoneIds.length === 0}
+              >
+                إلغاء التحديد
+              </AdminButton>
+              <AdminButton
+                variant="danger"
+                size="sm"
+                icon={<Trash2 className="h-4 w-4" />}
+                onClick={() => setBulkDeleteOpen(true)}
+                disabled={selectedPhoneIds.length === 0}
+                loading={bulkDeleting}
+              >
+                حذف المحدد
+              </AdminButton>
+              <span className="text-xs font-medium text-slate-600">
+                تم تحديد {selectedPhoneIds.length} موديل
+              </span>
+            </>
+          )}
         </div>
 
         {loading ? (
@@ -665,37 +791,73 @@ export default function SpareModelsPage() {
             {filteredGroups.map((group) => (
               <div key={group.brand._id} className="border border-slate-200 rounded-lg overflow-hidden">
                 {/* رأس الماركة */}
-                <button
-                  onClick={() => setExpandedBrandId(
-                    expandedBrandId === group.brand._id ? null : group.brand._id
+                <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-l from-slate-50 to-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandedBrandIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(group.brand._id)) next.delete(group.brand._id);
+                        else next.add(group.brand._id);
+                        return next;
+                      });
+                    }}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg px-1 py-0.5 text-right transition-colors hover:bg-slate-100/80"
+                  >
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-semibold text-slate-800">{group.brand.name}</span>
+                      <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-blue-500 rounded-full">
+                        {group.phones.length}
+                      </span>
+                    </div>
+                    {expandedBrandIds.has(group.brand._id) ? (
+                      <ChevronUp className="h-5 w-5 shrink-0 text-slate-600" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 shrink-0 text-slate-600" />
+                    )}
+                  </button>
+                  {selectionMode && group.phones.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPhoneIds((prev) => {
+                          const merged = new Set(prev);
+                          for (const phone of group.phones) merged.add(phone._id);
+                          return [...merged];
+                        });
+                      }}
+                      className="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                    >
+                      تحديد الماركة
+                    </button>
                   )}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-l from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-slate-800">{group.brand.name}</span>
-                    <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-blue-500 rounded-full">
-                      {group.phones.length}
-                    </span>
-                  </div>
-                  {expandedBrandId === group.brand._id ? (
-                    <ChevronUp className="h-5 w-5 text-slate-600" />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-slate-600" />
-                  )}
-                </button>
+                </div>
 
                 {/* قائمة الهواتف */}
-                {expandedBrandId === group.brand._id && (
+                {expandedBrandIds.has(group.brand._id) && (
                   <div className="bg-white divide-y divide-slate-100">
                     {group.phones.length === 0 ? (
                       <div className="px-4 py-3 text-slate-500 text-sm">لا توجد هواتف في هذه الماركة</div>
                     ) : (
-                      group.phones.map((phone) => (
+                      group.phones.map((phone) => {
+                        const isSelected = selectedPhoneIds.includes(phone._id);
+                        return (
                         <div
                           key={phone._id}
-                          className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                          className={`px-4 py-3 flex items-center justify-between transition-colors ${
+                            isSelected ? "bg-indigo-50/60" : "hover:bg-slate-50"
+                          }`}
                         >
-                          <div className="flex items-center gap-3 flex-1">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {selectionMode && (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => togglePhoneSelection(phone._id)}
+                                className="h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                aria-label={`تحديد ${phone.name}`}
+                              />
+                            )}
                             {phone.image && (
                               <div className="flex-shrink-0 w-12 h-12 bg-slate-100 rounded-md overflow-hidden">
                                 <img
@@ -708,9 +870,10 @@ export default function SpareModelsPage() {
                                 />
                               </div>
                             )}
-                            <span className="font-medium text-slate-800">{phone.name}</span>
+                            <span className="font-medium text-slate-800 truncate">{phone.name}</span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          {!selectionMode && (
+                          <div className="flex items-center gap-2 shrink-0">
                             <AdminButton
                               variant="ghost"
                               size="sm"
@@ -729,8 +892,10 @@ export default function SpareModelsPage() {
                               title="حذف"
                             />
                           </div>
+                          )}
                         </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 )}
@@ -739,6 +904,42 @@ export default function SpareModelsPage() {
           </div>
         )}
       </AdminCard>
+
+      <AdminModal
+        open={bulkDeleteOpen}
+        onClose={() => !bulkDeleting && setBulkDeleteOpen(false)}
+        title="تأكيد الحذف الجماعي"
+        description="سيتم حذف الموديلات المحددة نهائياً."
+        icon={<Trash2 className="h-5 w-5 text-rose-600" />}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            هل أنت متأكد من حذف {selectedPhoneIds.length} موديل؟
+            <br />
+            لا يمكن التراجع عن هذه العملية.
+          </p>
+          <div className="flex gap-2">
+            <AdminButton
+              variant="outline"
+              className="flex-1"
+              onClick={() => setBulkDeleteOpen(false)}
+              disabled={bulkDeleting}
+            >
+              إلغاء
+            </AdminButton>
+            <AdminButton
+              variant="danger"
+              className="flex-1"
+              onClick={handleBulkDeletePhones}
+              loading={bulkDeleting}
+              disabled={bulkDeleting || selectedPhoneIds.length === 0}
+            >
+              حذف المحدد
+            </AdminButton>
+          </div>
+        </div>
+      </AdminModal>
     </div>
   );
 }

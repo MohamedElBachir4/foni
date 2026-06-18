@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   images: {
     /**
      * لا يدعم Next.js 16 نمط hostname: "**" بشكل موثوق — يؤدي إلى رفض التحسين وطلبات 404 على /_next/image.
