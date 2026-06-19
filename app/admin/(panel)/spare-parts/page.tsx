@@ -96,6 +96,8 @@ type ImportArchiveItem = {
     createdProducts?: number;
     updatedProducts?: number;
     createdPhones?: number;
+    phonesNotFound?: number;
+    phonesNotFoundList?: string[];
     imagesRecovered?: number;
     createdWithoutImage?: number;
     emptyRowsSkipped?: number;
@@ -162,8 +164,8 @@ export default function AdminSparePartsPage() {
     createdProducts: number;
     updatedProducts: number;
     updatedProductsList: { productName: string; changes: string }[];
-    createdPhones: number;
-    createdPhonesList: string[];
+    phonesNotFound: number;
+    phonesNotFoundList: string[];
     imagesRecovered?: number;
     createdWithoutImage?: number;
     emptyRowsSkipped: number;
@@ -539,8 +541,10 @@ export default function AdminSparePartsPage() {
       createdProducts: report?.createdProducts ?? 0,
       updatedProducts: report?.updatedProducts ?? 0,
       updatedProductsList: [] as { productName: string; changes: string }[],
-      createdPhones: report?.createdPhones ?? 0,
-      createdPhonesList: [] as string[],
+      phonesNotFound: report?.phonesNotFound ?? 0,
+      phonesNotFoundList: Array.isArray(report?.phonesNotFoundList)
+        ? report.phonesNotFoundList
+        : [],
       emptyRowsSkipped: report?.emptyRowsSkipped ?? 0,
       duplicateInDb: report?.duplicateInDb ?? 0,
       duplicateInFile: report?.duplicateInFile ?? 0,
@@ -1084,7 +1088,14 @@ export default function AdminSparePartsPage() {
       setImportReport(report);
 
       if (finalArchive.status === "success" || finalArchive.status === "partial") {
-        setMessage({ type: "success", text: "تم انتهاء الاستيراد" });
+        let doneText = `تم انتهاء الاستيراد — ${report.createdProducts} منتج جديد`;
+        if (report.phonesNotFound > 0) {
+          doneText += `. لم يُعثر على ${report.phonesNotFound} هاتف في القاعدة — راجع التقرير أدناه`;
+        }
+        setMessage({
+          type: report.phonesNotFound > 0 ? "error" : "success",
+          text: doneText,
+        });
         fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
       } else {
         const errText = report.errors[0]?.reason || "فشل الاستيراد";
@@ -1324,14 +1335,14 @@ export default function AdminSparePartsPage() {
                )}
             </div>
             <div 
-              className={`bg-blue-50 border border-blue-100 rounded-lg p-5 text-center shadow-sm cursor-pointer transition-all hover:bg-blue-100 active:scale-95 ${importReport.createdPhones > 0 ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}
-              onClick={() => importReport.createdPhones > 0 && setShowPhonesModal(true)}
-              title={importReport.createdPhones > 0 ? "اضغط لعرض الهواتف المضافة" : ""}
+              className={`bg-rose-50 border border-rose-200 rounded-lg p-5 text-center shadow-sm cursor-pointer transition-all hover:bg-rose-100 active:scale-95 ${importReport.phonesNotFound > 0 ? 'ring-2 ring-rose-400 ring-offset-2' : ''}`}
+              onClick={() => importReport.phonesNotFound > 0 && setShowPhonesModal(true)}
+              title={importReport.phonesNotFound > 0 ? "اضغط لعرض الهواتف غير الموجودة" : ""}
             >
-               <div className="text-blue-600 text-3xl font-bold">{importReport.createdPhones}</div>
-               <div className="text-blue-800 text-sm mt-2 font-medium">هواتف جديدة</div>
-               {importReport.createdPhones > 0 && (
-                 <div className="text-blue-500 text-[10px] mt-1 font-bold animate-pulse">اضغط للتفاصيل</div>
+               <div className="text-rose-600 text-3xl font-bold">{importReport.phonesNotFound}</div>
+               <div className="text-rose-800 text-sm mt-2 font-medium">هواتف غير موجودة</div>
+               {importReport.phonesNotFound > 0 && (
+                 <div className="text-rose-500 text-[10px] mt-1 font-bold animate-pulse">اضغط للتفاصيل</div>
                )}
             </div>
             <div className="bg-amber-50 border border-amber-100 rounded-lg p-5 text-center shadow-sm">
@@ -2278,19 +2289,19 @@ export default function AdminSparePartsPage() {
       <AdminModal
         open={showPhonesModal}
         onClose={() => setShowPhonesModal(false)}
-        title="قائمة الهواتف (الموديلات) المضافة حديثاً"
-        description="هذه الموديلات تم إنشاؤها تلقائياً أثناء عملية الاستيراد لأنها لم تكن موجودة في قاعدة البيانات."
-        icon={<Package className="h-5 w-5 text-blue-600" />}
+        title="هواتف غير موجودة في قاعدة البيانات"
+        description="هذه الموديلات لم تُعثر عليها أثناء الاستيراد — أضفها يدوياً ثم أعد رفع الملف."
+        icon={<Package className="h-5 w-5 text-rose-600" />}
         size="md"
       >
         <div className="max-h-[400px] overflow-y-auto w-full custom-scrollbar pr-1">
           <div className="grid gap-2">
-            {importReport?.createdPhonesList?.map((phone, idx) => (
+            {importReport?.phonesNotFoundList?.map((phone, idx) => (
               <div 
                 key={idx} 
                 className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-sm transition-all"
               >
-                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+                <div className="h-8 w-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-bold text-xs shrink-0">
                   {idx + 1}
                 </div>
                 <div className="font-semibold text-slate-800 truncate" dir="ltr">
