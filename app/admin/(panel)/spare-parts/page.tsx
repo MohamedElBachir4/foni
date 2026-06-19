@@ -84,7 +84,7 @@ type InlinePriceDraft = {
   priceReparateur: string;
 };
 
-type ImportArchiveStatus = "success" | "partial" | "failed" | "deleted";
+type ImportArchiveStatus = "processing" | "success" | "partial" | "failed" | "deleted";
 
 type ImportArchiveItem = {
   _id: string;
@@ -94,7 +94,16 @@ type ImportArchiveItem = {
   createdAt: string;
   report?: {
     createdProducts?: number;
+    updatedProducts?: number;
+    createdPhones?: number;
+    imagesRecovered?: number;
+    createdWithoutImage?: number;
+    emptyRowsSkipped?: number;
+    duplicateInDb?: number;
+    duplicateInFile?: number;
     errorRows?: number;
+    totalInDb?: number;
+    errors?: ImportReportError[];
   };
 };
 
@@ -508,6 +517,9 @@ export default function AdminSparePartsPage() {
   }
 
   function archiveStatusBadge(status: ImportArchiveStatus) {
+    if (status === "processing") {
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    }
     if (status === "success") {
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     }
@@ -515,6 +527,50 @@ export default function AdminSparePartsPage() {
       return "border-amber-200 bg-amber-50 text-amber-700";
     }
     return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+
+  function archiveStatusLabel(status: ImportArchiveStatus) {
+    if (status === "processing") return "جاري المعالجة";
+    return status;
+  }
+
+  function importReportFromArchive(report: ImportArchiveItem["report"]) {
+    return {
+      createdProducts: report?.createdProducts ?? 0,
+      updatedProducts: report?.updatedProducts ?? 0,
+      updatedProductsList: [] as { productName: string; changes: string }[],
+      createdPhones: report?.createdPhones ?? 0,
+      createdPhonesList: [] as string[],
+      emptyRowsSkipped: report?.emptyRowsSkipped ?? 0,
+      duplicateInDb: report?.duplicateInDb ?? 0,
+      duplicateInFile: report?.duplicateInFile ?? 0,
+      errorRows: report?.errorRows ?? 0,
+      errors: Array.isArray(report?.errors) ? report.errors : [],
+      totalInDb: report?.totalInDb ?? 0,
+      imagesRecovered: report?.imagesRecovered ?? 0,
+      createdWithoutImage: report?.createdWithoutImage ?? 0,
+    };
+  }
+
+  async function pollImportArchive(archiveId: string, token: string | null) {
+    const pollMs = 4000;
+    const maxPolls = 2700;
+    for (let i = 0; i < maxPolls; i++) {
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+      const statusRes = await fetch(`${API_URL}/api/spare-parts/import-archives/${archiveId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      const statusData = await statusRes.json().catch(() => ({}));
+      if (!statusRes.ok || !statusData.archive) continue;
+      const archive = statusData.archive as ImportArchiveItem;
+      if (archive.status === "processing") {
+        void fetchImportArchives(1);
+        continue;
+      }
+      return archive;
+    }
+    return null;
   }
 
   async function openArchiveDetails(archive: ImportArchiveItem) {
@@ -978,73 +1034,70 @@ export default function AdminSparePartsPage() {
     setImporting(true);
     setImportReport(null);
     setMessage(null);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
     try {
       const formData = new FormData();
       formData.append("file", importFile);
       const token = getToken();
       const res = await fetch(`${API_URL}/api/spare-parts/import`, {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token }` } : {},
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
-        signal: controller.signal,
+        credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.report) {
-        setImportReport({
-          createdProducts: data.report.createdProducts ?? 0,
-          updatedProducts: data.report.updatedProducts ?? 0,
-          updatedProductsList: Array.isArray(data.report.updatedProductsList) ? data.report.updatedProductsList : [],
-          createdPhones: data.report.createdPhones ?? 0,
-          createdPhonesList: Array.isArray(data.report.createdPhonesList) ? data.report.createdPhonesList : [],
-          emptyRowsSkipped: data.report.emptyRowsSkipped ?? 0,
-          duplicateInDb: data.report.duplicateInDb ?? 0,
-          duplicateInFile: data.report.duplicateInFile ?? 0,
-          errorRows: data.report.errorRows ?? 0,
-          errors: Array.isArray(data.report.errors) ? data.report.errors : [],
-          totalInDb: data.report.totalInDb ?? 0,
-          imagesRecovered: data.report.imagesRecovered ?? 0,
-          createdWithoutImage: data.report.createdWithoutImage ?? 0,
-        });
-        setMessage({ type: "success", text: data.message || "تم انتهاء الاستيراد" });
-        fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
-        setArchivePage(1);
-        fetchImportArchives(1);
-        setImportFile(null);
-        setImportOpen(false);
-      } else {
+
+      if (!res.ok) {
         setMessage({ type: "error", text: data.error || "فشل الاستيراد" });
         if (data.report) {
-          setImportReport({
-            createdProducts: data.report.createdProducts ?? 0,
-            updatedProducts: data.report.updatedProducts ?? 0,
-            updatedProductsList: Array.isArray(data.report.updatedProductsList) ? data.report.updatedProductsList : [],
-            createdPhones: data.report.createdPhones ?? 0,
-            createdPhonesList: Array.isArray(data.report.createdPhonesList) ? data.report.createdPhonesList : [],
-            emptyRowsSkipped: data.report.emptyRowsSkipped ?? 0,
-            duplicateInDb: data.report.duplicateInDb ?? 0,
-            duplicateInFile: data.report.duplicateInFile ?? 0,
-            errorRows: data.report.errorRows ?? 0,
-            errors: Array.isArray(data.report.errors) ? data.report.errors : [],
-            totalInDb: data.report.totalInDb ?? 0,
-            imagesRecovered: data.report.imagesRecovered ?? 0,
-            createdWithoutImage: data.report.createdWithoutImage ?? 0,
-          });
+          setImportReport(importReportFromArchive(data.report));
           setImportOpen(false);
           setImportFile(null);
-          setArchivePage(1);
-          fetchImportArchives(1);
         }
+        return;
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setMessage({ type: "error", text: "انتهت المهلة. الملف كبير جداً—جرّب ملفاً أصغر أو انتظر اكتمال المعالجة." });
+
+      const archiveId = typeof data.archiveId === "string" ? data.archiveId : "";
+      if (!archiveId) {
+        setMessage({ type: "error", text: "لم يُرجَع معرّف عملية الاستيراد" });
+        return;
+      }
+
+      setMessage({
+        type: "success",
+        text: data.message || "جاري معالجة الملف في الخلفية…",
+      });
+      setArchivePage(1);
+      void fetchImportArchives(1);
+
+      const finalArchive = await pollImportArchive(archiveId, token);
+      if (!finalArchive) {
+        setMessage({
+          type: "error",
+          text: "ما زالت المعالجة جارية. تابع الحالة من أرشيف الرفع أدناه.",
+        });
+        setImportFile(null);
+        setImportOpen(false);
+        return;
+      }
+
+      const report = importReportFromArchive(finalArchive.report);
+      setImportReport(report);
+
+      if (finalArchive.status === "success" || finalArchive.status === "partial") {
+        setMessage({ type: "success", text: "تم انتهاء الاستيراد" });
+        fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
       } else {
-        setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
+        const errText = report.errors[0]?.reason || "فشل الاستيراد";
+        setMessage({ type: "error", text: errText });
       }
+
+      setArchivePage(1);
+      fetchImportArchives(1);
+      setImportFile(null);
+      setImportOpen(false);
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
     } finally {
-      clearTimeout(timeoutId);
       setImporting(false);
     }
   };
@@ -1173,7 +1226,7 @@ export default function AdminSparePartsPage() {
         open={importOpen}
         onClose={closeImportModal}
         title="استيراد قطع الغيار من Excel"
-        description="الملفات المدعومة: .xlsx, .xls, .csv — حتى 1000 سطر بيانات (غير فارغ) لكل ملف. الأعمدة: Désignation, Prix Gro, Prix Commerçant, Prix Détail."
+        description="الملفات المدعومة: .xlsx, .xls, .csv — حتى 5000 سطر بيانات (غير فارغ) و25 ميجابايت. المعالجة تتم في الخلفية ويمكن متابعتها من أرشيف الرفع."
         icon={<FileSpreadsheet className="h-5 w-5" />}
         size="md"
       >
@@ -1225,7 +1278,7 @@ export default function AdminSparePartsPage() {
               loading={importing}
               className="flex-1"
             >
-              استيراد
+              {importing ? "جاري المعالجة…" : "استيراد"}
             </AdminButton>
           </div>
         </form>
@@ -1382,7 +1435,7 @@ export default function AdminSparePartsPage() {
                         archive.status
                       )}`}
                     >
-                      {archive.status}
+                      {archiveStatusLabel(archive.status)}
                     </span>
                     <AdminButton
                       size="sm"
