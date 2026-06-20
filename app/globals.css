@@ -53,6 +53,16 @@ select {
   font: inherit;
 }
 
+/* منع توسّع select بنص طويل خارج عرض الشاشة (جوال) */
+.form-select-responsive {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* توهج خفيف عند التركيز للوصولية */
 :focus-visible {
   outline: 2px solid #0ea5e9;

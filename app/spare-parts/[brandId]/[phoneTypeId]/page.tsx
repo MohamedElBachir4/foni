@@ -211,7 +211,7 @@ export default function SparePartsListPage() {
                   return (
                   <div
                     key={part._id}
-                    className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:border-slate-200 sm:rounded-[1.25rem]"
+                    className="group flex h-full min-h-0 flex-col overflow-visible rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:border-slate-200 sm:overflow-hidden sm:rounded-[1.25rem]"
                   >
                     {/* منطقة الصورة مع الشارات فوقها */}
                     <div className="relative flex h-[180px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[220px] sm:py-4">
@@ -236,7 +236,7 @@ export default function SparePartsListPage() {
 
                     {/* المحتوى */}
                     <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
-                      <h3 className="mb-2 text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 sm:text-base">
+                      <h3 className="mb-2 break-words text-center text-sm font-bold leading-snug text-slate-900 sm:line-clamp-2 sm:text-base">
                         {part.name}
                       </h3>
 

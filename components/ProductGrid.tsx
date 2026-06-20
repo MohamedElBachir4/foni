@@ -342,7 +342,7 @@ export function ProductGrid({
                 return (
                   <div
                     key={product.id}
-                    className={`group flex h-full min-h-[372px] flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:min-h-[402px] ${
+                    className={`group flex h-full min-h-[372px] flex-col overflow-visible rounded-3xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:min-h-[402px] sm:overflow-hidden ${
                       ""
                     }`}
                   >
@@ -369,7 +369,7 @@ export function ProductGrid({
 
                     {/* المحتوى - ارتفاع موحّد */}
                     <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-4">
-                      <h3 className="mb-2 min-h-[2.75rem] text-center text-sm font-extrabold leading-snug text-slate-900 line-clamp-2 sm:text-base">
+                      <h3 className="mb-2 break-words text-center text-sm font-extrabold leading-snug text-slate-900 sm:line-clamp-2 sm:min-h-[2.75rem] sm:text-base">
                         {product.name}
                       </h3>
 

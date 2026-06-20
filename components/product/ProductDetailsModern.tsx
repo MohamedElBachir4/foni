@@ -720,7 +720,7 @@ export function ProductDetailsModern({
               return (
               <article
                 key={item._id}
-                className="group min-w-0 flex h-full min-h-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:border-slate-200 hover:shadow-xl sm:min-h-[360px] sm:rounded-[1.25rem]"
+                className="group min-w-0 flex h-full min-h-[340px] flex-col overflow-visible rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:border-slate-200 hover:shadow-xl sm:min-h-[360px] sm:overflow-hidden sm:rounded-[1.25rem]"
               >
                 <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[130px]">
                   <ProductImage
@@ -734,7 +734,7 @@ export function ProductDetailsModern({
                   </span>
                 </div>
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col border-t border-slate-100 p-3">
-                  <h3 className="mb-1.5 min-h-[2.5rem] text-center text-sm font-bold leading-snug text-slate-900 line-clamp-2 break-words [word-break:break-word] sm:text-base">
+                  <h3 className="mb-1.5 break-words text-center text-sm font-bold leading-snug text-slate-900 sm:line-clamp-2 sm:min-h-[2.5rem] sm:text-base [word-break:break-word]">
                     {item.name}
                   </h3>
 

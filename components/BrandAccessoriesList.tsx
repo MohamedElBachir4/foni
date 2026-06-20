@@ -79,7 +79,7 @@ export function BrandAccessoriesList({
         return (
           <article
             key={a._id}
-            className="group flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl sm:rounded-[1.25rem]"
+            className="group flex h-full min-h-0 flex-col overflow-visible rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl sm:overflow-hidden sm:rounded-[1.25rem]"
           >
             <div className="relative flex min-h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:min-h-[130px] sm:py-4">
               <ProductImage
@@ -105,7 +105,7 @@ export function BrandAccessoriesList({
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
-              <h2 className="mb-2 line-clamp-2 text-center text-sm font-bold leading-snug text-slate-900 sm:text-base">
+              <h2 className="mb-2 break-words text-center text-sm font-bold leading-snug text-slate-900 sm:line-clamp-2 sm:text-base">
                 {a.name}
               </h2>
 

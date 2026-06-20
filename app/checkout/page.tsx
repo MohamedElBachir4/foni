@@ -427,9 +427,9 @@ export default function CheckoutPage() {
 
   if (items.length === 0 && !loading) {
     return (
-      <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-white antialiased">
+      <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-gradient-to-b from-slate-50 to-white antialiased">
         <Navbar />
-        <main className="mx-auto max-w-xl px-4 pb-20 pt-28 sm:pt-32">
+        <main className="mx-auto w-full min-w-0 max-w-xl px-4 pb-20 pt-28 sm:pt-32">
           <div className="flex flex-col items-center rounded-3xl border-0 bg-white p-10 text-center shadow-lg shadow-slate-200/50">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
               <ShoppingBag className="h-8 w-8 text-slate-400" />
@@ -455,9 +455,9 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-white antialiased">
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-gradient-to-b from-slate-50 to-white antialiased">
       <Navbar />
-      <main className="mx-auto max-w-5xl px-4 pb-24 pt-28 sm:px-6 sm:pt-32 lg:px-8">
+      <main className="mx-auto w-full min-w-0 max-w-5xl px-4 pb-24 pt-28 sm:px-6 sm:pt-32 lg:px-8">
         <div className="mb-8 flex items-center gap-4">
           <Link
             href="/cart"
@@ -472,9 +472,9 @@ export default function CheckoutPage() {
           </h1>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[380px,1fr]">
-          <div>
-            <div className="sticky top-28 rounded-2xl border-0 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-6">
+        <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,380px),minmax(0,1fr)]">
+          <div className="min-w-0">
+            <div className="sticky top-28 min-w-0 rounded-2xl border-0 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-6">
               <h2 className="mb-4 text-lg font-bold text-slate-800">ملخص الطلب</h2>
               <ul className="max-h-64 space-y-3 overflow-y-auto sm:max-h-80">
                 {items.map((item) => (
@@ -545,19 +545,19 @@ export default function CheckoutPage() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>مجموع المنتجات</span>
-                  <span className="font-semibold">
+              <div className="mt-4 min-w-0 space-y-2 border-t border-slate-200 pt-4 text-sm">
+                <div className="flex min-w-0 items-center justify-between gap-2 text-slate-600">
+                  <span className="min-w-0">مجموع المنتجات</span>
+                  <span className="shrink-0 font-semibold">
                     {formatDzd(totalPrice)} DA
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>
+                <div className="flex min-w-0 items-center justify-between gap-2 text-slate-600">
+                  <span className="min-w-0 leading-snug">
                     سعر التوصيل
                     {deliveryType === "stopdesk" ? " (Stop desk)" : " (للمنزل)"}
                   </span>
-                  <span className="font-semibold">
+                  <span className="shrink-0 font-semibold">
                     {feesLoading
                       ? "..."
                       : deliveryFee > 0
@@ -567,11 +567,11 @@ export default function CheckoutPage() {
                       : "اختر الولاية"}
                   </span>
                 </div>
-                <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
-                  <span className="font-semibold text-slate-700">
+                <div className="mt-3 flex min-w-0 items-center justify-between gap-2 border-t border-slate-200 pt-3">
+                  <span className="min-w-0 font-semibold text-slate-700">
                     المجموع الكلي
                   </span>
-                  <span className="text-xl font-bold text-blue-600">
+                  <span className="shrink-0 text-xl font-bold text-blue-600">
                     {formatDzd(grandTotal)} DA
                   </span>
                 </div>
@@ -580,7 +580,7 @@ export default function CheckoutPage() {
           </div>
           <form
             onSubmit={handleSubmit}
-            className="rounded-2xl border-0 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8"
+            className="min-w-0 w-full rounded-2xl border-0 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8"
           >
             {account && (
               <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
@@ -606,7 +606,7 @@ export default function CheckoutPage() {
             <h2 className="mb-6 text-lg font-bold text-slate-800">
               بيانات التوصيل
             </h2>
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-5">
               <div>
                 <label
                   htmlFor="fullName"
@@ -620,7 +620,7 @@ export default function CheckoutPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   placeholder="الاسم الكامل"
                 />
               </div>
@@ -638,12 +638,12 @@ export default function CheckoutPage() {
                   onChange={(e) => setPhone(e.target.value)}
                   required
                   dir="ltr"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   placeholder="0550123456"
                 />
               </div>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div>
+              <div className="grid min-w-0 gap-5 sm:grid-cols-2">
+                <div className="min-w-0">
                   <label
                     htmlFor="wilaya"
                     className="mb-1.5 block text-sm font-semibold text-slate-700"
@@ -658,7 +658,7 @@ export default function CheckoutPage() {
                       setWilayaId(e.target.value ? Number(e.target.value) : "");
                     }}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className="form-select-responsive w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   >
                     <option value="">اختر الولاية</option>
                     {wilayas.map((w) => (
@@ -668,7 +668,7 @@ export default function CheckoutPage() {
                     ))}
                   </select>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label
                     htmlFor="commune"
                     className="mb-1.5 block text-sm font-semibold text-slate-700"
@@ -681,7 +681,7 @@ export default function CheckoutPage() {
                     onChange={(e) => setCommuneName(e.target.value)}
                     disabled={!wilayaId || communes.length === 0}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="form-select-responsive w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <option value="">
                       {wilayaId ? "اختر البلدية" : "اختر الولاية أولاً"}
@@ -699,11 +699,11 @@ export default function CheckoutPage() {
                 <span className="mb-1.5 block text-sm font-semibold text-slate-700">
                   نوع التوصيل
                 </span>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid min-w-0 grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setDeliveryType("home")}
-                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                    className={`min-w-0 rounded-xl border px-3 py-3 text-sm font-semibold transition sm:px-4 ${
                       deliveryType === "home"
                         ? "border-blue-500 bg-blue-50 text-blue-700"
                         : "border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-300"
@@ -714,7 +714,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setDeliveryType("stopdesk")}
-                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                    className={`min-w-0 rounded-xl border px-3 py-3 text-sm font-semibold transition sm:px-4 ${
                       deliveryType === "stopdesk"
                         ? "border-blue-500 bg-blue-50 text-blue-700"
                         : "border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-300"
@@ -741,7 +741,7 @@ export default function CheckoutPage() {
                     }
                     disabled={!wilayaId || centers.length === 0}
                     required
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="form-select-responsive w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <option value="">
                       {centers.length === 0 ? "لا توجد مراكز" : "اختر المركز"}
@@ -769,7 +769,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setAddress(e.target.value)}
                   required
                   rows={3}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full min-w-0 max-w-full break-words rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   placeholder="العنوان الكامل للتوصيل"
                 />
               </div>
@@ -788,7 +788,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
                   maxLength={500}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full min-w-0 max-w-full break-words rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   placeholder="أي تفاصيل إضافية للطلب أو التوصيل (مثال: وقت التوصيل المناسب، تعليمات الوصول...)"
                 />
                 <p className="mt-1 text-xs text-slate-500">
