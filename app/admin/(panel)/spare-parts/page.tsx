@@ -175,6 +175,8 @@ export default function AdminSparePartsPage() {
     errors: ImportReportError[];
     totalInDb: number;
   } | null>(null);
+  const [importArchiveId, setImportArchiveId] = useState<string | null>(null);
+  const [importReportDownloading, setImportReportDownloading] = useState(false);
   const [showPhonesModal, setShowPhonesModal] = useState(false);
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
@@ -540,7 +542,13 @@ export default function AdminSparePartsPage() {
     return {
       createdProducts: report?.createdProducts ?? 0,
       updatedProducts: report?.updatedProducts ?? 0,
-      updatedProductsList: [] as { productName: string; changes: string }[],
+      updatedProductsList: Array.isArray(
+        (report as { updatedProductsList?: { productName: string; changes: string }[] })
+          ?.updatedProductsList
+      )
+        ? (report as { updatedProductsList: { productName: string; changes: string }[] })
+            .updatedProductsList
+        : [],
       phonesNotFound: report?.phonesNotFound ?? 0,
       phonesNotFoundList: Array.isArray(report?.phonesNotFoundList)
         ? report.phonesNotFoundList
@@ -554,6 +562,49 @@ export default function AdminSparePartsPage() {
       imagesRecovered: report?.imagesRecovered ?? 0,
       createdWithoutImage: report?.createdWithoutImage ?? 0,
     };
+  }
+
+  async function downloadImportReportExcel(archiveId: string) {
+    if (!archiveId) return;
+    setImportReportDownloading(true);
+    setMessage(null);
+    try {
+      const token = getToken();
+      const res = await fetch(
+        `${API_URL}/api/spare-parts/import-archives/${archiveId}/report`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: "include",
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setMessage({
+          type: "error",
+          text: data.error || "تعذّر تحميل تقرير Excel",
+        });
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+      const plainMatch = disposition.match(/filename="([^"]+)"/i);
+      const fileName = utf8Match
+        ? decodeURIComponent(utf8Match[1])
+        : plainMatch?.[1] || `تقرير_رفع_${archiveId}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      setMessage({ type: "error", text: "تعذّر الاتصال بالخادم أثناء تحميل التقرير" });
+    } finally {
+      setImportReportDownloading(false);
+    }
   }
 
   async function pollImportArchive(archiveId: string, token: string | null) {
@@ -1037,6 +1088,7 @@ export default function AdminSparePartsPage() {
     }
     setImporting(true);
     setImportReport(null);
+    setImportArchiveId(null);
     setMessage(null);
     try {
       const formData = new FormData();
@@ -1086,6 +1138,7 @@ export default function AdminSparePartsPage() {
 
       const report = importReportFromArchive(finalArchive.report);
       setImportReport(report);
+      setImportArchiveId(archiveId);
 
       if (finalArchive.status === "success" || finalArchive.status === "partial") {
         let doneText = `تم انتهاء الاستيراد — ${report.createdProducts} منتج جديد`;
@@ -1116,25 +1169,11 @@ export default function AdminSparePartsPage() {
   const closeImportModal = () => {
     setImportOpen(false);
     setImportFile(null);
-    setImportReport(null);
   };
 
-  const downloadErrorReport = () => {
-    if (!importReport?.errors?.length) return;
-    let csv = "المنتج;السبب\n";
-    importReport.errors.forEach((err: ImportReportError) => {
-      const name = (err?.productName || String(err)).replace(/"/g, '""');
-      const reason = (err?.reason || "غير معروف").replace(/"/g, '""');
-      csv += `"${name}";"${reason}"\n`;
-    });
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `تقرير_اخطاء_${new Date().getTime()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const clearImportReport = () => {
+    setImportReport(null);
+    setImportArchiveId(null);
   };
 
   const handleDeleteAll = async () => {
@@ -1302,12 +1341,18 @@ export default function AdminSparePartsPage() {
           icon={<FileSpreadsheet className="h-5 w-5 text-indigo-600" />}
           actions={
             <div className="flex gap-2">
-              {importReport.errors.length > 0 && (
-                <AdminButton variant="outline" size="sm" onClick={downloadErrorReport}>
-                  <Download className="h-4 w-4" /> تحميل الأخطاء كملف CSV
+              {importArchiveId && (
+                <AdminButton
+                  variant="outline"
+                  size="sm"
+                  loading={importReportDownloading}
+                  disabled={importReportDownloading}
+                  onClick={() => void downloadImportReportExcel(importArchiveId)}
+                >
+                  <Download className="h-4 w-4" /> تحميل تقرير Excel
                 </AdminButton>
               )}
-              <AdminButton variant="ghost" size="sm" onClick={() => setImportReport(null)}>
+              <AdminButton variant="ghost" size="sm" onClick={clearImportReport}>
                 <X className="h-4 w-4" /> إغلاق التقرير
               </AdminButton>
             </div>
@@ -1448,6 +1493,15 @@ export default function AdminSparePartsPage() {
                     >
                       {archiveStatusLabel(archive.status)}
                     </span>
+                    <AdminButton
+                      size="sm"
+                      variant="outline"
+                      icon={<Download className="h-4 w-4" />}
+                      disabled={archive.status === "processing" || importReportDownloading}
+                      onClick={() => void downloadImportReportExcel(archive._id)}
+                    >
+                      تقرير Excel
+                    </AdminButton>
                     <AdminButton
                       size="sm"
                       variant="outline"
@@ -2376,7 +2430,19 @@ export default function AdminSparePartsPage() {
         size="lg"
       >
         <div className="space-y-3">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            {selectedArchive && selectedArchive.status !== "processing" ? (
+              <AdminButton
+                variant="outline"
+                size="sm"
+                icon={<Download className="h-4 w-4" />}
+                disabled={importReportDownloading}
+                loading={importReportDownloading}
+                onClick={() => void downloadImportReportExcel(selectedArchive._id)}
+              >
+                تحميل تقرير Excel
+              </AdminButton>
+            ) : null}
             <AdminButton
               variant="danger"
               size="sm"
