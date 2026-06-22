@@ -38,6 +38,7 @@ export default function SpareModelsPage() {
   const [image, setImage] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
   const [expandedBrandIds, setExpandedBrandIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
@@ -314,7 +315,21 @@ export default function SpareModelsPage() {
     );
   }
 
+  function selectAllPhonesForBrand(brandId: string) {
+    const group = groupedByBrand.find((g) => g.brand._id === brandId);
+    if (!group?.phones.length) return;
+    setSelectedPhoneIds((prev) => {
+      const merged = new Set(prev);
+      for (const phone of group.phones) merged.add(phone._id);
+      return [...merged];
+    });
+  }
+
   function selectAllVisiblePhones() {
+    if (brandFilter) {
+      selectAllPhonesForBrand(brandFilter);
+      return;
+    }
     setSelectedPhoneIds((prev) => {
       const merged = new Set(prev);
       for (const phone of visiblePhones) merged.add(phone._id);
@@ -437,23 +452,38 @@ export default function SpareModelsPage() {
 
   // تصفية النتائج حسب البحث
   const filteredGroups = useMemo(() => {
-    if (!searchTerm.trim()) return groupedByBrand;
-    
+    let groups = groupedByBrand;
+
+    if (brandFilter) {
+      groups = groups.filter((group) => group.brand._id === brandFilter);
+    }
+
+    if (!searchTerm.trim()) return groups;
+
     const lowerSearch = searchTerm.toLowerCase();
-    return groupedByBrand
-      .map(group => ({
+    return groups
+      .map((group) => ({
         ...group,
-        phones: group.phones.filter(phone =>
+        phones: group.phones.filter((phone) =>
           phone.name.toLowerCase().includes(lowerSearch)
-        )
+        ),
       }))
-      .filter(group => group.phones.length > 0 || group.brand.name.toLowerCase().includes(lowerSearch));
-  }, [groupedByBrand, searchTerm]);
+      .filter(
+        (group) =>
+          group.phones.length > 0 ||
+          group.brand.name.toLowerCase().includes(lowerSearch)
+      );
+  }, [groupedByBrand, searchTerm, brandFilter]);
 
   const visiblePhones = useMemo(
     () => filteredGroups.flatMap((group) => group.phones),
     [filteredGroups]
   );
+
+  const selectedBrandPhoneCount = useMemo(() => {
+    if (!brandFilter) return 0;
+    return groupedByBrand.find((g) => g.brand._id === brandFilter)?.phones.length ?? 0;
+  }, [groupedByBrand, brandFilter]);
 
   const messageEl = message && (
     <div
@@ -725,16 +755,35 @@ export default function SpareModelsPage() {
       )}
 
       <AdminCard title="قائمة هواتف قطع الغيار" icon={<Smartphone className="h-5 w-5" />}>
-        {/* شريط البحث */}
-        <div className="mb-4 relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="ابحث عن هاتف..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="admin-input pl-10"
-          />
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">تصفية حسب الماركة</label>
+            <select
+              value={brandFilter}
+              onChange={(e) => setBrandFilter(e.target.value)}
+              className="admin-select w-full"
+            >
+              <option value="">كل الماركات</option>
+              {groupedByBrand.map((group) => (
+                <option key={group.brand._id} value={group.brand._id}>
+                  {group.brand.name} ({group.phones.length})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">بحث في الاسم</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="ابحث عن هاتف..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="admin-input w-full pl-10"
+              />
+            </div>
+          </div>
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-4">
@@ -751,9 +800,11 @@ export default function SpareModelsPage() {
                 variant="outline"
                 size="sm"
                 onClick={selectAllVisiblePhones}
-                disabled={visiblePhones.length === 0}
+                disabled={brandFilter ? selectedBrandPhoneCount === 0 : visiblePhones.length === 0}
               >
-                تحديد الكل (المعروض)
+                {brandFilter
+                  ? `تحديد جميع هواتف الماركة (${selectedBrandPhoneCount})`
+                  : "تحديد الكل (المعروض)"}
               </AdminButton>
               <AdminButton
                 variant="outline"
@@ -819,16 +870,10 @@ export default function SpareModelsPage() {
                   {selectionMode && group.phones.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedPhoneIds((prev) => {
-                          const merged = new Set(prev);
-                          for (const phone of group.phones) merged.add(phone._id);
-                          return [...merged];
-                        });
-                      }}
+                      onClick={() => selectAllPhonesForBrand(group.brand._id)}
                       className="shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100"
                     >
-                      تحديد الماركة
+                      تحديد جميع هواتف الماركة
                     </button>
                   )}
                 </div>

@@ -124,7 +124,7 @@ export function AdminSparePartModelPicker({
     else onChangeIds([...selectedIds, id]);
   }
 
-  function selectAll() {
+  function selectAllBrandPhones() {
     if (!phoneTypes.length) return;
     onChangeIds(phoneTypes.map((p) => p._id));
   }
@@ -173,11 +173,11 @@ export function AdminSparePartModelPicker({
           <div className="flex shrink-0 flex-wrap gap-1 border-b border-slate-100 px-2 py-1">
             <button
               type="button"
-              onClick={selectAll}
+              onClick={selectAllBrandPhones}
               disabled={!phoneTypes.length}
               className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-white disabled:opacity-40"
             >
-              كل ({phoneTypes.length})
+              جميع هواتف الماركة ({phoneTypes.length})
             </button>
             <button
               type="button"
