@@ -97,6 +97,8 @@ type ImportArchiveItem = {
     updatedProducts?: number;
     createdPhones?: number;
     createdPhoneImages?: number;
+    serperError?: string;
+    imagesFetched?: number;
     phonesNotFound?: number;
     phonesNotFoundList?: string[];
     imagesRecovered?: number;
@@ -169,6 +171,8 @@ export default function AdminSparePartsPage() {
     phonesNotFoundList: string[];
     createdPhones?: number;
     createdPhoneImages?: number;
+    serperError?: string;
+    imagesFetched?: number;
     createdPhonesList?: string[];
     imagesRecovered?: number;
     createdWithoutImage?: number;
@@ -559,6 +563,8 @@ export default function AdminSparePartsPage() {
         : [],
       createdPhones: report?.createdPhones ?? 0,
       createdPhoneImages: (report as { createdPhoneImages?: number })?.createdPhoneImages ?? 0,
+      serperError: (report as { serperError?: string })?.serperError ?? "",
+      imagesFetched: (report as { imagesFetched?: number })?.imagesFetched ?? 0,
       createdPhonesList: Array.isArray(
         (report as { createdPhonesList?: string[] })?.createdPhonesList
       )
@@ -1159,8 +1165,14 @@ export default function AdminSparePartsPage() {
         if (report.phonesNotFound > 0) {
           doneText += `. لم يُعثر على ${report.phonesNotFound} هاتف في القاعدة — راجع التقرير أدناه`;
         }
+        const serperErr = (report as { serperError?: string }).serperError?.trim();
+        if (serperErr) {
+          doneText += `. تحذير Serper: ${serperErr}`;
+        } else if ((report.createdWithoutImage ?? 0) > 0 && (report.imagesFetched ?? 0) === 0) {
+          doneText += `. لم تُجلب صور — تحقق من IMAGE_SEARCH_API_KEY على السيرفر`;
+        }
         setMessage({
-          type: report.phonesNotFound > 0 ? "error" : "success",
+          type: report.phonesNotFound > 0 || serperErr ? "error" : "success",
           text: doneText,
         });
         fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
@@ -1373,6 +1385,16 @@ export default function AdminSparePartsPage() {
           }
         >
           <div className="grid grid-cols-2 lg:grid-cols-7 gap-4 mb-6">
+            {importReport.serperError ? (
+              <div className="col-span-2 lg:col-span-7 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <strong>تحذير Serper:</strong> {importReport.serperError}
+                <div className="mt-1 text-xs text-amber-800">
+                  حدّث <code className="font-mono">IMAGE_SEARCH_API_KEY</code> في{" "}
+                  <code className="font-mono">server/.env</code> على السيرفر ثم{" "}
+                  <code className="font-mono">pm2 restart foni-api --update-env</code>
+                </div>
+              </div>
+            ) : null}
             {/* Total In DB - Prominent */}
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-5 text-center shadow-sm col-span-2 lg:col-span-7">
                <div className="text-indigo-600 text-4xl font-black">{importReport.totalInDb.toLocaleString()}</div>
@@ -1393,6 +1415,15 @@ export default function AdminSparePartsPage() {
                ) : null}
             </div>
             ) : null}
+            <div className="bg-violet-50 border border-violet-200 rounded-lg p-5 text-center shadow-sm">
+               <div className="text-violet-600 text-3xl font-bold">{importReport.imagesFetched ?? 0}</div>
+               <div className="text-violet-900 text-sm mt-2 font-medium">صور منتجات جُلبت</div>
+               {(importReport.createdWithoutImage ?? 0) > 0 ? (
+                 <div className="text-violet-700 text-xs mt-1">
+                   {importReport.createdWithoutImage} بدون صورة
+                 </div>
+               ) : null}
+            </div>
             <div 
               className={`bg-orange-50 border border-orange-200 rounded-lg p-5 text-center shadow-sm cursor-pointer transition-all hover:bg-orange-100 active:scale-95 ${importReport.updatedProducts > 0 ? 'ring-2 ring-orange-400 ring-offset-2' : ''}`}
               onClick={() => importReport.updatedProducts > 0 && setShowUpdatesModal(true)}
