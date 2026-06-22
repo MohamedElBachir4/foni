@@ -166,6 +166,8 @@ export default function AdminSparePartsPage() {
     updatedProductsList: { productName: string; changes: string }[];
     phonesNotFound: number;
     phonesNotFoundList: string[];
+    createdPhones?: number;
+    createdPhonesList?: string[];
     imagesRecovered?: number;
     createdWithoutImage?: number;
     emptyRowsSkipped: number;
@@ -552,6 +554,12 @@ export default function AdminSparePartsPage() {
       phonesNotFound: report?.phonesNotFound ?? 0,
       phonesNotFoundList: Array.isArray(report?.phonesNotFoundList)
         ? report.phonesNotFoundList
+        : [],
+      createdPhones: report?.createdPhones ?? 0,
+      createdPhonesList: Array.isArray(
+        (report as { createdPhonesList?: string[] })?.createdPhonesList
+      )
+        ? (report as { createdPhonesList: string[] }).createdPhonesList
         : [],
       emptyRowsSkipped: report?.emptyRowsSkipped ?? 0,
       duplicateInDb: report?.duplicateInDb ?? 0,
@@ -1142,6 +1150,9 @@ export default function AdminSparePartsPage() {
 
       if (finalArchive.status === "success" || finalArchive.status === "partial") {
         let doneText = `تم انتهاء الاستيراد — ${report.createdProducts} منتج جديد`;
+        if ((report.createdPhones ?? 0) > 0) {
+          doneText += ` — ${report.createdPhones} هاتف أُنشئ تلقائياً من Modèle`;
+        }
         if (report.phonesNotFound > 0) {
           doneText += `. لم يُعثر على ${report.phonesNotFound} هاتف في القاعدة — راجع التقرير أدناه`;
         }
@@ -1368,6 +1379,12 @@ export default function AdminSparePartsPage() {
                <div className="text-emerald-600 text-3xl font-bold">{importReport.createdProducts}</div>
                <div className="text-emerald-800 text-sm mt-2 font-medium">منتجات جديدة مضافة</div>
             </div>
+            {(importReport.createdPhones ?? 0) > 0 ? (
+            <div className="bg-sky-50 border border-sky-200 rounded-lg p-5 text-center shadow-sm">
+               <div className="text-sky-600 text-3xl font-bold">{importReport.createdPhones}</div>
+               <div className="text-sky-900 text-sm mt-2 font-medium">هواتف أُنشئت تلقائياً من Modèle</div>
+            </div>
+            ) : null}
             <div 
               className={`bg-orange-50 border border-orange-200 rounded-lg p-5 text-center shadow-sm cursor-pointer transition-all hover:bg-orange-100 active:scale-95 ${importReport.updatedProducts > 0 ? 'ring-2 ring-orange-400 ring-offset-2' : ''}`}
               onClick={() => importReport.updatedProducts > 0 && setShowUpdatesModal(true)}
