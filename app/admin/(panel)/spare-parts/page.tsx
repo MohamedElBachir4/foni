@@ -96,6 +96,7 @@ type ImportArchiveItem = {
     createdProducts?: number;
     updatedProducts?: number;
     createdPhones?: number;
+    createdPhoneImages?: number;
     phonesNotFound?: number;
     phonesNotFoundList?: string[];
     imagesRecovered?: number;
@@ -167,6 +168,7 @@ export default function AdminSparePartsPage() {
     phonesNotFound: number;
     phonesNotFoundList: string[];
     createdPhones?: number;
+    createdPhoneImages?: number;
     createdPhonesList?: string[];
     imagesRecovered?: number;
     createdWithoutImage?: number;
@@ -556,6 +558,7 @@ export default function AdminSparePartsPage() {
         ? report.phonesNotFoundList
         : [],
       createdPhones: report?.createdPhones ?? 0,
+      createdPhoneImages: (report as { createdPhoneImages?: number })?.createdPhoneImages ?? 0,
       createdPhonesList: Array.isArray(
         (report as { createdPhonesList?: string[] })?.createdPhonesList
       )
@@ -1383,6 +1386,11 @@ export default function AdminSparePartsPage() {
             <div className="bg-sky-50 border border-sky-200 rounded-lg p-5 text-center shadow-sm">
                <div className="text-sky-600 text-3xl font-bold">{importReport.createdPhones}</div>
                <div className="text-sky-900 text-sm mt-2 font-medium">هواتف أُنشئت تلقائياً من Modèle</div>
+               {(importReport.createdPhoneImages ?? 0) > 0 ? (
+                 <div className="text-sky-700 text-xs mt-1">
+                   {importReport.createdPhoneImages} صورة هاتف جُلبت
+                 </div>
+               ) : null}
             </div>
             ) : null}
             <div 
