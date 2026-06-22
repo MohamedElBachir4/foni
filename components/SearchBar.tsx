@@ -147,7 +147,7 @@ export function SearchBar() {
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
         <Search
-          className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
+          className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
           strokeWidth={2}
           aria-hidden
         />
@@ -159,15 +159,15 @@ export function SearchBar() {
           onFocus={() => query.trim() && setOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="ابحث — هواتف، أكسسوارات، قطع غيار…"
-          dir="rtl"
+          dir="ltr"
           aria-label="بحث عن المنتجات"
           aria-autocomplete="list"
           aria-expanded={open && Boolean(query.trim())}
-          className="w-full rounded-full border border-gray-200 bg-white/90 py-2.5 pr-10 pl-10 text-right text-[15px] text-gray-900 placeholder:text-gray-500 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 sm:py-3"
+          className="w-full rounded-full border border-gray-200 bg-white/90 py-2.5 pl-10 pr-10 text-left text-[15px] text-gray-900 placeholder:text-gray-500 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 sm:py-3"
         />
         {loading && (
           <span
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
+            className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
             aria-hidden
           />
         )}
@@ -270,7 +270,10 @@ export function SearchBar() {
                               />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="line-clamp-2 text-sm font-semibold text-slate-900 sm:line-clamp-1 sm:text-[15px]">
+                              <p
+                                className="line-clamp-2 text-left text-sm font-semibold text-slate-900 sm:line-clamp-1 sm:text-[15px]"
+                                dir="ltr"
+                              >
                                 {highlightTokensInText(item.name, highlightTokens)}
                               </p>
                               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -321,7 +324,10 @@ export function SearchBar() {
                               />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="line-clamp-2 text-sm font-semibold text-slate-900">
+                              <p
+                                className="line-clamp-2 text-left text-sm font-semibold text-slate-900"
+                                dir="ltr"
+                              >
                                 {highlightTokensInText(item.name, highlightTokens)}
                               </p>
                               <div className="mt-1 text-xs text-slate-500">
@@ -366,7 +372,10 @@ export function SearchBar() {
                               />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="line-clamp-2 text-sm font-semibold text-slate-900">
+                              <p
+                                className="line-clamp-2 text-left text-sm font-semibold text-slate-900"
+                                dir="ltr"
+                              >
                                 {highlightTokensInText(item.name, highlightTokens)}
                               </p>
                               <div className="mt-1 text-xs text-slate-500">
