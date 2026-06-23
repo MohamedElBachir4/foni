@@ -796,8 +796,9 @@ export default function AdminSparePartsPage() {
     if (!cleanId) return false;
     setVisibilitySavingId(cleanId);
     try {
-      const res = await fetch(`${API_URL}/api/spare-parts/${cleanId}/visibility`, {
-        method: "PATCH",
+      // PUT على المسار القياسي — يعمل حتى قبل نشر PATCH /visibility على السيرفر
+      const res = await fetch(`${API_URL}/api/spare-parts/${cleanId}`, {
+        method: "PUT",
         headers: getAuthHeaders(),
         credentials: "include",
         body: JSON.stringify({ hidden: nextHidden }),
@@ -810,13 +811,22 @@ export default function AdminSparePartsPage() {
             text:
               data.error ||
               (res.status === 404
-                ? "مسار الإخفاء غير متوفر على السيرفر. انشر تحديث الباكند ثم أعد المحاولة."
-                : "فشل حفظ حالة الإخفاء"),
+                ? "المنتج غير موجود على السيرفر."
+                : "فشل حفظ حالة الإخفاء. تأكّد من نشر تحديث الباكند."),
           });
         }
         return false;
       }
       const savedHidden = Boolean(data.hidden);
+      if (savedHidden !== nextHidden) {
+        if (!options?.silent) {
+          setPartModalNotice({
+            type: "error",
+            text: "لم يُحفظ الإخفاء. انشر آخر تحديث للباكند (حقل hidden) ثم أعد المحاولة.",
+          });
+        }
+        return false;
+      }
       setParts((prev) =>
         prev.map((p) => (p._id === cleanId ? { ...p, hidden: savedHidden } : p))
       );
@@ -831,7 +841,7 @@ export default function AdminSparePartsPage() {
             : "المنتج ظاهر في المتجر مجدداً",
         });
       }
-      return savedHidden === nextHidden;
+      return true;
     } catch {
       if (!options?.silent) {
         setPartModalNotice({ type: "error", text: "تعذر الاتصال بالخادم أثناء حفظ الإخفاء" });
@@ -975,7 +985,7 @@ export default function AdminSparePartsPage() {
           if (!visibilityOk) {
             setPartModalNotice({
               type: "error",
-              text: "تم حفظ بيانات المنتج لكن فشل حفظ الإخفاء. تأكّد من نشر تحديث الباكند (PATCH visibility).",
+              text: "تم حفظ بيانات المنتج لكن فشل حفظ الإخفاء. انشر تحديث الباكند ثم أعد المحاولة.",
             });
             return;
           }
