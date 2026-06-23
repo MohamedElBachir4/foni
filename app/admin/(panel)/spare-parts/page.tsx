@@ -787,6 +787,35 @@ export default function AdminSparePartsPage() {
     }
   }
 
+  async function fetchPartHidden(partId: string): Promise<boolean | null> {
+    try {
+      const res = await fetch(`${API_URL}/api/spare-parts/${partId}`, {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      if (!res.ok) return null;
+      const data = (await res.json().catch(() => ({}))) as { hidden?: boolean };
+      return Boolean(data.hidden);
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchBackendHiddenSupport(): Promise<boolean | null> {
+    try {
+      const res = await fetch(`${API_URL}/api/health`);
+      if (!res.ok) return null;
+      const data = (await res.json().catch(() => ({}))) as {
+        sparePartHiddenSupported?: boolean;
+      };
+      return typeof data.sparePartHiddenSupported === "boolean"
+        ? data.sparePartHiddenSupported
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function persistPartVisibility(
     partId: string,
     nextHidden: boolean,
@@ -796,37 +825,56 @@ export default function AdminSparePartsPage() {
     if (!cleanId) return false;
     setVisibilitySavingId(cleanId);
     try {
-      // PUT على المسار القياسي — يعمل حتى قبل نشر PATCH /visibility على السيرفر
-      const res = await fetch(`${API_URL}/api/spare-parts/${cleanId}`, {
-        method: "PUT",
-        headers: getAuthHeaders(),
+      const headers = getAuthHeaders();
+      const body = JSON.stringify({ hidden: nextHidden });
+
+      let res = await fetch(`${API_URL}/api/spare-parts/${cleanId}/visibility`, {
+        method: "PATCH",
+        headers,
         credentials: "include",
-        body: JSON.stringify({ hidden: nextHidden }),
+        body,
       });
+      if (res.status === 404) {
+        res = await fetch(`${API_URL}/api/spare-parts/${cleanId}`, {
+          method: "PUT",
+          headers,
+          credentials: "include",
+          body,
+        });
+      }
+
       const data = (await res.json().catch(() => ({}))) as { error?: string; hidden?: boolean };
       if (!res.ok) {
         if (!options?.silent) {
           setPartModalNotice({
             type: "error",
-            text:
-              data.error ||
-              (res.status === 404
-                ? "المنتج غير موجود على السيرفر."
-                : "فشل حفظ حالة الإخفاء. تأكّد من نشر تحديث الباكند."),
+            text: data.error || "فشل حفظ حالة الإخفاء.",
           });
         }
         return false;
       }
-      const savedHidden = Boolean(data.hidden);
+
+      let savedHidden =
+        typeof data.hidden === "boolean" ? data.hidden : Boolean(data.hidden);
+      if (savedHidden !== nextHidden) {
+        const fromGet = await fetchPartHidden(cleanId);
+        if (fromGet !== null) savedHidden = fromGet;
+      }
+
       if (savedHidden !== nextHidden) {
         if (!options?.silent) {
+          const supported = await fetchBackendHiddenSupport();
           setPartModalNotice({
             type: "error",
-            text: "لم يُحفظ الإخفاء. انشر آخر تحديث للباكند (حقل hidden) ثم أعد المحاولة.",
+            text:
+              supported === false
+                ? "الباكند على السيرفر قديم (sparePartHiddenSupported: false). نفّذ git pull ثم pm2 restart foni-api --update-env"
+                : "تعذّر حفظ الإخفاء. على السيرفر: git pull && pm2 restart foni-api --update-env ثم تحقّق من /api/health",
           });
         }
         return false;
       }
+
       setParts((prev) =>
         prev.map((p) => (p._id === cleanId ? { ...p, hidden: savedHidden } : p))
       );
