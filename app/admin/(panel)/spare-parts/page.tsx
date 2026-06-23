@@ -75,6 +75,7 @@ type SparePart = {
   options?: string[];
   pricedOptions?: PricedOptionCompare[];
   hasVariants?: boolean;
+  hidden?: boolean;
 };
 
 type ImportReportError = { productName: string; reason: string };
@@ -196,6 +197,7 @@ export default function AdminSparePartsPage() {
   const [pricedOptionRows, setPricedOptionRows] = useState<PricedOptionFormRow[]>([]);
   const [hasVariants, setHasVariants] = useState(false);
   const [manageStock, setManageStock] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [stock, setStock] = useState("");
   const [inlinePriceDrafts, setInlinePriceDrafts] = useState<Record<string, InlinePriceDraft>>({});
   const [inlineSavingIds, setInlineSavingIds] = useState<Record<string, boolean>>({});
@@ -429,6 +431,7 @@ export default function AdminSparePartsPage() {
     setPricedOptionRows([]);
     setHasVariants(false);
     setManageStock(false);
+    setHidden(false);
     setStock("");
     setEditing(null);
     setCopySnapshot(null);
@@ -841,6 +844,7 @@ export default function AdminSparePartsPage() {
       hasVariants,
       manageStock,
       stock: manageStock ? (stock.trim() ? Number(stock) : 0) : 0,
+      ...(editing ? { hidden } : {}),
     };
 
     /** إنشاء يدوي فقط يُطبَّق عبر هذا النموذج — المصدر لا يصل من واجهة الاستيراد */
@@ -962,6 +966,7 @@ export default function AdminSparePartsPage() {
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
     setHasVariants(Boolean(item.hasVariants));
     setManageStock(Boolean(item.manageStock));
+    setHidden(false);
     setStock(item.stock != null ? String(item.stock) : "");
     if (brandId) fetchPhoneTypesForBrand(brandId);
     setPartModalNotice(null);
@@ -1002,6 +1007,7 @@ export default function AdminSparePartsPage() {
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
     setHasVariants(Boolean(item.hasVariants));
     setManageStock(Boolean(item.manageStock));
+    setHidden(Boolean(item.hidden));
     setStock(item.stock != null ? String(item.stock) : "");
     if (brandId) fetchPhoneTypesForBrand(brandId);
   }
@@ -1821,6 +1827,33 @@ export default function AdminSparePartsPage() {
               ) : null}
             </div>
 
+            {editing ? (
+              <div
+                className={`rounded-lg border p-3 ${
+                  hidden
+                    ? "border-amber-300 bg-amber-50/90"
+                    : "border-emerald-200 bg-emerald-50/70"
+                }`}
+              >
+                <label className="flex cursor-pointer items-start gap-2 text-xs font-semibold text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={hidden}
+                    onChange={(e) => setHidden(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span>
+                    إخفاء المنتج من المتجر
+                    <span className="mt-1 block text-[11px] font-normal leading-relaxed text-slate-600">
+                      {hidden
+                        ? "المنتج مخفي حالياً عن الزبائن والبحث. أوقف الخيار ليعود للظهور."
+                        : "المنتج ظاهر في المتجر. فعّل الخيار لإخفائه دون حذفه من لوحة التحكم."}
+                    </span>
+                  </span>
+                </label>
+              </div>
+            ) : null}
+
             <div className="border-t border-slate-100 pt-2">
               <label className={lbl}>رابط الصورة الرئيسية</label>
               <input
@@ -2204,7 +2237,16 @@ export default function AdminSparePartsPage() {
                 }
               : {}),
             image: <AdminTableCellImage src={p.image} alt={getAdminDisplayName(p)} />,
-            name: <span className="font-medium text-slate-800">{getAdminDisplayName(p)}</span>,
+            name: (
+              <span className="inline-flex flex-wrap items-center gap-1.5 font-medium text-slate-800">
+                {getAdminDisplayName(p)}
+                {p.hidden ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                    مخفي
+                  </span>
+                ) : null}
+              </span>
+            ),
             priceRetail: (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <input
