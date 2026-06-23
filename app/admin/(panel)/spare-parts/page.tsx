@@ -828,20 +828,24 @@ export default function AdminSparePartsPage() {
       const headers = getAuthHeaders();
       const body = JSON.stringify({ hidden: nextHidden });
 
-      let res = await fetch(`${API_URL}/api/spare-parts/${cleanId}/visibility`, {
-        method: "PATCH",
+      const supported = await fetchBackendHiddenSupport();
+      if (supported !== true) {
+        if (!options?.silent) {
+          setPartModalNotice({
+            type: "error",
+            text:
+              "الباكند على السيرفر لم يُحدَّث بعد. على السيرفر نفّذ: cd ~/foni-backend && git pull origin main && pm2 restart foni-backend --update-env — ثم تحقّق أن /api/health يعرض sparePartHiddenSupported: true",
+          });
+        }
+        return false;
+      }
+
+      const res = await fetch(`${API_URL}/api/spare-parts/${cleanId}`, {
+        method: "PUT",
         headers,
         credentials: "include",
         body,
       });
-      if (res.status === 404) {
-        res = await fetch(`${API_URL}/api/spare-parts/${cleanId}`, {
-          method: "PUT",
-          headers,
-          credentials: "include",
-          body,
-        });
-      }
 
       const data = (await res.json().catch(() => ({}))) as { error?: string; hidden?: boolean };
       if (!res.ok) {
