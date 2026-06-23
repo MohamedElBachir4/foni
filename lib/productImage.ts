@@ -1,11 +1,6 @@
 /** صورة افتراضية عند غياب صورة المنتج — PHOTO NON DISPONIBLE (foni/public). */
 const DEFAULT_PHONE_IMAGE = "/photo-non-disponible.jpeg";
 
-function hasExplicitPublicApiUrl(): boolean {
-  const t = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
-  return /^https?:\/\//i.test(t);
-}
-
 /** يحوّل المسار المخزّن (مثل uploads/... أو /uploads/...) إلى مسار نسبي من جذر الموقع. */
 function normalizeImagePath(raw: string): string {
   const t = raw.trim();
@@ -33,7 +28,7 @@ function looksLikeDomainUrl(raw: string): boolean {
  * - فارغ: الصورة الافتراضية.
  * - بروتوكول نسبي //domain/...: يُحوَّل إلى https (تجنب مشاكل المختلط / Next).
  * - http(s)، data:، blob:، file:، وغيرها من المخططات: كما أُدخلت.
- * - مسار نسبي من جذر الموقع /uploads/...: عبر rewrites أو عبر NEXT_PUBLIC_API_URL.
+ * - مسار نسبي من جذر الموقع /uploads/...: يُعاد كما هو ليمرّ عبر نفس الأصل (next/image أو rewrites).
  */
 export function getProductImageUrl(imageUrl: string | undefined | null): string {
   const raw = (imageUrl ?? "").trim();
@@ -60,10 +55,10 @@ export function getProductImageUrl(imageUrl: string | undefined | null): string 
   const path = normalizeImagePath(raw);
   if (!path) return DEFAULT_PHONE_IMAGE;
 
-  if (hasExplicitPublicApiUrl()) {
-    const base = (process.env.NEXT_PUBLIC_API_URL ?? "").trim().replace(/\/$/, "");
-    return `${base}${path}`;
-  }
+  // نُعيد دائماً مساراً نسبياً من جذر الموقع (/uploads/...). هكذا يمرّ التحميل عبر نفس
+  // الأصل: إمّا عبر next/image (تحسين على الخادم) أو عبر <img> ثم rewrites في next.config
+  // إلى الـ API. هذا يتجنّب تحميل الصور مباشرةً من النطاق الفرعي api.foni-dz.com الذي
+  // يتعطّل على بيانات الجوال 4G/5G (DNS/مشغّل الشبكة) بينما يعمل على الـ Wi‑Fi.
   return path;
 }
 
