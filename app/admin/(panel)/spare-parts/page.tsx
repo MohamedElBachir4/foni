@@ -29,6 +29,7 @@ import {
   Copy,
   Plus,
   Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   AdminButton,
@@ -161,6 +162,7 @@ export default function AdminSparePartsPage() {
   const [editing, setEditing] = useState<SparePart | null>(null);
   const [copySnapshot, setCopySnapshot] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [visibilitySavingId, setVisibilitySavingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -785,6 +787,61 @@ export default function AdminSparePartsPage() {
     }
   }
 
+  async function persistPartVisibility(
+    partId: string,
+    nextHidden: boolean,
+    options?: { silent?: boolean }
+  ): Promise<boolean> {
+    const cleanId = String(partId || "").trim();
+    if (!cleanId) return false;
+    setVisibilitySavingId(cleanId);
+    try {
+      const res = await fetch(`${API_URL}/api/spare-parts/${cleanId}/visibility`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ hidden: nextHidden }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; hidden?: boolean };
+      if (!res.ok) {
+        if (!options?.silent) {
+          setPartModalNotice({
+            type: "error",
+            text:
+              data.error ||
+              (res.status === 404
+                ? "مسار الإخفاء غير متوفر على السيرفر. انشر تحديث الباكند ثم أعد المحاولة."
+                : "فشل حفظ حالة الإخفاء"),
+          });
+        }
+        return false;
+      }
+      const savedHidden = Boolean(data.hidden);
+      setParts((prev) =>
+        prev.map((p) => (p._id === cleanId ? { ...p, hidden: savedHidden } : p))
+      );
+      if (editing?._id === cleanId) {
+        setEditing((prev) => (prev ? { ...prev, hidden: savedHidden } : prev));
+      }
+      if (!options?.silent) {
+        setMessage({
+          type: "success",
+          text: savedHidden
+            ? "تم إخفاء المنتج من المتجر"
+            : "المنتج ظاهر في المتجر مجدداً",
+        });
+      }
+      return savedHidden === nextHidden;
+    } catch {
+      if (!options?.silent) {
+        setPartModalNotice({ type: "error", text: "تعذر الاتصال بالخادم أثناء حفظ الإخفاء" });
+      }
+      return false;
+    } finally {
+      setVisibilitySavingId(null);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPartModalNotice(null);
@@ -844,7 +901,7 @@ export default function AdminSparePartsPage() {
       hasVariants,
       manageStock,
       stock: manageStock ? (stock.trim() ? Number(stock) : 0) : 0,
-      ...(editing ? { hidden } : {}),
+      hidden: Boolean(hidden),
     };
 
     /** إنشاء يدوي فقط يُطبَّق عبر هذا النموذج — المصدر لا يصل من واجهة الاستيراد */
@@ -911,6 +968,18 @@ export default function AdminSparePartsPage() {
        });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        if (isEdit && Boolean(hidden) !== Boolean(data.hidden)) {
+          const visibilityOk = await persistPartVisibility(editing._id, Boolean(hidden), {
+            silent: true,
+          });
+          if (!visibilityOk) {
+            setPartModalNotice({
+              type: "error",
+              text: "تم حفظ بيانات المنتج لكن فشل حفظ الإخفاء. تأكّد من نشر تحديث الباكند (PATCH visibility).",
+            });
+            return;
+          }
+        }
         setPartModalOpen(false);
         resetForm();
         setMessage({
@@ -1839,7 +1908,15 @@ export default function AdminSparePartsPage() {
                   <input
                     type="checkbox"
                     checked={hidden}
-                    onChange={(e) => setHidden(e.target.checked)}
+                    disabled={visibilitySavingId === editing._id || savingPart}
+                    onChange={(e) => {
+                      const next = e.target.checked;
+                      const prev = hidden;
+                      setHidden(next);
+                      void persistPartVisibility(editing._id, next).then((ok) => {
+                        if (!ok) setHidden(prev);
+                      });
+                    }}
                     className="mt-0.5 h-4 w-4 rounded border-slate-300"
                   />
                   <span>
@@ -2346,6 +2423,22 @@ export default function AdminSparePartsPage() {
             ),
             actions: (
               <div className="flex items-center gap-2">
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  icon={
+                    visibilitySavingId === p._id ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : p.hidden ? (
+                      <EyeOff className="h-4 w-4 text-amber-700" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-emerald-700" />
+                    )
+                  }
+                  onClick={() => void persistPartVisibility(p._id, !p.hidden)}
+                  disabled={visibilitySavingId === p._id || savingPart}
+                  title={p.hidden ? "إظهار في المتجر" : "إخفاء من المتجر"}
+                />
                 <AdminButton
                   variant="ghost"
                   size="sm"
