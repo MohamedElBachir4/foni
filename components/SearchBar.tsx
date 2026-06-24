@@ -84,31 +84,38 @@ export function SearchBar() {
     collapseForCompare(interpretedQuery || "") !== collapseForCompare(debouncedQuery);
 
   /**
-   * عند وجود نتائج في قسم الهواتف نوجّه مباشرةً إلى هذا القسم
-   * ليختار الزبون الموديل المناسب لما كتبه.
+   * Enter أو تأكيد البحث: الانتقال لأول نتيجة إن وُجدت، وإلا صفحة البحث.
    */
-  const goToSearchLanding = useCallback(() => {
+  const goToFirstResult = useCallback(() => {
     const q = query.trim();
     if (!q) return;
-    if (grouped.phones.length > 0) {
-      router.push(`/search?q=${encodeURIComponent(q)}&section=phones`);
-    } else {
-      router.push(`/search?q=${encodeURIComponent(q)}`);
+    const items = flatList(grouped);
+    if (items.length > 0) {
+      router.push(items[0].item.href);
+      setOpen(false);
+      setQuery("");
+      return;
     }
+    router.push(`/search?q=${encodeURIComponent(q)}`);
     setOpen(false);
-  }, [grouped.phones.length, query, router]);
+  }, [grouped, query, router]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!open && e.key === "Enter" && query.trim()) {
+    if (e.key === "Enter" && query.trim()) {
       e.preventDefault();
-      goToSearchLanding();
+      if (highlightIndex > 0) {
+        const cur = list[highlightIndex - 1];
+        if (cur) {
+          router.push(cur.item.href);
+          setOpen(false);
+          setQuery("");
+          return;
+        }
+      }
+      goToFirstResult();
       return;
     }
     if (!open || total === 0) {
-      if (e.key === "Enter" && query.trim()) {
-        e.preventDefault();
-        goToSearchLanding();
-      }
       return;
     }
     if (e.key === "ArrowDown") {
@@ -119,23 +126,6 @@ export function SearchBar() {
     if (e.key === "ArrowUp") {
       e.preventDefault();
       setHighlightIndex((i) => (i > 0 ? i - 1 : 0));
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      // السطر 0 = «لم تجد قطعتك» — Enter يفتح صفحة الأقسام وليس طلب قطعة (يمكن فتح الطلب بالنقر)
-      if (highlightIndex === 0) {
-        goToSearchLanding();
-        return;
-      }
-      const cur = list[highlightIndex - 1];
-      if (cur) {
-        router.push(cur.item.href);
-        setOpen(false);
-        setQuery("");
-        return;
-      }
-      goToSearchLanding();
       return;
     }
     if (e.key === "Escape") {

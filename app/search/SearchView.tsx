@@ -365,7 +365,7 @@ function PhoneModelGrid({
               className="mb-3 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-slate-800 group-hover:text-blue-700"
               dir="auto"
             >
-              {highlightQueryInText(item.name, highlightQuery)}
+              {highlightTokensInText(item.name, highlightTokens)}
             </h3>
             <span className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-sm transition-colors group-hover:bg-blue-700">
               عرض قطع الغيار
