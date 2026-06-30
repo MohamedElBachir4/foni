@@ -32,32 +32,46 @@ export default function AdminPanelLayout({
   const [mounted, setMounted] = useState(false);
   const [hasToken, setHasToken] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [partRequestsCount, setPartRequestsCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
 
-  const fetchPendingCount = useCallback(async () => {
+  const fetchNavBadges = useCallback(async () => {
     const token = getToken();
     if (!token) {
       setPendingCount(0);
+      setPartRequestsCount(0);
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/admin/pending-orders-count`, {
-        headers: getAuthHeaders(),
-        credentials: "include",
-      });
-      if (res.status === 401) {
+      const headers = getAuthHeaders();
+      const [ordersRes, partRequestsRes] = await Promise.all([
+        fetch(`${API_URL}/api/admin/pending-orders-count`, {
+          headers,
+          credentials: "include",
+        }),
+        fetch(`${API_URL}/api/admin/pending-part-requests-count`, {
+          headers,
+          credentials: "include",
+        }),
+      ]);
+      if (ordersRes.status === 401 || partRequestsRes.status === 401) {
         clearToken();
         setHasToken(false);
         router.replace("/admin/login");
         return;
       }
-      if (res.ok) {
-        const { count } = await res.json();
+      if (ordersRes.ok) {
+        const { count } = await ordersRes.json();
         setPendingCount(count ?? 0);
+      }
+      if (partRequestsRes.ok) {
+        const { count } = await partRequestsRes.json();
+        setPartRequestsCount(count ?? 0);
       }
     } catch {
       setPendingCount(0);
+      setPartRequestsCount(0);
     }
   }, [router]);
 
@@ -73,19 +87,21 @@ export default function AdminPanelLayout({
       return;
     }
     setHasToken(true);
-    fetchPendingCount();
-  }, [mounted, router, fetchPendingCount]);
+    fetchNavBadges();
+  }, [mounted, router, fetchNavBadges]);
 
   useEffect(() => {
-    const onOrdersUpdated = () => fetchPendingCount();
-    const onFocus = () => fetchPendingCount();
-    window.addEventListener("admin-orders-updated", onOrdersUpdated);
+    const onBadgesUpdated = () => fetchNavBadges();
+    const onFocus = () => fetchNavBadges();
+    window.addEventListener("admin-orders-updated", onBadgesUpdated);
+    window.addEventListener("admin-part-requests-updated", onBadgesUpdated);
     window.addEventListener("focus", onFocus);
     return () => {
-      window.removeEventListener("admin-orders-updated", onOrdersUpdated);
+      window.removeEventListener("admin-orders-updated", onBadgesUpdated);
+      window.removeEventListener("admin-part-requests-updated", onBadgesUpdated);
       window.removeEventListener("focus", onFocus);
     };
-  }, [fetchPendingCount]);
+  }, [fetchNavBadges]);
 
   useEffect(() => {
     const mq = window.matchMedia(`(min-width: ${LG_BREAKPOINT}px)`);
@@ -325,7 +341,7 @@ export default function AdminPanelLayout({
               "/admin/part-requests",
               <Wrench className="h-5 w-5 shrink-0" />,
               "طلبات القطع",
-              undefined,
+              partRequestsCount,
               "text-amber-500 group-hover:text-amber-600"
             )}
             {navLink(

@@ -49,6 +49,7 @@ export default function AdminPartRequestsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "فشل في تحميل الطلبات");
       setRows(Array.isArray(data.requests) ? data.requests : []);
+      window.dispatchEvent(new CustomEvent("admin-part-requests-updated"));
     } catch (err) {
       setToast({ type: "error", text: err instanceof Error ? err.message : "خطأ غير متوقع" });
     } finally {
@@ -73,6 +74,7 @@ export default function AdminPartRequestsPage() {
       if (!res.ok) throw new Error(data.error || "فشل تحديث الحالة");
       setRows((prev) => prev.map((r) => (r._id === id ? data.request : r)));
       setToast({ type: "success", text: "تم تحديث الحالة" });
+      window.dispatchEvent(new CustomEvent("admin-part-requests-updated"));
     } catch (err) {
       setToast({ type: "error", text: err instanceof Error ? err.message : "فشل التحديث" });
     } finally {
@@ -93,6 +95,7 @@ export default function AdminPartRequestsPage() {
       if (!res.ok) throw new Error(data.error || "فشل الحذف");
       setRows((prev) => prev.filter((r) => r._id !== id));
       setToast({ type: "success", text: "تم حذف الطلب" });
+      window.dispatchEvent(new CustomEvent("admin-part-requests-updated"));
     } catch (err) {
       setToast({ type: "error", text: err instanceof Error ? err.message : "فشل الحذف" });
     } finally {
