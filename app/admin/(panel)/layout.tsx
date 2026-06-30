@@ -45,29 +45,38 @@ export default function AdminPanelLayout({
     }
     try {
       const headers = getAuthHeaders();
-      const [ordersRes, partRequestsRes] = await Promise.all([
-        fetch(`${API_URL}/api/admin/pending-orders-count`, {
-          headers,
-          credentials: "include",
-        }),
-        fetch(`${API_URL}/api/admin/pending-part-requests-count`, {
-          headers,
-          credentials: "include",
-        }),
-      ]);
-      if (ordersRes.status === 401 || partRequestsRes.status === 401) {
+      const res = await fetch(`${API_URL}/api/admin/pending-orders-count`, {
+        headers,
+        credentials: "include",
+      });
+      if (res.status === 401) {
         clearToken();
         setHasToken(false);
         router.replace("/admin/login");
         return;
       }
-      if (ordersRes.ok) {
-        const { count } = await ordersRes.json();
-        setPendingCount(count ?? 0);
-      }
-      if (partRequestsRes.ok) {
-        const { count } = await partRequestsRes.json();
-        setPartRequestsCount(count ?? 0);
+      if (res.ok) {
+        const data = await res.json();
+        setPendingCount(data.count ?? 0);
+        if (typeof data.partRequestsCount === "number") {
+          setPartRequestsCount(data.partRequestsCount);
+        } else {
+          try {
+            const prRes = await fetch(`${API_URL}/api/part-requests`, {
+              headers,
+              credentials: "include",
+            });
+            if (prRes.ok) {
+              const prData = await prRes.json();
+              const pending = (Array.isArray(prData.requests) ? prData.requests : []).filter(
+                (r: { status?: string }) => r.status === "pending"
+              ).length;
+              setPartRequestsCount(pending);
+            }
+          } catch {
+            setPartRequestsCount(0);
+          }
+        }
       }
     } catch {
       setPendingCount(0);
