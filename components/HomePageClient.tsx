@@ -17,8 +17,9 @@ export function HomePageClient() {
       <main className="w-full pb-16 pt-20">
         <HomeBannerSlider />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <CategorySlider />
           <ProductGrid selectedBrandId={selectedBrandId} mixedLatest />
+          <ProductGrid selectedBrandId={selectedBrandId} bestSelling />
+          <CategorySlider />
           <BrandGrid
             selectedBrandId={selectedBrandId}
             onSelectBrand={setSelectedBrandId}

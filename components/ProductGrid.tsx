@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Heart, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { type Product } from "@/lib/productsData";
-import { ProductImage } from "@/components/ProductImage";
-import { ProductCardActions } from "@/components/ProductCardActions";
+import { ProductGridCard } from "@/components/ProductGridCard";
+import { BestSellingCarousel } from "@/components/BestSellingCarousel";
 import { useAccount } from "@/context/AccountContext";
-import { getEffectivePrice, formatDzd, getPricingAccount } from "@/lib/pricing";
+import { getEffectivePrice, getPricingAccount } from "@/lib/pricing";
 import { sortPhoneTypesForAppleIphone } from "@/lib/iphoneModelOrder";
 import { formatPublicFetchError, publicFetch } from "@/lib/publicFetch";
 
@@ -20,6 +20,10 @@ type ProductGridProps = {
   /** موديل نوع الهاتف (ObjectId) — يضيّق قائمة الهواتف عند الوجود */
   phoneTypeId?: string | null;
   mixedLatest?: boolean;
+  /** عرض قسم الأكثر مبيعاً (4 منتجات ثابتة) */
+  bestSelling?: boolean;
+  /** عنوان مخصص للقسم */
+  sectionTitle?: string;
 };
 
 const MONGO_ID = /^[a-f0-9]{24}$/i;
@@ -65,6 +69,8 @@ export function ProductGrid({
   selectedBrandId,
   phoneTypeId: phoneTypeIdProp,
   mixedLatest = false,
+  bestSelling = false,
+  sectionTitle,
 }: ProductGridProps) {
   const phoneTypeId = useMemo(() => {
     if (!phoneTypeIdProp || !MONGO_ID.test(phoneTypeIdProp)) return null;
@@ -90,8 +96,11 @@ export function ProductGrid({
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
   const accountFetchKey = account?.id ?? "guest";
   const queryKey = useMemo(
-    () => `${selectedBrandId || "all"}|${phoneTypeId || "all"}|${accountFetchKey}`,
-    [selectedBrandId, phoneTypeId, accountFetchKey]
+    () =>
+      bestSelling
+        ? `best-selling|${accountFetchKey}`
+        : `${selectedBrandId || "all"}|${phoneTypeId || "all"}|${accountFetchKey}`,
+    [selectedBrandId, phoneTypeId, accountFetchKey, bestSelling]
   );
 
   useEffect(() => {
@@ -153,8 +162,9 @@ export function ProductGrid({
   useEffect(() => {
     if (!hydrated) return;
 
-    const isMixedHome = mixedLatest && !selectedBrandId && !phoneTypeId;
+    const isMixedHome = mixedLatest && !selectedBrandId && !phoneTypeId && !bestSelling;
     const endpoint = (() => {
+      if (bestSelling) return "/api/home/best-selling-products";
       if (isMixedHome) return "/api/home/latest-products";
       const q = new URLSearchParams();
       if (selectedBrandId && selectedBrandId !== "all") {
@@ -193,7 +203,7 @@ export function ProductGrid({
       })
       .then((data) => {
         if (isStale()) return;
-        const mapped = mapResponseToProducts(data, isMixedHome);
+        const mapped = mapResponseToProducts(data, isMixedHome || bestSelling);
         setApiProducts(mapped);
         if (typeof window !== "undefined" && mapped.length > 0) {
           try {
@@ -222,6 +232,7 @@ export function ProductGrid({
     phoneTypeId,
     queryKey,
     mixedLatest,
+    bestSelling,
     accountFetchKey,
     hydrated,
     retryNonce,
@@ -233,8 +244,9 @@ export function ProductGrid({
   }, []);
 
   const isBrandPage = !!(selectedBrandId && selectedBrandId !== "all");
+  const isHomeSection = !isBrandPage && (mixedLatest || bestSelling);
 
-  const productsPerPage = isMobile ? 1 : 4;
+  const productsPerPage = bestSelling ? 4 : isMobile ? 1 : 4;
 
   const filteredProducts = useMemo(() => {
     return apiProducts;
@@ -249,10 +261,12 @@ export function ProductGrid({
   const currentPage = Math.min(page, totalPages - 1);
   const visibleProducts = isBrandPage
     ? filteredProducts
+    : bestSelling
+    ? filteredProducts.slice(0, 4)
     : filteredProducts.slice(
-      currentPage * productsPerPage,
-      currentPage * productsPerPage + productsPerPage
-    );
+        currentPage * productsPerPage,
+        currentPage * productsPerPage + productsPerPage
+      );
 
   const goNext = () => setPage((p) => Math.min(p + 1, totalPages - 1));
   const goPrev = () => setPage((p) => Math.max(p - 1, 0));
@@ -262,14 +276,18 @@ export function ProductGrid({
       {!isBrandPage && (
         <div className="mb-10">
           <h2 className="flex items-center gap-3 text-3xl font-bold text-gray-800">
-            <span className="h-8 w-1.5 rounded-full bg-gradient-to-b from-blue-600 to-blue-400" />
-            أحدث المنتجات
+            <span
+              className={`h-8 w-1.5 rounded-full bg-gradient-to-b ${
+                bestSelling ? "from-amber-500 to-orange-400" : "from-blue-600 to-blue-400"
+              }`}
+            />
+            {sectionTitle || (bestSelling ? "الأكثر مبيعاً" : "أحدث المنتجات")}
           </h2>
         </div>
       )}
 
-      <div className={isBrandPage ? "" : "flex flex-nowrap items-center gap-2 sm:gap-4"}>
-        {!isBrandPage && (
+      <div className={isHomeSection && !bestSelling ? "flex flex-nowrap items-center gap-2 sm:gap-4" : ""}>
+        {isHomeSection && !bestSelling && (
           <button
             type="button"
             onClick={goNext}
@@ -281,7 +299,7 @@ export function ProductGrid({
           </button>
         )}
 
-        <div className={isBrandPage ? "" : "min-w-0 flex-1"}>
+        <div className={isBrandPage || bestSelling ? "" : "min-w-0 flex-1"}>
           {apiLoading && !hasHydratedCache && filteredProducts.length === 0 && !fetchError ? (
             <div className="py-20 text-center">
               <div className="rounded-[40px] bg-white/80 p-12 shadow-2xl backdrop-blur-sm">
@@ -313,6 +331,8 @@ export function ProductGrid({
                 </p>
               </div>
             </div>
+          ) : bestSelling ? (
+            <BestSellingCarousel products={visibleProducts} pricingAccount={pricingAccount} />
           ) : (
             <div
               className={
@@ -340,71 +360,25 @@ export function ProductGrid({
                   pricingAccount
                 );
                 return (
-                  <div
+                  <ProductGridCard
                     key={product.id}
-                    className={`group flex h-full min-h-[372px] flex-col overflow-visible rounded-3xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:min-h-[402px] sm:overflow-hidden ${
-                      ""
-                    }`}
-                  >
-                    {/* منطقة الصورة - احترافية ومساحة أوضح للصورة */}
-                    <div className="relative flex h-[162px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 via-white to-blue-50/40 px-4 pb-2.5 pt-5 sm:h-[190px] sm:px-5 sm:pb-3 sm:pt-5">
-                      <ProductImage
-                        src={product.image}
-                        alt={product.name}
-                        priority={index < 4}
-                        sizes={isBrandPage ? "(max-width: 640px) 50vw, 25vw" : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"}
-                        className="h-full w-full rounded-2xl object-contain p-2 drop-shadow-[0_12px_22px_rgba(15,23,42,0.24)] sm:p-3"
-                      />
-                      <span className="absolute start-3 top-3 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow sm:start-4 sm:top-4 sm:px-3 sm:text-xs">
-                        {product.category}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="إضافة للمفضلة"
-                        className="absolute end-3 top-3 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-red-500 sm:end-4 sm:top-4 sm:p-2"
-                      >
-                        <Heart className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5" strokeWidth={1.5} />
-                      </button>
-                    </div>
-
-                    {/* المحتوى - ارتفاع موحّد */}
-                    <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-4">
-                      <h3 className="mb-2 break-words text-center text-sm font-extrabold leading-snug text-slate-900 sm:line-clamp-2 sm:min-h-[2.75rem] sm:text-base">
-                        {product.name}
-                      </h3>
-
-                      {effectivePrice > 0 ? (
-                        <p className="mb-2 text-center">
-                          <span className="text-2xl font-black tracking-tight text-blue-700 sm:text-[1.75rem]">
-                            {formatDzd(effectivePrice)}
-                          </span>
-                          <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
-                        </p>
-                      ) : (
-                        <p className="mb-2 min-h-[1.5rem] text-center text-sm font-semibold text-slate-400">— DA</p>
-                      )}
-
-                      {/* مساحة ثابتة للألوان (1–5 دوائر) والأزرار */}
-                      <ProductCardActions
-                        id={String(product.id)}
-                        name={product.name}
-                        price={effectivePrice}
-                        priceRetail={tiered.priceRetail ?? tiered.price}
-                        priceWholesale={tiered.priceWholesale}
-                        priceReparateur={tiered.priceReparateur}
-                        image={product.image}
-                        colors={Array.isArray((product as Product & { colors?: string[] }).colors) ? (product as Product & { colors?: string[] }).colors : undefined}
-                        category={product.category}
-                      />
-                    </div>
-                  </div>
+                    product={product}
+                    effectivePrice={effectivePrice}
+                    index={index}
+                    imageSizes={
+                      isBrandPage
+                        ? "(max-width: 640px) 50vw, 25vw"
+                        : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    }
+                    className="overflow-visible hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:overflow-hidden"
+                  />
                 );
               })}
             </div>
           )}
         </div>
 
-        {!isBrandPage && (
+        {isHomeSection && !bestSelling && (
           <button
             type="button"
             onClick={goPrev}
