@@ -61,7 +61,7 @@ export function HomeBannerSlider() {
   if (loading) {
     return (
       <section className="relative mb-8 w-full overflow-hidden sm:mb-10">
-        <div className="flex h-48 w-full animate-pulse items-center justify-center bg-slate-100 sm:h-72 lg:h-96">
+        <div className="flex h-48 w-full animate-pulse items-center justify-center bg-slate-100 sm:h-[26rem] lg:h-[32rem]">
           <span className="text-sm text-slate-400">جاري التحميل...</span>
         </div>
       </section>
@@ -78,7 +78,7 @@ export function HomeBannerSlider() {
       aria-label="سلايدر الصفحة الرئيسية"
     >
       <div
-        className="relative aspect-[21/9] w-full min-h-[12rem] sm:min-h-[18rem] lg:min-h-[22rem]"
+        className="relative h-48 w-full bg-slate-100 sm:h-[26rem] lg:h-[32rem]"
         onTouchStart={(e) => {
           touchStartX.current = e.touches[0]?.clientX ?? null;
         }}
@@ -96,7 +96,7 @@ export function HomeBannerSlider() {
         {banners.map((banner, i) => (
           <div
             key={banner._id}
-            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+            className={`absolute inset-0 flex items-center justify-center bg-slate-100 transition-opacity duration-700 ease-in-out ${
               i === index ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
             aria-hidden={i !== index}
@@ -105,7 +105,7 @@ export function HomeBannerSlider() {
             <img
               src={getProductImageUrl(banner.image)}
               alt=""
-              className="h-full w-full object-cover object-center"
+              className="h-full w-full object-contain object-center"
               loading={i === 0 ? "eager" : "lazy"}
               decoding="async"
             />
