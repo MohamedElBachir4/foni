@@ -18,6 +18,7 @@ import {
   Wrench,
   Menu,
   X,
+  ImageIcon,
 } from "lucide-react";
 
 const LG_BREAKPOINT = 1024;
@@ -332,6 +333,19 @@ export default function AdminPanelLayout({
               "قطع الغيار",
               undefined,
               "text-rose-500 group-hover:text-rose-600"
+            )}
+          </div>
+
+          <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 sm:px-4">
+            الموقع
+          </div>
+          <div className="mb-4 space-y-1 sm:mb-6">
+            {navLink(
+              "/admin/homepage-banners",
+              <ImageIcon className="h-5 w-5 shrink-0" />,
+              "سلايدر الصفحة الرئيسية",
+              undefined,
+              "text-violet-500 group-hover:text-violet-600"
             )}
           </div>
 
