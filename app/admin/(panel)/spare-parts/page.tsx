@@ -458,6 +458,27 @@ export default function AdminSparePartsPage() {
     setPartModalOpen(true);
   }
 
+  async function openEditFromArchive(productId: string) {
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_URL}/api/spare-parts/${productId}`, {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({
+          type: "error",
+          text: typeof data.error === "string" ? data.error : "تعذر تحميل المنتج للتعديل",
+        });
+        return;
+      }
+      openEditPartModal(data as SparePart);
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
+    }
+  }
+
   function parseExtraImages(): string[] {
     return extraImagesText
       .split(/\r?\n/)
@@ -913,18 +934,8 @@ export default function AdminSparePartsPage() {
       return;
     }
     const normalizedDetails = details.trim();
-    const strictExcelForm =
-      !!editing && editing.creationSource === "excel";
 
-    if (strictExcelForm && !selectedBrand) {
-      setPartModalNotice({ type: "error", text: "اختر الماركة" });
-      return;
-    }
-    if (strictExcelForm && !selectedPhoneType && !newPhoneTypeName.trim()) {
-      setPartModalNotice({ type: "error", text: "اختر الهاتف أو أدخل موديل جديد" });
-      return;
-    }
-    if (!strictExcelForm && selectedPhoneTypes.length > 0 && !selectedBrand) {
+    if (selectedPhoneTypes.length > 0 && !selectedBrand) {
       setPartModalNotice({ type: "error", text: "اختر الماركة عند اختيار موديل واحد أو أكثر" });
       return;
     }
@@ -976,10 +987,6 @@ export default function AdminSparePartsPage() {
         payload.phoneType = null;
         if (newPhoneTypeName.trim()) payload.phoneTypeName = newPhoneTypeName.trim();
       }
-    } else if (strictExcelForm) {
-      payload.brand = selectedBrand;
-      payload.phoneType = selectedPhoneType || undefined;
-      payload.phoneTypeName = selectedPhoneType ? undefined : newPhoneTypeName.trim() || undefined;
     } else {
       payload.brand = selectedBrand || null;
       payload.phoneTypes = [...selectedPhoneTypes];
@@ -1082,16 +1089,9 @@ export default function AdminSparePartsPage() {
     );
     const brandId = typeof item.brand === "string" ? item.brand : item.brand?._id;
     const linkedIds = sparePartPhoneTypeIds(item);
-    const fromExcelCopy = item.creationSource === "excel";
-    const phoneTypeId = typeof item.phoneType === "string" ? item.phoneType : item.phoneType?._id;
     setSelectedBrand(brandId || "");
-    if (fromExcelCopy) {
-      setSelectedPhoneType(phoneTypeId || "");
-      setSelectedPhoneTypes([]);
-    } else {
-      setSelectedPhoneType("");
-      setSelectedPhoneTypes(linkedIds);
-    }
+    setSelectedPhoneType("");
+    setSelectedPhoneTypes(linkedIds);
     setNewPhoneTypeName("");
     setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
@@ -1123,16 +1123,9 @@ export default function AdminSparePartsPage() {
     );
     const brandId = typeof item.brand === "string" ? item.brand : item.brand?._id;
     const linkedIds = sparePartPhoneTypeIds(item);
-    const fromExcel = item.creationSource === "excel";
-    const phoneTypeId = typeof item.phoneType === "string" ? item.phoneType : item.phoneType?._id;
     setSelectedBrand(brandId || "");
-    if (fromExcel) {
-      setSelectedPhoneType(phoneTypeId || "");
-      setSelectedPhoneTypes([]);
-    } else {
-      setSelectedPhoneType("");
-      setSelectedPhoneTypes(linkedIds);
-    }
+    setSelectedPhoneType("");
+    setSelectedPhoneTypes(linkedIds);
     setNewPhoneTypeName("");
     setSelectedSpareColors(Array.isArray(item.colors) ? [...item.colors] : []);
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
@@ -1363,8 +1356,6 @@ export default function AdminSparePartsPage() {
   };
 
   // Pagination is now server-side - parts array IS the current page
-
-  const excelOriginEdit = !!(editing && editing.creationSource === "excel");
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-4">
@@ -1732,20 +1723,16 @@ export default function AdminSparePartsPage() {
         disableClose={savingPart || uploadingImages}
         icon={<Package className="h-4 w-4 text-emerald-600 sm:h-[18px] sm:w-[18px]" />}
         title={
-          excelOriginEdit
-            ? "تعديل قطعة (استيراد Excel)"
-            : editing
-              ? "تعديل قطعة الغيار"
-              : copySnapshot
-                ? "قطعة جديدة من نسخة"
-                : "إنشاء قطعة غيار"
+          editing
+            ? "تعديل قطعة الغيار"
+            : copySnapshot
+              ? "قطعة جديدة من نسخة"
+              : "إنشاء قطعة غيار"
         }
         description={
           copySnapshot && !editing
             ? "عدّل حقلًا ثم احفظ."
-            : excelOriginEdit
-              ? "ماركة + موديل مطلوبان."
-              : "إلزامي: الاسم فقط."
+            : "إلزامي: الاسم فقط."
         }
         contentClassName="!px-3 !py-2 sm:!px-3.5 sm:!py-2.5"
       >
@@ -1768,61 +1755,6 @@ export default function AdminSparePartsPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-0">
           <div className="space-y-2">
-            {excelOriginEdit ? (
-              <div className="grid gap-2 sm:grid-cols-3">
-                <div className="min-w-0">
-                  <label className={lbl}>الماركة</label>
-                  <select
-                    value={selectedBrand}
-                    onChange={(e) => {
-                      setSelectedBrand(e.target.value);
-                      setSelectedPhoneType("");
-                      setSelectedPhoneTypes([]);
-                      setNewPhoneTypeName("");
-                    }}
-                    className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
-                  >
-                    <option value="">اختر الماركة</option>
-                    {brands.map((b) => (
-                      <option key={b._id} value={b._id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="min-w-0">
-                  <label className={lbl}>الموديل</label>
-                  <select
-                    value={selectedPhoneType}
-                    onChange={(e) => setSelectedPhoneType(e.target.value)}
-                    disabled={!selectedBrand}
-                    className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px] disabled:opacity-50"
-                  >
-                    <option value="">
-                      {selectedBrand ? "اختر الهاتف" : "ماركة أولاً"}
-                    </option>
-                    {phoneTypes.map((pt) => (
-                      <option key={pt._id} value={pt._id}>
-                        {pt.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="min-w-0">
-                  <label className={lbl}>موديل بالاسم</label>
-                  <input
-                    type="text"
-                    value={newPhoneTypeName}
-                    onChange={(e) => setNewPhoneTypeName(e.target.value)}
-                    disabled={!selectedBrand}
-                    className={fld}
-                    placeholder="إن لم يكن في القائمة"
-                    dir="auto"
-                  />
-                </div>
-              </div>
-            ) : null}
-
             <div>
               <label className={lbl} htmlFor="spare-part-name">
                 اسم القطعة <span className="text-rose-600">*</span>
@@ -1852,42 +1784,40 @@ export default function AdminSparePartsPage() {
               />
             </div>
 
-            {!excelOriginEdit ? (
-              <div className="grid gap-2 sm:grid-cols-2 sm:items-start">
-                <div className="min-w-0 space-y-1">
-                  <label className={lbl}>الماركة (اختياري)</label>
-                  <select
-                    value={selectedBrand}
-                    onChange={(e) => {
-                      setSelectedBrand(e.target.value);
-                      setSelectedPhoneType("");
-                      setSelectedPhoneTypes([]);
-                      setNewPhoneTypeName("");
-                    }}
-                    className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
-                  >
-                    <option value="">—</option>
-                    {brands.map((b) => (
-                      <option key={b._id} value={b._id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="min-w-0">
-                  <label className={lbl}>الموديلات</label>
-                  <AdminSparePartModelPicker
-                    brandSelected={!!selectedBrand}
-                    phoneTypes={phoneTypes}
-                    selectedIds={selectedPhoneTypes}
-                    onChangeIds={setSelectedPhoneTypes}
-                    newModelName={newPhoneTypeName}
-                    onNewModelNameChange={setNewPhoneTypeName}
-                    blockedNewBecauseSelection={selectedPhoneTypes.length > 0}
-                  />
-                </div>
+            <div className="grid gap-2 sm:grid-cols-2 sm:items-start">
+              <div className="min-w-0 space-y-1">
+                <label className={lbl}>الماركة (اختياري)</label>
+                <select
+                  value={selectedBrand}
+                  onChange={(e) => {
+                    setSelectedBrand(e.target.value);
+                    setSelectedPhoneType("");
+                    setSelectedPhoneTypes([]);
+                    setNewPhoneTypeName("");
+                  }}
+                  className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
+                >
+                  <option value="">—</option>
+                  {brands.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : null}
+              <div className="min-w-0">
+                <label className={lbl}>الموديلات</label>
+                <AdminSparePartModelPicker
+                  brandSelected={!!selectedBrand}
+                  phoneTypes={phoneTypes}
+                  selectedIds={selectedPhoneTypes}
+                  onChangeIds={setSelectedPhoneTypes}
+                  newModelName={newPhoneTypeName}
+                  onNewModelNameChange={setNewPhoneTypeName}
+                  blockedNewBecauseSelection={selectedPhoneTypes.length > 0}
+                />
+              </div>
+            </div>
 
             <div className="grid grid-cols-3 gap-1.5">
               <div className="min-w-0">
@@ -2754,22 +2684,31 @@ export default function AdminSparePartsPage() {
                         {formatDateTime(product.createdAt)}
                       </td>
                       <td className="px-3 py-2">
-                        <AdminButton
-                          variant="ghost"
-                          size="sm"
-                          className="hover:bg-rose-50 hover:text-rose-600"
-                          onClick={() =>
-                            selectedArchive &&
-                            setArchiveConfirm({
-                              mode: "single",
-                              archiveId: selectedArchive._id,
-                              productId: product._id,
-                              productName: product.name,
-                            })
-                          }
-                        >
-                          حذف
-                        </AdminButton>
+                        <div className="flex items-center gap-1">
+                          <AdminButton
+                            variant="ghost"
+                            size="sm"
+                            icon={<Pencil className="h-4 w-4" />}
+                            onClick={() => void openEditFromArchive(product._id)}
+                            title="تعديل"
+                          />
+                          <AdminButton
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-rose-50 hover:text-rose-600"
+                            onClick={() =>
+                              selectedArchive &&
+                              setArchiveConfirm({
+                                mode: "single",
+                                archiveId: selectedArchive._id,
+                                productId: product._id,
+                                productName: product.name,
+                              })
+                            }
+                          >
+                            حذف
+                          </AdminButton>
+                        </div>
                       </td>
                     </tr>
                   ))
