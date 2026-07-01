@@ -19,6 +19,8 @@ import {
   Menu,
   X,
   ImageIcon,
+  Share2,
+  Megaphone,
 } from "lucide-react";
 
 const LG_BREAKPOINT = 1024;
@@ -346,6 +348,20 @@ export default function AdminPanelLayout({
               "سلايدر الصفحة الرئيسية",
               undefined,
               "text-violet-500 group-hover:text-violet-600"
+            )}
+            {navLink(
+              "/admin/contact-settings",
+              <Share2 className="h-5 w-5 shrink-0" />,
+              "وسائل التواصل",
+              undefined,
+              "text-emerald-500 group-hover:text-emerald-600"
+            )}
+            {navLink(
+              "/admin/popup-advertisements",
+              <Megaphone className="h-5 w-5 shrink-0" />,
+              "الإعلانات المنبثقة",
+              undefined,
+              "text-amber-500 group-hover:text-amber-600"
             )}
           </div>
 

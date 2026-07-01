@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Cairo, Poppins } from "next/font/google";
 import { Providers } from "@/components/Providers";
-import { WhatsAppFloatingButton } from "@/components/WhatsAppFloatingButton";
+import { ContactFab } from "@/components/ContactFab";
+import { PopupAdModal } from "@/components/PopupAdModal";
 import { buildMetadata } from "@/lib/seo";
 import "./globals.css";
 
@@ -55,7 +56,8 @@ export default function RootLayout({
       <body className={`${cairo.variable} ${poppins.variable} font-sans antialiased text-slate-900`}>
         <Providers>
           {children}
-          <WhatsAppFloatingButton />
+          <PopupAdModal />
+          <ContactFab />
         </Providers>
       </body>
     </html>
