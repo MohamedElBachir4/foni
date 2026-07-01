@@ -20,7 +20,8 @@ type BestSellingCarouselProps = {
 };
 
 const AUTOPLAY_MS = 5500;
-const SWIPE_THRESHOLD = 48;
+const SWIPE_THRESHOLD = 42;
+const SNAP_DURATION_MS = 720;
 
 const RANK_STYLES = [
   "from-amber-400 via-yellow-300 to-amber-500 text-amber-950 shadow-amber-400/40",
@@ -33,43 +34,43 @@ function getRankStyle(rank: number) {
   return RANK_STYLES[Math.min(rank, RANK_STYLES.length - 1)]!;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function smoothstep(t: number) {
+  const x = clamp(t, 0, 1);
+  return x * x * (3 - 2 * x);
+}
+
+function easeOutCubic(t: number) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 type CardMotion = {
   transform: string;
   opacity: number;
   zIndex: number;
   pointerEvents: "auto" | "none";
-  filter: string;
 };
 
-function getCardMotion(offset: number, dragPx = 0): CardMotion {
-  const dragShift = dragPx / 260;
-  const adjusted = offset + dragShift;
-  const isActive = Math.abs(adjusted) < 0.35;
-  const isAdjacent = Math.abs(adjusted) >= 0.35 && Math.abs(adjusted) < 1.35;
+function getCardMotion(cardIndex: number, position: number): CardMotion {
+  const adjusted = cardIndex - position;
+  const abs = Math.abs(adjusted);
+  const proximity = smoothstep(Math.min(1, abs));
 
-  if (!isActive && !isAdjacent) {
-    return {
-      transform: `translateX(calc(-50% - ${adjusted * 54}%)) translateZ(-140px) rotateY(${adjusted * -10}deg) scale(0.62)`,
-      opacity: 0,
-      zIndex: 0,
-      pointerEvents: "none",
-      filter: "blur(3px) brightness(0.85)",
-    };
-  }
-
-  const scale = isActive ? 1 : 0.76;
-  const opacity = isActive ? 1 : 0.48;
-  const zIndex = isActive ? 40 : 28 - Math.round(Math.abs(adjusted));
-  const rotateY = adjusted * 16;
-  const translateZ = isActive ? 60 : -90;
-  const brightness = isActive ? 1 : 0.9;
+  const scale = 1 - 0.22 * proximity;
+  const opacity =
+    abs > 2.1 ? 0 : clamp(1 - 0.5 * smoothstep(Math.min(1, abs * 0.92)), 0.12, 1);
+  const translateZ = 56 - 138 * proximity;
+  const rotateY = adjusted * 13;
+  const zIndex = Math.round(40 - abs * 10);
 
   return {
-    transform: `translateX(calc(-50% - ${adjusted * 54}%)) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
+    transform: `translate3d(calc(-50% - ${adjusted * 52}%), 0, ${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
     opacity,
-    zIndex,
-    pointerEvents: isActive ? "auto" : "auto",
-    filter: isActive ? "blur(0px)" : `blur(0.4px) brightness(${brightness})`,
+    zIndex: clamp(zIndex, 0, 40),
+    pointerEvents: abs < 0.55 ? "auto" : abs < 1.05 ? "auto" : "none",
   };
 }
 
@@ -92,38 +93,105 @@ function RankBadge({ rank, floating = false }: { rank: number; floating?: boolea
 
 export function BestSellingCarousel({ products, pricingAccount }: BestSellingCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [dragPx, setDragPx] = useState(0);
+  const [position, setPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
   const touchStartX = useRef<number | null>(null);
+  const dragStartPosition = useRef(0);
+  const slideWidthRef = useRef(300);
   const containerRef = useRef<HTMLDivElement>(null);
+  const positionRef = useRef(0);
+  const animFrameRef = useRef<number | null>(null);
   const pausedUntil = useRef(0);
   const count = products.length;
+
+  const syncPosition = useCallback((value: number) => {
+    positionRef.current = value;
+    setPosition(value);
+  }, []);
+
+  const measureSlideWidth = useCallback(() => {
+    const width = containerRef.current?.clientWidth ?? 0;
+    if (width > 0) slideWidthRef.current = width * 0.72;
+  }, []);
+
+  useEffect(() => {
+    measureSlideWidth();
+    window.addEventListener("resize", measureSlideWidth);
+    return () => window.removeEventListener("resize", measureSlideWidth);
+  }, [measureSlideWidth]);
+
+  const cancelAnimation = useCallback(() => {
+    if (animFrameRef.current != null) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    setIsAnimating(false);
+  }, []);
+
+  const animateTo = useCallback(
+    (targetIndex: number) => {
+      if (count <= 0) return;
+      const target = clamp(targetIndex, 0, count - 1);
+      cancelAnimation();
+
+      const start = positionRef.current;
+      const startTime = performance.now();
+      setIsAnimating(true);
+
+      const tick = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = clamp(elapsed / SNAP_DURATION_MS, 0, 1);
+        const eased = easeOutCubic(progress);
+        const current = start + (target - start) * eased;
+
+        syncPosition(current);
+
+        if (progress < 1) {
+          animFrameRef.current = requestAnimationFrame(tick);
+        } else {
+          animFrameRef.current = null;
+          setIsAnimating(false);
+          setActiveIndex(target);
+          syncPosition(target);
+        }
+      };
+
+      animFrameRef.current = requestAnimationFrame(tick);
+    },
+    [cancelAnimation, count, syncPosition]
+  );
 
   const goTo = useCallback(
     (next: number) => {
       if (count <= 0) return;
-      setActiveIndex(((next % count) + count) % count);
+      const target = ((next % count) + count) % count;
       pausedUntil.current = Date.now() + 8000;
+      animateTo(target);
     },
-    [count]
+    [animateTo, count]
   );
 
   const goNext = useCallback(() => goTo(activeIndex + 1), [goTo, activeIndex]);
   const goPrev = useCallback(() => goTo(activeIndex - 1), [goTo, activeIndex]);
 
   useEffect(() => {
+    cancelAnimation();
     setActiveIndex(0);
-    setDragPx(0);
-  }, [products]);
+    syncPosition(0);
+  }, [products, cancelAnimation, syncPosition]);
+
+  useEffect(() => () => cancelAnimation(), [cancelAnimation]);
 
   useEffect(() => {
     if (count <= 1) return;
     const timer = setInterval(() => {
-      if (Date.now() < pausedUntil.current || isDragging) return;
+      if (Date.now() < pausedUntil.current || isDragging || isAnimating) return;
       goTo(activeIndex + 1);
     }, AUTOPLAY_MS);
     return () => clearInterval(timer);
-  }, [count, activeIndex, goTo, isDragging]);
+  }, [count, activeIndex, goTo, isDragging, isAnimating]);
 
   const getEffective = (product: TieredProduct) =>
     getEffectivePrice(
@@ -139,68 +207,87 @@ export function BestSellingCarousel({ products, pricingAccount }: BestSellingCar
   const finishDrag = useCallback(
     (delta: number) => {
       setIsDragging(false);
-      setDragPx(0);
-      if (Math.abs(delta) < SWIPE_THRESHOLD || count <= 1) return;
-      if (delta > 0) goPrev();
-      else goNext();
+      touchStartX.current = null;
+
+      if (count <= 1) {
+        animateTo(activeIndex);
+        return;
+      }
+
+      let target = Math.round(positionRef.current);
+      if (Math.abs(delta) >= SWIPE_THRESHOLD) {
+        target = delta > 0 ? target - 1 : target + 1;
+      }
+
+      target = clamp(target, 0, count - 1);
+      pausedUntil.current = Date.now() + 8000;
+      animateTo(target);
     },
-    [count, goNext, goPrev]
+    [activeIndex, animateTo, count]
   );
+
+  const nearestActive = Math.round(position);
+  const displayIndex = clamp(nearestActive, 0, Math.max(0, count - 1));
+  const isCardActive = (index: number) => index === nearestActive && !isDragging && !isAnimating;
 
   return (
     <>
-      {/* جوال: coverflow ثلاثي الأبعاد */}
       <div className="relative -mx-4 sm:hidden">
         <div className="pointer-events-none absolute inset-x-6 top-8 h-48 rounded-full bg-gradient-to-b from-amber-200/30 via-orange-100/20 to-transparent blur-2xl" />
 
         <div
           ref={containerRef}
-          className="relative mx-auto px-2"
+          className="relative mx-auto touch-pan-y px-2"
           aria-label="الأكثر مبيعاً"
-          style={{ perspective: "1400px", perspectiveOrigin: "50% 42%" }}
+          style={{ perspective: "1200px", perspectiveOrigin: "50% 44%" }}
           onTouchStart={(e) => {
+            cancelAnimation();
+            measureSlideWidth();
             touchStartX.current = e.touches[0]?.clientX ?? null;
+            dragStartPosition.current = positionRef.current;
             setIsDragging(true);
             pausedUntil.current = Date.now() + 10000;
           }}
           onTouchMove={(e) => {
             const start = touchStartX.current;
             const current = e.touches[0]?.clientX;
-            if (start == null || current == null) return;
-            setDragPx(current - start);
+            if (start == null || current == null || count <= 1) return;
+
+            const delta = current - start;
+            const slideWidth = Math.max(slideWidthRef.current, 220);
+            const next = dragStartPosition.current - delta / slideWidth;
+            syncPosition(clamp(next, -0.35, count - 1 + 0.35));
           }}
           onTouchEnd={(e) => {
             const start = touchStartX.current;
             const end = e.changedTouches[0]?.clientX;
-            touchStartX.current = null;
             if (start == null || end == null) {
               setIsDragging(false);
-              setDragPx(0);
+              animateTo(activeIndex);
               return;
             }
             finishDrag(end - start);
           }}
           onTouchCancel={() => {
-            touchStartX.current = null;
             setIsDragging(false);
-            setDragPx(0);
+            touchStartX.current = null;
+            animateTo(activeIndex);
           }}
         >
           <div className="relative h-[418px] w-full overflow-visible [transform-style:preserve-3d]">
-            {/* تدرجات الحواف */}
             <div
-              className="pointer-events-none absolute inset-y-4 start-0 z-50 w-14 bg-gradient-to-l from-transparent via-white/40 to-white/95"
+              className="pointer-events-none absolute inset-y-4 start-0 z-50 w-12 bg-gradient-to-l from-transparent to-white/90"
               aria-hidden
             />
             <div
-              className="pointer-events-none absolute inset-y-4 end-0 z-50 w-14 bg-gradient-to-r from-transparent via-white/40 to-white/95"
+              className="pointer-events-none absolute inset-y-4 end-0 z-50 w-12 bg-gradient-to-r from-transparent to-white/90"
               aria-hidden
             />
 
             {products.map((product, index) => {
-              const offset = index - activeIndex;
-              const motion = getCardMotion(offset, isDragging ? dragPx : 0);
-              const isActive = offset === 0 && Math.abs(dragPx) < 20;
+              const motion = getCardMotion(index, position);
+              const isActive = isCardActive(index);
+              const isNearActive = Math.abs(index - position) < 0.55;
 
               return (
                 <div
@@ -208,26 +295,28 @@ export function BestSellingCarousel({ products, pricingAccount }: BestSellingCar
                   role="group"
                   aria-roledescription="slide"
                   aria-label={`${index + 1} من ${count}: ${product.name}`}
-                  aria-hidden={!isActive}
-                  className={`absolute top-2 w-[78%] [backface-visibility:hidden] ${
-                    isDragging ? "transition-none" : "transition-[transform,opacity,filter] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                  }`}
+                  aria-hidden={!isNearActive}
+                  className="absolute top-2 w-[78%] [backface-visibility:hidden] [transform-style:preserve-3d] will-change-transform"
                   style={{
                     left: "50%",
                     transform: motion.transform,
                     opacity: motion.opacity,
                     zIndex: motion.zIndex,
                     pointerEvents: motion.pointerEvents,
-                    filter: motion.filter,
+                    transition:
+                      isDragging || isAnimating
+                        ? "none"
+                        : "transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.55s ease",
                   }}
                   onClick={() => {
-                    if (!isActive) goTo(index);
+                    if (!isNearActive) goTo(index);
                   }}
                 >
                   <div className="relative">
-                    {isActive && (
+                    {isNearActive && (
                       <div
-                        className="pointer-events-none absolute -inset-3 -z-10 rounded-[2rem] bg-gradient-to-b from-amber-300/25 via-orange-200/10 to-transparent blur-xl"
+                        className="pointer-events-none absolute -inset-3 -z-10 rounded-[2rem] bg-gradient-to-b from-amber-300/20 via-orange-200/10 to-transparent blur-xl transition-opacity duration-500"
+                        style={{ opacity: isActive ? 1 : 0.35 }}
                         aria-hidden
                       />
                     )}
@@ -240,11 +329,11 @@ export function BestSellingCarousel({ products, pricingAccount }: BestSellingCar
                       index={index}
                       priority={index === activeIndex}
                       imageSizes="78vw"
-                      className={
-                        isActive
+                      className={`transition-[box-shadow,border-color,filter] duration-500 ${
+                        isNearActive
                           ? "border-amber-300/70 shadow-[0_24px_56px_rgba(245,158,11,0.28)] ring-1 ring-amber-200/50"
-                          : "cursor-pointer border-slate-200/40 shadow-[0_8px_24px_rgba(15,23,42,0.08)] saturate-[0.85]"
-                      }
+                          : "cursor-pointer border-slate-200/40 shadow-[0_8px_24px_rgba(15,23,42,0.08)] saturate-[0.88]"
+                      }`}
                     />
                   </div>
                 </div>
@@ -262,9 +351,9 @@ export function BestSellingCarousel({ products, pricingAccount }: BestSellingCar
                   type="button"
                   onClick={() => goTo(i)}
                   aria-label={`الانتقال إلى ${product.name}`}
-                  aria-current={i === activeIndex ? "true" : undefined}
+                  aria-current={i === displayIndex ? "true" : undefined}
                   className={`rounded-full transition-all duration-500 ease-out ${
-                    i === activeIndex
+                    i === displayIndex
                       ? "h-2 w-8 bg-gradient-to-r from-amber-500 to-orange-400 shadow-[0_2px_8px_rgba(245,158,11,0.45)]"
                       : "h-2 w-2 bg-slate-300/80 hover:bg-slate-400"
                   }`}
@@ -286,11 +375,11 @@ export function BestSellingCarousel({ products, pricingAccount }: BestSellingCar
                 <span className="text-[11px] font-semibold uppercase tracking-widest text-amber-600/80">
                   الأكثر مبيعاً
                 </span>
-                <p className="truncate text-center text-sm font-bold text-slate-800">
-                  {products[activeIndex]?.name}
+                <p className="truncate text-center text-sm font-bold text-slate-800 transition-opacity duration-300">
+                  {products[displayIndex]?.name}
                 </p>
                 <span className="text-xs font-medium text-slate-400">
-                  {activeIndex + 1} / {count}
+                  {displayIndex + 1} / {count}
                 </span>
               </div>
 
@@ -307,7 +396,6 @@ export function BestSellingCarousel({ products, pricingAccount }: BestSellingCar
         )}
       </div>
 
-      {/* شاشات أكبر */}
       <div className="hidden grid-cols-2 gap-3 sm:grid lg:grid-cols-4">
         {products.map((product, index) => (
           <div key={product.id} className="group relative">
