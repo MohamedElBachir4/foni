@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { type Product } from "@/lib/productsData";
 import { ProductGridCard } from "@/components/ProductGridCard";
 import { BestSellingCarousel } from "@/components/BestSellingCarousel";
+import { ProductPeekCarousel } from "@/components/ProductPeekCarousel";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, getPricingAccount } from "@/lib/pricing";
 import { sortPhoneTypesForAppleIphone } from "@/lib/iphoneModelOrder";
@@ -78,7 +79,6 @@ export function ProductGrid({
   }, [phoneTypeIdProp]);
 
   const [page, setPage] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
   const [apiProducts, setApiProducts] = useState<
     (Product & { colors?: string[] } & {
       priceRetail?: number;
@@ -102,14 +102,6 @@ export function ProductGrid({
         : `${selectedBrandId || "all"}|${phoneTypeId || "all"}|${accountFetchKey}`,
     [selectedBrandId, phoneTypeId, accountFetchKey, bestSelling]
   );
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)");
-    const handler = () => setIsMobile(mq.matches);
-    handler();
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   useEffect(() => {
     setHasHydratedCache(false);
@@ -244,9 +236,9 @@ export function ProductGrid({
   }, []);
 
   const isBrandPage = !!(selectedBrandId && selectedBrandId !== "all");
-  const isHomeSection = !isBrandPage && (mixedLatest || bestSelling);
+  const isLatestHome = mixedLatest && !isBrandPage && !bestSelling;
 
-  const productsPerPage = bestSelling ? 4 : isMobile ? 1 : 4;
+  const productsPerPage = bestSelling ? 4 : 4;
 
   const filteredProducts = useMemo(() => {
     return apiProducts;
@@ -286,110 +278,143 @@ export function ProductGrid({
         </div>
       )}
 
-      <div className={isHomeSection && !bestSelling ? "flex flex-nowrap items-center gap-2 sm:gap-4" : ""}>
-        {isHomeSection && !bestSelling && (
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={currentPage >= totalPages - 1 || filteredProducts.length === 0}
-            aria-label="المزيد من المنتجات"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-50"
-          >
-            <ChevronRight className="h-5 w-5 text-gray-600" />
-          </button>
-        )}
-
-        <div className={isBrandPage || bestSelling ? "" : "min-w-0 flex-1"}>
-          {apiLoading && !hasHydratedCache && filteredProducts.length === 0 && !fetchError ? (
-            <div className="py-20 text-center">
-              <div className="rounded-[40px] bg-white/80 p-12 shadow-2xl backdrop-blur-sm">
-                <div className="mb-4 text-2xl font-medium text-slate-500">جاري التحميل...</div>
-              </div>
-            </div>
-          ) : fetchError && filteredProducts.length === 0 ? (
-            <div className="py-16 text-center">
-              <div className="rounded-[40px] border border-amber-200 bg-amber-50/90 p-8 shadow-lg sm:p-10">
-                <p className="mb-4 text-sm font-medium leading-relaxed text-amber-900 sm:text-base">
-                  {fetchError}
-                </p>
-                <button
-                  type="button"
-                  onClick={retryFetch}
-                  className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  إعادة المحاولة
-                </button>
-              </div>
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="py-20 text-center">
-              <div className="rounded-[40px] bg-white/80 p-12 shadow-2xl backdrop-blur-sm">
-                <div className="mb-4 text-6xl text-blue-300">📦</div>
-                <p className="text-2xl font-medium text-gray-500">
-                  لا توجد منتجات تطابق بحثك
-                </p>
-              </div>
-            </div>
-          ) : bestSelling ? (
-            <BestSellingCarousel products={visibleProducts} pricingAccount={pricingAccount} />
-          ) : (
-            <div
-              className={
-                `grid ${
-                  isBrandPage
-                    ? "grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4"
-                    : "grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4"
-                }`
-              }
-            >
-              {visibleProducts.map((product, index) => {
-                const tiered = product as {
-                  price?: number;
-                  priceRetail?: number;
-                  priceWholesale?: number;
-                  priceReparateur?: number;
-                };
-                const effectivePrice = getEffectivePrice(
-                  {
-                    price: tiered.price,
-                    priceRetail: tiered.priceRetail,
-                    priceWholesale: tiered.priceWholesale,
-                    priceReparateur: tiered.priceReparateur,
-                  },
-                  pricingAccount
-                );
-                return (
-                  <ProductGridCard
-                    key={product.id}
-                    product={product}
-                    effectivePrice={effectivePrice}
-                    index={index}
-                    imageSizes={
-                      isBrandPage
-                        ? "(max-width: 640px) 50vw, 25vw"
-                        : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    }
-                    className="overflow-visible hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:overflow-hidden"
-                  />
-                );
-              })}
-            </div>
-          )}
+      {apiLoading && !hasHydratedCache && filteredProducts.length === 0 && !fetchError ? (
+        <div className="py-20 text-center">
+          <div className="rounded-[40px] bg-white/80 p-12 shadow-2xl backdrop-blur-sm">
+            <div className="mb-4 text-2xl font-medium text-slate-500">جاري التحميل...</div>
+          </div>
         </div>
+      ) : fetchError && filteredProducts.length === 0 ? (
+        <div className="py-16 text-center">
+          <div className="rounded-[40px] border border-amber-200 bg-amber-50/90 p-8 shadow-lg sm:p-10">
+            <p className="mb-4 text-sm font-medium leading-relaxed text-amber-900 sm:text-base">
+              {fetchError}
+            </p>
+            <button
+              type="button"
+              onClick={retryFetch}
+              className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+            >
+              <RefreshCw className="h-4 w-4" />
+              إعادة المحاولة
+            </button>
+          </div>
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="py-20 text-center">
+          <div className="rounded-[40px] bg-white/80 p-12 shadow-2xl backdrop-blur-sm">
+            <div className="mb-4 text-6xl text-blue-300">📦</div>
+            <p className="text-2xl font-medium text-gray-500">لا توجد منتجات تطابق بحثك</p>
+          </div>
+        </div>
+      ) : bestSelling ? (
+        <BestSellingCarousel products={visibleProducts} pricingAccount={pricingAccount} />
+      ) : isLatestHome ? (
+        <>
+          <ProductPeekCarousel
+            className="sm:hidden"
+            products={filteredProducts}
+            pricingAccount={pricingAccount}
+            variant="latest"
+            sectionLabel="أحدث المنتجات"
+            ariaLabel="أحدث المنتجات"
+          />
 
-        {isHomeSection && !bestSelling && (
-          <button
-            type="button"
-            onClick={goPrev}
-            disabled={currentPage === 0 || filteredProducts.length === 0}
-            aria-label="المنتجات السابقة"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-50"
-          >
-            <ChevronLeft className="h-5 w-5 text-gray-600" />
-          </button>
-        )}
-      </div>
+          <div className="hidden sm:flex sm:flex-nowrap sm:items-center sm:gap-4">
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={currentPage >= totalPages - 1 || filteredProducts.length === 0}
+              aria-label="المزيد من المنتجات"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-600" />
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                {visibleProducts.map((product, index) => {
+                  const tiered = product as {
+                    price?: number;
+                    priceRetail?: number;
+                    priceWholesale?: number;
+                    priceReparateur?: number;
+                  };
+                  const effectivePrice = getEffectivePrice(
+                    {
+                      price: tiered.price,
+                      priceRetail: tiered.priceRetail,
+                      priceWholesale: tiered.priceWholesale,
+                      priceReparateur: tiered.priceReparateur,
+                    },
+                    pricingAccount
+                  );
+                  return (
+                    <ProductGridCard
+                      key={product.id}
+                      product={product}
+                      effectivePrice={effectivePrice}
+                      index={index}
+                      imageSizes="(max-width: 1024px) 50vw, 25vw"
+                      className="overflow-visible hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:overflow-hidden"
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={goPrev}
+              disabled={currentPage === 0 || filteredProducts.length === 0}
+              aria-label="المنتجات السابقة"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+        </>
+      ) : (
+        <div
+          className={`grid ${
+            isBrandPage
+              ? "grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4"
+              : "grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4"
+          }`}
+        >
+          {visibleProducts.map((product, index) => {
+            const tiered = product as {
+              price?: number;
+              priceRetail?: number;
+              priceWholesale?: number;
+              priceReparateur?: number;
+            };
+            const effectivePrice = getEffectivePrice(
+              {
+                price: tiered.price,
+                priceRetail: tiered.priceRetail,
+                priceWholesale: tiered.priceWholesale,
+                priceReparateur: tiered.priceReparateur,
+              },
+              pricingAccount
+            );
+            return (
+              <ProductGridCard
+                key={product.id}
+                product={product}
+                effectivePrice={effectivePrice}
+                index={index}
+                imageSizes={
+                  isBrandPage
+                    ? "(max-width: 640px) 50vw, 25vw"
+                    : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                }
+                className="overflow-visible hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:overflow-hidden"
+              />
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
