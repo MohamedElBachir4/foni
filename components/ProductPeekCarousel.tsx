@@ -152,7 +152,7 @@ export function ProductPeekCarousel({
 
   const measureSlideWidth = useCallback(() => {
     const width = containerRef.current?.clientWidth ?? 0;
-    if (width > 0) slideWidthRef.current = width * 0.72;
+    if (width > 0) slideWidthRef.current = width * 0.64;
   }, []);
 
   useEffect(() => {
@@ -316,7 +316,7 @@ export function ProductPeekCarousel({
           animateTo(activeIndex);
         }}
       >
-        <div className="relative h-[418px] w-full overflow-visible [transform-style:preserve-3d]">
+        <div className="relative h-[368px] w-full overflow-visible [transform-style:preserve-3d]">
           <div
             className="pointer-events-none absolute inset-y-4 start-0 z-50 w-12 bg-gradient-to-l from-transparent to-white/90"
             aria-hidden
@@ -338,7 +338,7 @@ export function ProductPeekCarousel({
                 aria-roledescription="slide"
                 aria-label={`${index + 1} من ${count}: ${product.name}`}
                 aria-hidden={!isNearActive}
-                className="absolute top-2 w-[78%] [backface-visibility:hidden] [transform-style:preserve-3d] will-change-transform"
+                className="absolute top-3 w-[68%] [backface-visibility:hidden] [transform-style:preserve-3d] will-change-transform"
                 style={{
                   left: "50%",
                   transform: motion.transform,
@@ -370,7 +370,8 @@ export function ProductPeekCarousel({
                     effectivePrice={getEffective(product)}
                     index={index}
                     priority={index === activeIndex}
-                    imageSizes="78vw"
+                    compact
+                    imageSizes="68vw"
                     className={`transition-[box-shadow,border-color,filter] duration-500 ${
                       isNearActive
                         ? theme.activeCard
@@ -385,7 +386,7 @@ export function ProductPeekCarousel({
       </div>
 
       {count > 1 && (
-        <div className="relative mt-6 px-4">
+        <div className="relative mt-4 px-4">
           <div className="mb-4 flex items-center justify-center gap-1.5">
             {products.map((product, i) => (
               <button
