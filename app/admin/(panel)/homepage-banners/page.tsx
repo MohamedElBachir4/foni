@@ -27,6 +27,9 @@ type HomepageBanner = {
   image: string;
   order: number;
   active: boolean;
+  buttonText?: string;
+  buttonUrl?: string;
+  isFirstSlide?: boolean;
 };
 
 export default function HomepageBannersPage() {
@@ -39,6 +42,8 @@ export default function HomepageBannersPage() {
   const [image, setImage] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [active, setActive] = useState(true);
+  const [buttonText, setButtonText] = useState("");
+  const [buttonUrl, setButtonUrl] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,8 +76,13 @@ export default function HomepageBannersPage() {
     setImage("");
     setPreviewUrl("");
     setActive(true);
+    setButtonText("");
+    setButtonUrl("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
+
+  const isPrimarySlide = editing ? Boolean(editing.isFirstSlide) : banners.length === 0;
+  const needsCustomCta = !isPrimarySlide;
 
   async function uploadBannerImage(file: File): Promise<string> {
     const formData = new FormData();
@@ -130,9 +140,23 @@ export default function HomepageBannersPage() {
       setMessage({ type: "error", text: "ارفع صورة البنر أولاً" });
       return;
     }
+    if (needsCustomCta) {
+      if (!buttonText.trim()) {
+        setMessage({ type: "error", text: "نص الزر مطلوب" });
+        return;
+      }
+      if (!buttonUrl.trim()) {
+        setMessage({ type: "error", text: "رابط الزر مطلوب" });
+        return;
+      }
+    }
     setSaving(true);
     try {
-      const payload = { image: image.trim(), active };
+      const payload: Record<string, unknown> = { image: image.trim(), active };
+      if (needsCustomCta) {
+        payload.buttonText = buttonText.trim();
+        payload.buttonUrl = buttonUrl.trim();
+      }
       if (editing) {
         const res = await fetch(`${API_URL}/api/homepage-banners/${editing._id}`, {
           method: "PUT",
@@ -172,6 +196,11 @@ export default function HomepageBannersPage() {
   }
 
   async function handleDelete(id: string) {
+    const banner = banners.find((b) => b._id === id);
+    if (banner?.isFirstSlide) {
+      setMessage({ type: "error", text: "لا يمكن حذف الشريحة الأولى" });
+      return;
+    }
     if (!confirm("هل تريد حذف هذا البنر؟")) return;
     try {
       const res = await fetch(`${API_URL}/api/homepage-banners/${id}`, {
@@ -233,8 +262,9 @@ export default function HomepageBannersPage() {
   function moveBanner(id: string, direction: -1 | 1) {
     const idx = banners.findIndex((b) => b._id === id);
     if (idx < 0) return;
+    if (banners[idx]?.isFirstSlide) return;
     const target = idx + direction;
-    if (target < 0 || target >= banners.length) return;
+    if (target <= 0 || target >= banners.length) return;
     const next = [...banners];
     [next[idx], next[target]] = [next[target], next[idx]];
     persistOrder(next);
@@ -250,6 +280,7 @@ export default function HomepageBannersPage() {
     const from = banners.findIndex((b) => b._id === dragId);
     const to = banners.findIndex((b) => b._id === overId);
     if (from < 0 || to < 0 || from === to) return;
+    if (banners[from]?.isFirstSlide || to === 0) return;
     const next = [...banners];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
@@ -285,8 +316,13 @@ export default function HomepageBannersPage() {
 
       {messageEl}
 
-      <AdminCard title={editing ? "تعديل بنر" : "إضافة بنر جديد"}>
+      <AdminCard title={editing ? "تعديل بنر" : banners.length === 0 ? "إضافة الشريحة الأولى" : "إضافة بنر جديد"}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {banners.length === 0 && !editing && (
+            <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+              الشريحة الأولى ثابتة: زر «فتح حساب» يوجّه إلى صفحة التسجيل — يمكنك تغيير الصورة فقط.
+            </p>
+          )}
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               صورة البنر
@@ -319,6 +355,54 @@ export default function HomepageBannersPage() {
               )}
             </div>
           </div>
+
+          {isPrimarySlide ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <p className="font-semibold text-slate-800">زر الشريحة الأولى (ثابت)</p>
+              <p className="mt-1">
+                النص: <span className="font-medium">فتح حساب</span>
+              </p>
+              <p>
+                الرابط:{" "}
+                <span className="font-medium" dir="ltr">
+                  /accounts
+                </span>
+              </p>
+            </div>
+          ) : needsCustomCta ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  نص الزر <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={buttonText}
+                  onChange={(e) => setButtonText(e.target.value)}
+                  placeholder="مثال: لم تجد قطعتك؟"
+                  required
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  رابط الزر <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={buttonUrl}
+                  onChange={(e) => setButtonUrl(e.target.value)}
+                  placeholder="/request-part أو https://..."
+                  dir="ltr"
+                  required
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  مسار داخلي يبدأ بـ / أو رابط خارجي كامل
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
             <input
@@ -366,16 +450,22 @@ export default function HomepageBannersPage() {
             {banners.map((banner, idx) => (
               <div
                 key={banner._id}
-                draggable
-                onDragStart={() => handleDragStart(banner._id)}
+                draggable={!banner.isFirstSlide}
+                onDragStart={() => {
+                  if (!banner.isFirstSlide) handleDragStart(banner._id);
+                }}
                 onDragOver={(e) => handleDragOver(e, banner._id)}
                 onDragEnd={handleDragEnd}
                 className={`flex flex-col gap-3 rounded-xl border bg-white p-3 shadow-sm transition sm:flex-row sm:items-center ${
                   dragId === banner._id ? "border-indigo-300 opacity-70" : "border-slate-200"
-                }`}
+                } ${banner.isFirstSlide ? "border-blue-200 bg-blue-50/30" : ""}`}
               >
                 <div className="flex items-center gap-2 text-slate-400">
-                  <GripVertical className="h-5 w-5 shrink-0 cursor-grab" />
+                  {banner.isFirstSlide ? (
+                    <span className="text-[10px] font-bold uppercase text-blue-600">ثابت</span>
+                  ) : (
+                    <GripVertical className="h-5 w-5 shrink-0 cursor-grab" />
+                  )}
                   <span className="text-xs font-bold text-slate-500">#{idx + 1}</span>
                 </div>
 
@@ -391,6 +481,16 @@ export default function HomepageBannersPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs text-slate-500" dir="ltr">
                     {banner.image}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    الزر:{" "}
+                    <span className="font-semibold">
+                      {banner.isFirstSlide
+                        ? "فتح حساب → /accounts (ثابت)"
+                        : banner.buttonText && banner.buttonUrl
+                          ? `${banner.buttonText} → ${banner.buttonUrl}`
+                          : "— غير مضبوط (عدّل البنر وأضف نص الرابط)"}
+                    </span>
                   </p>
                   <span
                     className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -417,7 +517,7 @@ export default function HomepageBannersPage() {
                     size="sm"
                     icon={<ChevronUp className="h-4 w-4" />}
                     onClick={() => moveBanner(banner._id, -1)}
-                    disabled={idx === 0}
+                    disabled={idx === 0 || banner.isFirstSlide}
                     title="للأعلى"
                   />
                   <AdminButton
@@ -425,7 +525,7 @@ export default function HomepageBannersPage() {
                     size="sm"
                     icon={<ChevronDown className="h-4 w-4" />}
                     onClick={() => moveBanner(banner._id, 1)}
-                    disabled={idx === banners.length - 1}
+                    disabled={idx === banners.length - 1 || banner.isFirstSlide}
                     title="للأسفل"
                   />
                   <AdminButton
@@ -444,9 +544,12 @@ export default function HomepageBannersPage() {
                       setImage(banner.image);
                       setPreviewUrl(getProductImageUrl(banner.image));
                       setActive(banner.active);
+                      setButtonText(banner.isFirstSlide ? "" : banner.buttonText || "");
+                      setButtonUrl(banner.isFirstSlide ? "" : banner.buttonUrl || "");
                     }}
                     title="تعديل"
                   />
+                  {!banner.isFirstSlide && (
                   <AdminButton
                     variant="ghost"
                     size="sm"
@@ -455,6 +558,7 @@ export default function HomepageBannersPage() {
                     className="hover:bg-rose-50 hover:text-rose-600"
                     title="حذف"
                   />
+                  )}
                 </div>
               </div>
             ))}

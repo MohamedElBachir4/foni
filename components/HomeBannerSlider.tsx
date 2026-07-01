@@ -1,12 +1,58 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getProductImageUrl } from "@/lib/productImage";
 
-type Banner = { _id: string; image: string };
+type Banner = {
+  _id: string;
+  image: string;
+  buttonText?: string;
+  buttonUrl?: string;
+  isFirstSlide?: boolean;
+};
 
 const AUTOPLAY_MS = 5000;
+
+function normalizeBannerHref(url: string): string {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("/")) return raw;
+  return `/${raw.replace(/^\/+/, "")}`;
+}
+
+function getBannerCta(banner: Banner, slideIndex: number): { text: string; href: string } {
+  if (slideIndex === 0 || banner.isFirstSlide) {
+    return { text: "فتح حساب", href: "/accounts" };
+  }
+  return {
+    text: String(banner.buttonText || "").trim(),
+    href: normalizeBannerHref(banner.buttonUrl || ""),
+  };
+}
+
+function BannerCtaButton({ banner, slideIndex }: { banner: Banner; slideIndex: number }) {
+  const { text, href } = getBannerCta(banner, slideIndex);
+  if (!text || !href) return null;
+
+  const className =
+    "relative z-30 rounded-xl border border-blue-300/60 bg-gradient-to-r from-blue-700/95 to-blue-900/95 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-950/50 backdrop-blur-sm transition hover:from-blue-600 hover:to-blue-800 sm:px-7 sm:py-3 sm:text-base";
+
+  if (/^https?:\/\//i.test(href)) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        {text}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {text}
+    </Link>
+  );
+}
 
 export function HomeBannerSlider() {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -78,7 +124,7 @@ export function HomeBannerSlider() {
       aria-label="سلايدر الصفحة الرئيسية"
     >
       <div
-        className="relative h-48 w-full bg-slate-100 sm:h-[26rem] lg:h-[32rem]"
+        className="relative h-48 w-full sm:h-[26rem] lg:h-[32rem]"
         onTouchStart={(e) => {
           touchStartX.current = e.touches[0]?.clientX ?? null;
         }}
@@ -96,19 +142,24 @@ export function HomeBannerSlider() {
         {banners.map((banner, i) => (
           <div
             key={banner._id}
-            className={`absolute inset-0 flex items-center justify-center bg-slate-100 transition-opacity duration-700 ease-in-out ${
-              i === index ? "opacity-100" : "pointer-events-none opacity-0"
+            className={`absolute inset-0 flex flex-col transition-opacity duration-700 ease-in-out ${
+              i === index ? "z-[1] opacity-100" : "pointer-events-none z-0 opacity-0"
             }`}
             aria-hidden={i !== index}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={getProductImageUrl(banner.image)}
-              alt=""
-              className="h-full w-full object-contain object-center"
-              loading={i === 0 ? "eager" : "lazy"}
-              decoding="async"
-            />
+            <div className="relative z-0 flex h-full w-full items-center justify-center bg-slate-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={getProductImageUrl(banner.image)}
+                alt=""
+                className="max-h-full max-w-full object-contain object-center"
+                loading={i === 0 ? "eager" : "lazy"}
+                decoding="async"
+              />
+            </div>
+            <div className="absolute inset-x-0 bottom-0 z-30 flex items-end justify-center px-4 pb-12 sm:pb-16">
+              <BannerCtaButton banner={banner} slideIndex={i} />
+            </div>
           </div>
         ))}
 
@@ -131,14 +182,14 @@ export function HomeBannerSlider() {
               <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
 
-            <div className="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-2">
+            <div className="absolute inset-x-0 bottom-3 z-20 flex items-center justify-center gap-2 sm:bottom-5">
               {banners.map((banner, i) => (
                 <button
                   key={banner._id}
                   type="button"
                   onClick={() => goTo(i)}
-                  className={`h-2 rounded-full transition-all ${
-                    i === index ? "w-7 bg-white" : "w-2 bg-white/55 hover:bg-white/80"
+                  className={`h-2 rounded-full shadow-sm transition-all ${
+                    i === index ? "w-7 bg-white" : "w-2 bg-white/80 hover:bg-white"
                   }`}
                   aria-label={`الانتقال إلى الشريحة ${i + 1}`}
                   aria-current={i === index ? "true" : undefined}
