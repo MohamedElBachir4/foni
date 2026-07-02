@@ -15,6 +15,8 @@ import {
   type PricedOptionFormRow,
   type PricedOptionCompare,
 } from "@/lib/adminPricedOptionsForm";
+import { parseExtraImagesFromText } from "@/lib/adminProductMedia";
+import { AdminProductMediaFields } from "@/components/admin/AdminProductMediaFields";
 import {
   Package,
   CheckCircle,
@@ -63,6 +65,7 @@ type SparePart = {
   details?: string;
   image?: string;
   extraImages?: string[];
+  video?: string;
   colors?: string[];
   price: number;
   priceRetail?: number;
@@ -141,6 +144,7 @@ export default function AdminSparePartsPage() {
   const [details, setDetails] = useState("");
   const [image, setImage] = useState("");
   const [extraImagesText, setExtraImagesText] = useState("");
+  const [video, setVideo] = useState("");
   const [price, setPrice] = useState("");
   const [priceRetail, setPriceRetail] = useState("");
   const [priceWholesale, setPriceWholesale] = useState("");
@@ -421,6 +425,7 @@ export default function AdminSparePartsPage() {
     setDetails("");
     setImage("");
     setExtraImagesText("");
+    setVideo("");
     setPrice("");
     setPriceRetail("");
     setPriceWholesale("");
@@ -480,34 +485,7 @@ export default function AdminSparePartsPage() {
   }
 
   function parseExtraImages(): string[] {
-    return extraImagesText
-      .split(/\r?\n/)
-      .flatMap((line) =>
-        line
-          .split(/,\s*/u)
-          .map((url) => url.trim())
-          .filter(Boolean)
-      )
-      .filter(Boolean)
-      .slice(0, 4);
-  }
-
-  async function uploadImages(files: FileList | null): Promise<string[]> {
-    if (!files || files.length === 0) return [];
-    const formData = new FormData();
-    Array.from(files)
-      .slice(0, 5)
-      .forEach((file) => formData.append("images", file));
-    const token = getToken();
-    const res = await fetch(`${API_URL}/api/uploads/images`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      credentials: "include",
-      body: formData,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "فشل رفع الصور");
-    return Array.isArray(data.urls) ? data.urls : [];
+    return parseExtraImagesFromText(extraImagesText);
   }
 
   function getBrandName(item: SparePart): string {
@@ -965,6 +943,7 @@ export default function AdminSparePartsPage() {
       description: normalizedDetails,
       image: image.trim(),
       extraImages: parseExtraImages(),
+      video: video.trim(),
       price: effectivePrice,
       priceRetail: priceRetail.trim() ? Number(priceRetail) : undefined,
       priceWholesale: priceWholesale.trim() ? Number(priceWholesale) : undefined,
@@ -1077,6 +1056,7 @@ export default function AdminSparePartsPage() {
     setDetails(item.details || "");
     setImage((item.image as string) || "");
     setExtraImagesText((item.extraImages || []).join("\n"));
+    setVideo(item.video || "");
     setPrice(String(item.price ?? ""));
     setPriceRetail(
       item.priceRetail != null ? String(item.priceRetail) : ""
@@ -1111,6 +1091,7 @@ export default function AdminSparePartsPage() {
     setDetails(item.details || "");
     setImage((item.image as string) || "");
     setExtraImagesText((item.extraImages || []).join("\n"));
+    setVideo(item.video || "");
     setPrice(String(item.price ?? ""));
     setPriceRetail(
       item.priceRetail != null ? String(item.priceRetail) : ""
@@ -1923,102 +1904,26 @@ export default function AdminSparePartsPage() {
               </div>
             ) : null}
 
-            <div className="border-t border-slate-100 pt-2">
-              <label className={lbl}>رابط الصورة الرئيسية</label>
-              <input
-                type="text"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                className={fld}
-                placeholder="https://…"
-                dir="ltr"
+            <AdminProductMediaFields
+              image={image}
+              extraImagesText={extraImagesText}
+              video={video}
+              onImageChange={setImage}
+              onExtraImagesTextChange={setExtraImagesText}
+              onVideoChange={setVideo}
+              uploading={uploadingImages}
+              onUploadingChange={setUploadingImages}
+              onNotice={setPartModalNotice}
+            />
+            <div className="mt-2 border-t border-slate-100 pt-1.5">
+              <label className={`${lbl} mb-1`}>ألوان الاختيار</label>
+              <AdminProductColorsPicker
+                variant="compact"
+                value={selectedSpareColors}
+                onChange={setSelectedSpareColors}
               />
-              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                <div className="min-w-0">
-                  <label className={`${lbl} truncate`}>رفع رئيسية</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="admin-input h-7 cursor-pointer rounded-md px-1.5 py-0 text-[10px] file:me-1 file:rounded file:border-0 file:bg-sky-50 file:px-1.5 file:text-[10px] file:text-sky-800"
-                    onChange={async (e) => {
-                      setPartModalNotice(null);
-                      try {
-                        setUploadingImages(true);
-                        const urls = await uploadImages(e.target.files);
-                        if (urls[0]) {
-                          setImage(urls[0]);
-                          setPartModalNotice({
-                            type: "success",
-                            text: "تم رفع الصورة الرئيسية",
-                          });
-                        }
-                      } catch (err) {
-                        setPartModalNotice({
-                          type: "error",
-                          text:
-                            err instanceof Error ? err.message : "فشل رفع الصورة",
-                        });
-                      } finally {
-                        setUploadingImages(false);
-                        e.currentTarget.value = "";
-                      }
-                    }}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <label className={`${lbl} truncate`}>رفع حتى ٤</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="admin-input h-7 cursor-pointer rounded-md px-1.5 py-0 text-[10px] file:me-1 file:rounded file:border-0 file:bg-slate-50 file:px-1.5 file:text-[10px]"
-                    onChange={async (e) => {
-                      setPartModalNotice(null);
-                      try {
-                        setUploadingImages(true);
-                        const uploaded = await uploadImages(e.target.files);
-                        if (uploaded.length > 0) {
-                          const merged = [...parseExtraImages(), ...uploaded].slice(0, 4);
-                          setExtraImagesText(merged.join("\n"));
-                          setPartModalNotice({
-                            type: "success",
-                            text: `تم رفع ${uploaded.length} صورة إضافية`,
-                          });
-                        }
-                      } catch (err) {
-                        setPartModalNotice({
-                          type: "error",
-                          text:
-                            err instanceof Error ? err.message : "فشل رفع الصور",
-                        });
-                      } finally {
-                        setUploadingImages(false);
-                        e.currentTarget.value = "";
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="mt-1.5">
-                <label className={lbl}>روابط إضافية (٤)</label>
-                <textarea
-                  value={extraImagesText}
-                  onChange={(e) => setExtraImagesText(e.target.value)}
-                  rows={2}
-                  className={`${fld} !min-h-[2.25rem] resize-none py-1.5 leading-snug`}
-                  placeholder="سطر أو فاصلة"
-                  dir="ltr"
-                />
-              </div>
-              <div className="mt-2 border-t border-slate-100 pt-1.5">
-                <label className={`${lbl} mb-1`}>ألوان الاختيار</label>
-                <AdminProductColorsPicker
-                  variant="compact"
-                  value={selectedSpareColors}
-                  onChange={setSelectedSpareColors}
-                />
-              </div>
-              <div className="mt-2 border-t border-slate-100 pt-2">
+            </div>
+            <div className="mt-2 border-t border-slate-100 pt-2">
                 <label className="mb-2 flex cursor-pointer items-start gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[11px] font-medium text-slate-700">
                   <input
                     type="checkbox"
@@ -2177,7 +2082,6 @@ export default function AdminSparePartsPage() {
                 )}
               </div>
             </div>
-          </div>
 
           <div className="mt-2 flex shrink-0 flex-wrap items-center justify-end gap-1.5 border-t border-slate-100/90 pt-2">
             <AdminButton

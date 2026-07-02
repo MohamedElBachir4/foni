@@ -9,12 +9,19 @@ export type { PricedOptionCompare } from "./adminPricedOptionsForm";
 export const ADMIN_COPY_UNCHANGED_MESSAGE =
   "لا يمكن إنشاء المنتج لأن جميع المعلومات مطابقة لمنتج موجود بالفعل. يرجى تعديل حقل واحد على الأقل قبل الحفظ.";
 
+export const MAX_EXTRA_IMAGES = 9;
+
 export function parseExtraImagesLines(text: string): string[] {
   return text
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .flatMap((line) =>
+      line
+        .split(/,\s*/u)
+        .map((url) => url.trim())
+        .filter(Boolean)
+    )
     .filter(Boolean)
-    .slice(0, 4);
+    .slice(0, MAX_EXTRA_IMAGES);
 }
 
 /** تسلسل ثابت لمفاتيح المستوى الأعلى فقط (الحمولات مسطّحة تقريباً). */

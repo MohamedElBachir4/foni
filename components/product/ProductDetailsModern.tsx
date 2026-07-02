@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +14,8 @@ import {
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 import { ProductImage } from "@/components/ProductImage";
+import { getProductMediaUrl } from "@/lib/productImage";
+import { Play } from "lucide-react";
 import {
   formatDzd,
   getEffectivePrice,
@@ -54,6 +56,7 @@ type ProductDetailsModernProps = {
     category: string;
     image: string;
     extraImages?: string[];
+    video?: string;
     description: string;
     colors?: string[];
     options?: string[];
@@ -84,6 +87,9 @@ function sanitizeHtml(value: string) {
     .replace(/\son\w+="[^"]*"/gi, "")
     .replace(/\son\w+='[^']*'/gi, "");
 }
+
+const PRODUCT_VIDEO_KEY = "__product_video__";
+const MAX_GALLERY_IMAGES = 10;
 
 export function ProductDetailsModern({
   backHref,
@@ -168,14 +174,49 @@ export function ProductDetailsModern({
     const merged = [product.image, ...(product.extraImages || [])]
       .map((x) => String(x || "").trim())
       .filter(Boolean);
-    return Array.from(new Set(merged)).slice(0, 5);
+    return Array.from(new Set(merged)).slice(0, MAX_GALLERY_IMAGES);
   }, [product.image, product.extraImages]);
 
-  const [selectedImage, setSelectedImage] = useState(images[0] || "");
+  const videoUrl = useMemo(
+    () => getProductMediaUrl(product.video),
+    [product.video]
+  );
+
+  const [selectedMedia, setSelectedMedia] = useState<string>(images[0] || PRODUCT_VIDEO_KEY);
   const [selectedColorId, setSelectedColorId] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
   const [orderHint, setOrderHint] = useState("");
   const [variantQtys, setVariantQtys] = useState<Record<string, number>>({});
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const playProductVideo = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    void video.play().catch(() => {});
+  }, []);
+
+  const selectProductVideo = useCallback(() => {
+    setSelectedMedia(PRODUCT_VIDEO_KEY);
+    requestAnimationFrame(() => {
+      playProductVideo();
+    });
+  }, [playProductVideo]);
+
+  useEffect(() => {
+    if (selectedMedia !== PRODUCT_VIDEO_KEY || !videoUrl) {
+      videoRef.current?.pause();
+      return;
+    }
+    playProductVideo();
+  }, [selectedMedia, videoUrl, playProductVideo]);
+
+  useEffect(() => {
+    if (videoUrl) {
+      setSelectedMedia(images[0] || PRODUCT_VIDEO_KEY);
+      return;
+    }
+    setSelectedMedia(images[0] || "");
+  }, [product.id, images, videoUrl]);
 
   useEffect(() => {
     if (!multiVariantMode) {
@@ -356,23 +397,36 @@ export function ProductDetailsModern({
         <div className="grid gap-0 lg:grid-cols-2">
           <div className="border-b border-slate-100 p-4 sm:p-6 lg:border-b-0 lg:border-e">
             <div className="relative mb-4 h-[320px] overflow-hidden rounded-2xl bg-slate-50 sm:h-[460px]">
-              <ProductImage
-                src={selectedImage}
-                alt={product.name}
-                priority
-                sizes="(max-width: 1024px) 95vw, min(640px, 45vw)"
-                className="object-contain p-2 sm:p-4"
-              />
+              {selectedMedia === PRODUCT_VIDEO_KEY && videoUrl ? (
+                <video
+                  ref={videoRef}
+                  key={videoUrl}
+                  src={videoUrl}
+                  controls
+                  autoPlay
+                  playsInline
+                  onCanPlay={playProductVideo}
+                  className="h-full w-full object-contain p-2 sm:p-4"
+                />
+              ) : (
+                <ProductImage
+                  src={selectedMedia}
+                  alt={product.name}
+                  priority
+                  sizes="(max-width: 1024px) 95vw, min(640px, 45vw)"
+                  className="object-contain p-2 sm:p-4"
+                />
+              )}
             </div>
-            {images.length > 1 && (
+            {(images.length > 1 || videoUrl) && (
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((img, idx) => (
                   <button
                     key={`${img}-${idx}`}
                     type="button"
-                    onClick={() => setSelectedImage(img)}
+                    onClick={() => setSelectedMedia(img)}
                     className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition ${
-                      selectedImage === img
+                      selectedMedia === img
                         ? "border-blue-500 ring-2 ring-blue-500/20"
                         : "border-slate-200 hover:border-blue-300"
                     }`}
@@ -385,6 +439,20 @@ export function ProductDetailsModern({
                     />
                   </button>
                 ))}
+                {videoUrl ? (
+                  <button
+                    type="button"
+                    onClick={selectProductVideo}
+                    aria-label="عرض فيديو المنتج"
+                    className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 bg-slate-900 transition ${
+                      selectedMedia === PRODUCT_VIDEO_KEY
+                        ? "border-blue-500 ring-2 ring-blue-500/20"
+                        : "border-slate-200 hover:border-blue-300"
+                    }`}
+                  >
+                    <Play className="h-6 w-6 text-white" fill="white" />
+                  </button>
+                ) : null}
               </div>
             )}
           </div>

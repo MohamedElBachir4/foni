@@ -5,8 +5,10 @@ import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
 import { Share2, CheckCircle, AlertCircle } from "lucide-react";
 import { AdminButton, AdminCard, AdminPageHeader } from "@/components/admin";
 
+const WHATSAPP_SLOTS = 3;
+
 type ContactSettingsForm = {
-  whatsappNumber: string;
+  whatsappNumbers: string[];
   whatsappEnabled: boolean;
   phoneNumber: string;
   phoneEnabled: boolean;
@@ -14,8 +16,10 @@ type ContactSettingsForm = {
   messengerEnabled: boolean;
 };
 
+const EMPTY_WHATSAPP = ["", "", ""];
+
 const EMPTY_FORM: ContactSettingsForm = {
-  whatsappNumber: "",
+  whatsappNumbers: [...EMPTY_WHATSAPP],
   whatsappEnabled: true,
   phoneNumber: "",
   phoneEnabled: false,
@@ -23,11 +27,36 @@ const EMPTY_FORM: ContactSettingsForm = {
   messengerEnabled: false,
 };
 
+function normalizeWhatsAppSlots(raw: unknown): string[] {
+  const slots = [...EMPTY_WHATSAPP];
+  if (Array.isArray(raw)) {
+    raw.slice(0, WHATSAPP_SLOTS).forEach((n, i) => {
+      slots[i] = String(n || "").trim();
+    });
+    return slots;
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    slots[0] = raw.trim();
+  }
+  return slots;
+}
+
 export default function ContactSettingsPage() {
   const [form, setForm] = useState<ContactSettingsForm>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const applyPayload = useCallback((data: Record<string, unknown>) => {
+    setForm({
+      whatsappNumbers: normalizeWhatsAppSlots(data.whatsappNumbers ?? data.whatsappNumber),
+      whatsappEnabled: Boolean(data.whatsappEnabled),
+      phoneNumber: String(data.phoneNumber || ""),
+      phoneEnabled: Boolean(data.phoneEnabled),
+      messengerUrl: String(data.messengerUrl || ""),
+      messengerEnabled: Boolean(data.messengerEnabled),
+    });
+  }, []);
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
@@ -38,21 +67,14 @@ export default function ContactSettingsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setForm({
-          whatsappNumber: data.whatsappNumber || "",
-          whatsappEnabled: Boolean(data.whatsappEnabled),
-          phoneNumber: data.phoneNumber || "",
-          phoneEnabled: Boolean(data.phoneEnabled),
-          messengerUrl: data.messengerUrl || "",
-          messengerEnabled: Boolean(data.messengerEnabled),
-        });
+        applyPayload(data);
       }
     } catch {
       setMessage({ type: "error", text: "تعذر تحميل الإعدادات" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyPayload]);
 
   useEffect(() => {
     fetchSettings();
@@ -60,6 +82,14 @@ export default function ContactSettingsPage() {
 
   function updateField<K extends keyof ContactSettingsForm>(key: K, value: ContactSettingsForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function updateWhatsAppSlot(index: number, value: string) {
+    setForm((prev) => {
+      const next = [...prev.whatsappNumbers];
+      next[index] = value;
+      return { ...prev, whatsappNumbers: next };
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -75,14 +105,7 @@ export default function ContactSettingsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setForm({
-          whatsappNumber: data.whatsappNumber || "",
-          whatsappEnabled: Boolean(data.whatsappEnabled),
-          phoneNumber: data.phoneNumber || "",
-          phoneEnabled: Boolean(data.phoneEnabled),
-          messengerUrl: data.messengerUrl || "",
-          messengerEnabled: Boolean(data.messengerEnabled),
-        });
+        applyPayload(data);
         setMessage({ type: "success", text: "تم حفظ إعدادات وسائل التواصل" });
       } else {
         setMessage({ type: "error", text: data.error || "فشل الحفظ" });
@@ -137,7 +160,7 @@ export default function ContactSettingsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="إعدادات وسائل التواصل"
-        description="إدارة زر التواصل العائم في الموقع — واتساب، اتصال هاتفي، وماسنجر."
+        description="إدارة زر التواصل العائم في الموقع — حتى 3 أرقام واتساب، اتصال هاتفي، وماسنجر."
         icon={<Share2 className="h-6 w-6" />}
       />
 
@@ -149,17 +172,24 @@ export default function ContactSettingsPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {channelCard("واتساب", form.whatsappEnabled, (v) => updateField("whatsappEnabled", v), (
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-600">رقم واتساب</label>
-                <input
-                  type="text"
-                  value={form.whatsappNumber}
-                  onChange={(e) => updateField("whatsappNumber", e.target.value)}
-                  placeholder="213542458175 أو 0542458175"
-                  dir="ltr"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
-                />
-                <p className="mt-1 text-xs text-slate-500">بدون مسافات — يُفضّل الصيغة الدولية 213…</p>
+              <div className="space-y-3">
+                {form.whatsappNumbers.map((number, index) => (
+                  <div key={index}>
+                    <label className="mb-1 block text-xs font-semibold text-slate-600">
+                      رقم واتساب {index + 1}
+                      {index === 0 ? " (إلزامي عند التفعيل)" : " (اختياري)"}
+                    </label>
+                    <input
+                      type="text"
+                      value={number}
+                      onChange={(e) => updateWhatsAppSlot(index, e.target.value)}
+                      placeholder="213542458175 أو 0542458175"
+                      dir="ltr"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+                    />
+                  </div>
+                ))}
+                <p className="text-xs text-slate-500">بدون مسافات — يُفضّل الصيغة الدولية 213…</p>
               </div>
             ))}
 

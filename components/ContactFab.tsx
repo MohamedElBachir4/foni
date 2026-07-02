@@ -122,7 +122,9 @@ export function ContactFab() {
               transition={{ type: "spring", stiffness: 420, damping: 28 }}
             >
               {items.map((item, i) => {
-                const meta = ITEM_META[item.id] || ITEM_META.phone;
+                const meta =
+                  ITEM_META[item.id] ||
+                  (item.id.startsWith("whatsapp") ? ITEM_META.whatsapp : ITEM_META.phone);
                 return (
                   <motion.a
                     key={item.id}

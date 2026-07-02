@@ -19,14 +19,14 @@ function normalizeExtraImages(value: unknown): string[] {
     return value
       .map((item) => String(item || "").trim())
       .filter(Boolean)
-      .slice(0, 4);
+      .slice(0, 9);
   }
   if (typeof value === "string") {
     return value
       .split(/[\n,]/)
       .map((item) => item.trim())
       .filter(Boolean)
-      .slice(0, 4);
+      .slice(0, 9);
   }
   return [];
 }
@@ -221,6 +221,7 @@ export default async function ProductDetailPage({
     category: string;
     image: string;
     extraImages?: string[];
+    video?: string;
     /** يُحمَّل من الـ API عند الهاتف / قطعة غيار / أكسسوار */
     details?: string;
     colors?: string[];
@@ -295,6 +296,7 @@ export default async function ProductDetailPage({
               phone.galleryImages ??
               phone.gallery_images
           ),
+          video: pickFirstNonEmptyString(phone.video),
           details: pickFirstNonEmptyString(phone.details, phone.description, phone.desc),
           colors: Array.isArray(phone.colors) ? phone.colors : [],
           options: priced.length
@@ -375,6 +377,7 @@ export default async function ProductDetailPage({
               part.galleryImages ??
               part.gallery_images
           ),
+          video: pickFirstNonEmptyString(part.video),
           details: pickFirstNonEmptyString(part.details, part.description, part.desc),
           colors: Array.isArray(part.colors) ? part.colors : [],
           options: pricedPart.length
@@ -456,6 +459,7 @@ export default async function ProductDetailPage({
               acc.galleryImages ??
               acc.gallery_images
           ),
+          video: pickFirstNonEmptyString(acc.video),
           details: pickFirstNonEmptyString(acc.details, acc.description, acc.desc),
           colors: Array.isArray(acc.colors) ? acc.colors : [],
           options: pricedAcc.length
@@ -668,6 +672,7 @@ export default async function ProductDetailPage({
             category: product.category,
             image: product.image,
             extraImages: product.extraImages || [],
+            video: product.video || "",
             description,
             colors: product.colors || [],
             options: product.options || [],
