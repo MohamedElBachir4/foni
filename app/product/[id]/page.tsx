@@ -39,6 +39,56 @@ function pickFirstNonEmptyString(...values: unknown[]): string {
   return "";
 }
 
+type RefLike = { _id?: string; name?: string } | string | undefined | null;
+
+function oidFromRef(value: RefLike): string {
+  if (!value) return "";
+  if (typeof value === "object" && value._id) return String(value._id);
+  return String(value);
+}
+
+function nameFromRef(value: RefLike): string {
+  if (!value || typeof value !== "object") return "";
+  return value.name ? String(value.name) : "";
+}
+
+function brandSlugFromBrand(
+  brand: { slug?: string; name?: string } | string | undefined
+): string {
+  if (!brand) return "";
+  if (typeof brand === "object") {
+    if (brand.slug) return String(brand.slug);
+    if (brand.name) {
+      return String(brand.name).toLowerCase().trim().replace(/\s+/g, "-");
+    }
+  }
+  return "";
+}
+
+function firstPhoneTypeFromDoc(doc: {
+  phoneType?: RefLike;
+  phoneTypes?: RefLike[];
+}): { id: string; name: string } {
+  const pts = doc.phoneTypes;
+  if (Array.isArray(pts) && pts.length > 0) {
+    const first = pts[0];
+    return { id: oidFromRef(first), name: nameFromRef(first) };
+  }
+  return { id: oidFromRef(doc.phoneType), name: nameFromRef(doc.phoneType) };
+}
+
+function buildModelHubContext(
+  brandSlug: string,
+  phoneTypeId: string,
+  phoneTypeName: string
+): { href: string; label: string } | null {
+  if (!brandSlug || !phoneTypeId) return null;
+  return {
+    href: `/brand/${brandSlug}/model/${phoneTypeId}`,
+    label: phoneTypeName ? `العودة إلى ${phoneTypeName}` : "العودة إلى الموديل",
+  };
+}
+
 type RelatedPhone = {
   _id: string;
   name: string;
@@ -233,8 +283,9 @@ export default async function ProductDetailPage({
   } | null = null;
   let source: "static" | "phone" | "sparePart" | "accessory" = "static";
   let brandLabel = "";
-  let sparePartContext: { brandId?: string; phoneTypeId?: string } = {};
+  let sparePartContext: { brandId?: string; phoneTypeId?: string; brandSlug?: string } = {};
   let accessoryContext: { typeId?: string; typeLabel?: string } = {};
+  let modelHubContext: { href: string; label: string } | null = null;
 
   if (isNumericId) {
     const staticProduct = getProductById(numericId);
@@ -255,6 +306,10 @@ export default async function ProductDetailPage({
         const phone = await res.json();
         const brand = phone.brand;
         brandLabel = typeof brand === "object" && brand?.name ? String(brand.name) : "";
+        const brandSlug = brandSlugFromBrand(brand);
+        const { id: phoneTypeId, name: phoneTypeName } = firstPhoneTypeFromDoc(phone);
+        modelHubContext =
+          buildModelHubContext(brandSlug, phoneTypeId, phoneTypeName) ?? modelHubContext;
 
         const priced = parsePricedVariantsFromApi(phone.pricedOptions);
         const phoneRetail = Number(phone.priceRetail ?? phone.price ?? 0);
@@ -335,10 +390,11 @@ export default async function ProductDetailPage({
       }
 
       if (part?._id) {
-        const brand = part.brand as { _id?: string; name?: string } | string | undefined;
-        const phoneType = part.phoneType as { _id?: string } | string | undefined;
+        const brand = part.brand as { _id?: string; name?: string; slug?: string } | string | undefined;
         const brandId = typeof brand === "object" && brand?._id ? String(brand._id) : "";
         brandLabel = typeof brand === "object" && brand?.name ? String(brand.name) : "";
+        const brandSlug = brandSlugFromBrand(brand);
+        const { id: phoneTypeId, name: phoneTypeName } = firstPhoneTypeFromDoc(part);
 
         const pricedPart = parsePricedVariantsFromApi(part.pricedOptions);
         const partRetail = Number(part.priceRetail ?? part.price ?? 0);
@@ -391,10 +447,9 @@ export default async function ProductDetailPage({
           manageStock: Boolean(part.manageStock),
         };
         source = "sparePart";
-        sparePartContext = {
-          brandId,
-          phoneTypeId: typeof phoneType === "object" && phoneType?._id ? String(phoneType._id) : "",
-        };
+        sparePartContext = { brandId, phoneTypeId, brandSlug };
+        modelHubContext =
+          buildModelHubContext(brandSlug, phoneTypeId, phoneTypeName) ?? modelHubContext;
       }
     } catch {
       // ignore
@@ -409,6 +464,10 @@ export default async function ProductDetailPage({
         const brand = acc.brand as { _id?: string; name?: string; slug?: string } | string | undefined;
         brandLabel =
           typeof brand === "object" && brand?.name ? String(brand.name) : "";
+        const brandSlug = brandSlugFromBrand(brand);
+        const { id: phoneTypeId, name: phoneTypeName } = firstPhoneTypeFromDoc(acc);
+        modelHubContext =
+          buildModelHubContext(brandSlug, phoneTypeId, phoneTypeName) ?? modelHubContext;
 
         const typeObj = acc.type as { _id?: string; name?: string } | undefined;
         accessoryContext = {
@@ -488,21 +547,6 @@ export default async function ProductDetailPage({
         ? `اكسسوار ${product.name}${brandLabel ? ` من ${brandLabel}` : ""}، متوفر للطلب مع توصيل في الجزائر.`
         : `منتج عالي الجودة من ${brandLabel || "الماركة"}، متوفر الآن مع تجربة شراء سلسة وتوصيل سريع.`;
   const description = pickFirstNonEmptyString(product.details, descriptionFallback);
-
-  const backHref =
-    source === "accessory"
-      ? accessoryContext.typeId
-        ? `/accessories/${accessoryContext.typeId}`
-        : "/accessories"
-      : source === "sparePart" && sparePartContext.brandId && sparePartContext.phoneTypeId
-        ? `/spare-parts/${sparePartContext.brandId}/${sparePartContext.phoneTypeId}`
-        : `/phones/${product.brand}`;
-  const backLabel =
-    source === "accessory"
-      ? accessoryContext.typeLabel?.trim() || "أنواع الأكسسوارات"
-      : source === "sparePart"
-        ? `قطع غيار ${brandLabel || ""}`.trim()
-        : `هواتف ${brandLabel}`;
 
   let relatedProducts: RelatedPhone[] = [];
   const brandForApi =
@@ -659,8 +703,10 @@ export default async function ProductDetailPage({
           }}
         />
         <ProductDetailsModern
-          backHref={backHref}
-          backLabel={backLabel}
+          homeHref="/"
+          homeLabel="الرئيسية"
+          modelHubHref={modelHubContext?.href}
+          modelHubLabel={modelHubContext?.label}
           product={{
             id: product.id,
             name: product.name,

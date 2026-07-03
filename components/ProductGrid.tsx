@@ -31,7 +31,7 @@ type ProductGridProps = {
   sectionTitle?: string;
 };
 
-const MONGO_ID = /^[a-f0-9]{24}$/i;
+const HOME_BEST_SELLING_LIMIT = 15;
 
 type LatestModelRow = IphoneModelItem & { href: string; createdAt?: string };
 
@@ -318,7 +318,7 @@ export function ProductGrid({
   const visibleProducts = isBrandPage
     ? filteredProducts
     : bestSelling
-    ? filteredProducts.slice(0, 4)
+    ? filteredProducts.slice(0, HOME_BEST_SELLING_LIMIT)
     : filteredProducts.slice(
         currentPage * productsPerPage,
         currentPage * productsPerPage + productsPerPage

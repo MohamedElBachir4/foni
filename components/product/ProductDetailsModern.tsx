@@ -43,8 +43,10 @@ type RelatedProduct = {
 };
 
 type ProductDetailsModernProps = {
-  backHref: string;
-  backLabel: string;
+  homeHref?: string;
+  homeLabel?: string;
+  modelHubHref?: string;
+  modelHubLabel?: string;
   product: {
     id: string;
     name: string;
@@ -92,8 +94,10 @@ const PRODUCT_VIDEO_KEY = "__product_video__";
 const MAX_GALLERY_IMAGES = 10;
 
 export function ProductDetailsModern({
-  backHref,
-  backLabel,
+  homeHref = "/",
+  homeLabel = "الرئيسية",
+  modelHubHref,
+  modelHubLabel = "العودة إلى الموديل",
   product,
   relatedProducts,
 }: ProductDetailsModernProps) {
@@ -384,13 +388,21 @@ export function ProductDetailsModern({
 
   return (
     <div className="space-y-8">
-      <nav>
+      <nav className="flex flex-wrap items-center gap-2">
         <Link
-          href={backHref}
+          href={homeHref}
           className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-600 sm:text-sm"
         >
-          {backLabel}
+          {homeLabel}
         </Link>
+        {modelHubHref ? (
+          <Link
+            href={modelHubHref}
+            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-blue-200 hover:text-blue-600 sm:text-sm"
+          >
+            {modelHubLabel}
+          </Link>
+        ) : null}
       </nav>
 
       <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
