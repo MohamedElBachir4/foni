@@ -3,23 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Smartphone, Wrench, Headphones } from "lucide-react";
+import { Search, Smartphone } from "lucide-react";
 import { getProductImageUrl } from "@/lib/productImage";
-import { formatDzd } from "@/lib/pricing";
 import { highlightTokensInText } from "@/lib/highlightSearch";
 import { useSearchSuggestions, type SearchResultItem } from "@/lib/useSearch";
 
 const LIMIT = 24;
 
 export type SearchSuggestion = SearchResultItem;
-
-function typeLabel(t: string) {
-  if (t === "phone") return "هاتف";
-  if (t === "phoneType") return "موديل";
-  if (t === "accessory") return "أكسسوار";
-  if (t === "sparePart") return "قطعة غيار";
-  return "";
-}
 
 function collapseForCompare(s: string) {
   return String(s || "")
@@ -48,13 +39,8 @@ export function SearchBar() {
         ? interpretedQuery.split(/\s+/).filter(Boolean)
         : debouncedQuery.split(/\s+/).filter(Boolean);
 
-  const flatList = (g: typeof grouped) => {
-    const out: { item: SearchResultItem; section: keyof typeof grouped }[] = [];
-    for (const s of g.phones) out.push({ item: s, section: "phones" });
-    for (const s of g.spareParts) out.push({ item: s, section: "spareParts" });
-    for (const s of g.accessories) out.push({ item: s, section: "accessories" });
-    return out;
-  };
+  const flatList = (g: typeof grouped) =>
+    g.phones.map((item) => ({ item, section: "phones" as const }));
 
   useEffect(() => {
     if (debouncedQuery) {
@@ -148,9 +134,9 @@ export function SearchBar() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim() && setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="ابحث — هواتف، أكسسوارات، قطع غيار…"
+          placeholder="ابحث عن موديل الهاتف…"
           dir="ltr"
-          aria-label="بحث عن المنتجات"
+          aria-label="بحث عن موديلات الهواتف"
           aria-autocomplete="list"
           aria-expanded={open && Boolean(query.trim())}
           className="w-full rounded-full border border-gray-200 bg-white/90 py-2.5 pl-10 pr-10 text-left text-[15px] text-gray-900 placeholder:text-gray-500 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 sm:py-3"
@@ -181,16 +167,16 @@ export function SearchBar() {
               </p>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-slate-700">اقتراحات</span>
-              <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-700">موديلات الهواتف</span>
+              {hasSearchResults ? (
                 <Link
-                  href={`/search/categories?q=${encodeURIComponent(query.trim())}`}
-                  className="text-xs font-semibold text-slate-600 hover:text-blue-600 sm:text-sm"
+                  href={`/search?q=${encodeURIComponent(query.trim())}`}
+                  className="text-xs font-semibold text-blue-600 hover:underline sm:text-sm"
                   onClick={() => setOpen(false)}
                 >
-                  اختر القسم
+                  عرض الكل
                 </Link>
-              </div>
+              ) : null}
             </div>
           </div>
 
@@ -231,7 +217,7 @@ export function SearchBar() {
                       <li className="px-3 pt-2 pb-1">
                         <div className="mb-1 flex items-center gap-1.5 text-xs font-bold text-slate-500">
                           <Smartphone className="h-3.5 w-3.5" />
-                          الهواتف والموديلات
+                          موديلات الهواتف
                         </div>
                       </li>
                     )}
@@ -267,110 +253,8 @@ export function SearchBar() {
                                 {highlightTokensInText(item.name, highlightTokens)}
                               </p>
                               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
-                                  {typeLabel(item.type)}
-                                </span>
-                                {item.price != null && Number(item.price) > 0 && (
-                                  <span className="font-bold text-slate-800">
-                                    {formatDzd(item.price)}
-                                    <span className="mr-1 text-[10px] font-semibold text-slate-500">DA</span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </Link>
-                        </li>
-                      );
-                    })}
-
-                    {grouped.spareParts.length > 0 && (
-                      <li className="px-3 pt-2 pb-1">
-                        <div className="mb-1 flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                          <Wrench className="h-3.5 w-3.5" />
-                          قطع الغيار
-                        </div>
-                      </li>
-                    )}
-                    {grouped.spareParts.map((item) => {
-                      const idx = row;
-                      row += 1;
-                      return (
-                        <li key={`s-${item._id}`} role="option" aria-selected={idx === highlightIndex}>
-                          <Link
-                            href={item.href}
-                            onClick={() => {
-                              setOpen(false);
-                              setQuery("");
-                            }}
-                            className={`flex flex-row-reverse items-center gap-3 px-4 py-2.5 text-right transition-colors hover:bg-amber-50/80 ${
-                              idx === highlightIndex ? "bg-amber-50" : ""
-                            }`}
-                          >
-                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 sm:h-14 sm:w-14">
-                              <img
-                                src={getProductImageUrl(item.image)}
-                                alt=""
-                                className="h-full w-full object-contain"
-                              />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p
-                                className="line-clamp-2 text-left text-sm font-semibold text-slate-900"
-                                dir="ltr"
-                              >
-                                {highlightTokensInText(item.name, highlightTokens)}
-                              </p>
-                              <div className="mt-1 text-xs text-slate-500">
-                                <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
-                                  قطعة غيار
-                                </span>
-                              </div>
-                            </div>
-                          </Link>
-                        </li>
-                      );
-                    })}
-
-                    {grouped.accessories.length > 0 && (
-                      <li className="px-3 pt-2 pb-1">
-                        <div className="mb-1 flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                          <Headphones className="h-3.5 w-3.5" />
-                          الإكسسوارات
-                        </div>
-                      </li>
-                    )}
-                    {grouped.accessories.map((item) => {
-                      const idx = row;
-                      row += 1;
-                      return (
-                        <li key={`a-${item._id}`} role="option" aria-selected={idx === highlightIndex}>
-                          <Link
-                            href={item.href}
-                            onClick={() => {
-                              setOpen(false);
-                              setQuery("");
-                            }}
-                            className={`flex flex-row-reverse items-center gap-3 px-4 py-2.5 text-right transition-colors hover:bg-violet-50/80 ${
-                              idx === highlightIndex ? "bg-violet-50" : ""
-                            }`}
-                          >
-                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 sm:h-14 sm:w-14">
-                              <img
-                                src={getProductImageUrl(item.image)}
-                                alt=""
-                                className="h-full w-full object-contain"
-                              />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p
-                                className="line-clamp-2 text-left text-sm font-semibold text-slate-900"
-                                dir="ltr"
-                              >
-                                {highlightTokensInText(item.name, highlightTokens)}
-                              </p>
-                              <div className="mt-1 text-xs text-slate-500">
-                                <span className="rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-800">
-                                  أكسسوار
+                                <span className="rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-blue-700">
+                                  موديل
                                 </span>
                               </div>
                             </div>

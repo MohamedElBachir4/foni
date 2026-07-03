@@ -148,8 +148,7 @@ export function useSearchSuggestions(query: string, options: UseSearchOptions = 
     return () => ac.abort();
   }, [debouncedQuery, fetchResults]);
 
-  const totalResults =
-    grouped.phones.length + grouped.spareParts.length + grouped.accessories.length;
+  const totalResults = grouped.phones.length;
 
   return {
     grouped,

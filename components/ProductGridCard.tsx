@@ -11,6 +11,7 @@ type TieredProduct = Product & {
   priceRetail?: number;
   priceWholesale?: number;
   priceReparateur?: number;
+  detailHref?: string;
 };
 
 type ProductGridCardProps = {
@@ -111,6 +112,7 @@ export function ProductGridCard({
           image={product.image}
           colors={Array.isArray(product.colors) ? product.colors : undefined}
           category={product.category}
+          detailHref={product.detailHref}
         />
       </div>
     </div>

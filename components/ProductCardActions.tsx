@@ -28,6 +28,7 @@ export function ProductCardActions({
   priceRetail,
   priceWholesale,
   priceReparateur,
+  detailHref,
 }: {
   id: string;
   name: string;
@@ -39,6 +40,8 @@ export function ProductCardActions({
   priceRetail?: number;
   priceWholesale?: number;
   priceReparateur?: number;
+  /** رابط مخصص لصفحة التفاصيل (مثلاً موديل له قطع غيار دون منتج هاتف) */
+  detailHref?: string;
 }) {
   const colorsFingerprint = useMemo(() => {
     if (!Array.isArray(colors) || !colors.length) return "";
@@ -175,7 +178,7 @@ export function ProductCardActions({
           أضف للسلة
         </AddToCartButton>
         <Link
-          href={`/product/${id}/${slugifyProductName(name)}`}
+          href={detailHref || `/product/${id}/${slugifyProductName(name)}`}
           className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50/60 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 sm:py-3"
         >
           التفاصيل

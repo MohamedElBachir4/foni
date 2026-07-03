@@ -5,7 +5,10 @@ import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { type Product } from "@/lib/productsData";
 import { ProductGridCard } from "@/components/ProductGridCard";
 import { BestSellingCarousel } from "@/components/BestSellingCarousel";
-import { ProductPeekCarousel } from "@/components/ProductPeekCarousel";
+import {
+  ModelChoiceGrid,
+  type IphoneModelItem,
+} from "@/components/brand/IphoneModelSections";
 import { useAccount } from "@/context/AccountContext";
 import { getEffectivePrice, getPricingAccount } from "@/lib/pricing";
 import { sortPhoneTypesForAppleIphone } from "@/lib/iphoneModelOrder";
@@ -28,6 +31,8 @@ type ProductGridProps = {
 };
 
 const MONGO_ID = /^[a-f0-9]{24}$/i;
+
+type LatestModelRow = IphoneModelItem & { href: string; createdAt?: string };
 
 function mapApiPhoneToProduct(phone: {
   _id: string;
@@ -85,6 +90,8 @@ export function ProductGrid({
       priceWholesale?: number;
       priceReparateur?: number;
       createdAt?: string;
+      detailHref?: string;
+      href?: string;
     })[]
   >([]);
   const [apiLoading, setApiLoading] = useState(false);
@@ -123,21 +130,25 @@ export function ProductGrid({
     (data: unknown, isMixedHome: boolean) => {
       if (!Array.isArray(data)) return [];
       if (isMixedHome) {
-        return data.map((row: any) => ({
-          id: String(row.id || row._id || ""),
-          name: String(row.name || ""),
-          price: Number(row.price ?? 0),
-          priceRetail: typeof row.priceRetail === "number" ? row.priceRetail : undefined,
-          priceWholesale: typeof row.priceWholesale === "number" ? row.priceWholesale : undefined,
-          priceReparateur:
-            typeof row.priceReparateur === "number" ? row.priceReparateur : undefined,
-          brand: "",
-          category: String(row.category || "هواتف"),
-          image: String(row.image || ""),
-          colors: Array.isArray(row.colors) ? row.colors : [],
-          options: Array.isArray(row.options) ? row.options : [],
-          createdAt: row.createdAt,
-        }));
+        return data.map((row: any) => {
+          const id = String(row.phoneTypeId || row.id || row._id || "");
+          const href =
+            typeof row.detailHref === "string" && row.detailHref.trim()
+              ? row.detailHref.trim()
+              : "";
+          return {
+            id,
+            _id: id,
+            name: String(row.name || ""),
+            image: String(row.image || ""),
+            href,
+            detailHref: href,
+            brand: String(row.brandSlug || ""),
+            category: "موديل",
+            price: 0,
+            createdAt: row.createdAt,
+          };
+        });
       }
       const list = data.map(mapApiPhoneToProduct);
       const isApple = list.length > 0 && list[0]!.brand === "apple";
@@ -244,6 +255,17 @@ export function ProductGrid({
     return apiProducts;
   }, [apiProducts]);
 
+  const latestModels = useMemo((): LatestModelRow[] => {
+    if (!isLatestHome) return [];
+    return filteredProducts.map((p) => ({
+      _id: String(p.id),
+      name: p.name,
+      image: p.image,
+      href: String(p.detailHref || p.href || "").trim(),
+      createdAt: p.createdAt,
+    }));
+  }, [filteredProducts, isLatestHome]);
+
   useEffect(() => {
     // eslint-disable-next-line
     setPage(0);
@@ -259,6 +281,14 @@ export function ProductGrid({
         currentPage * productsPerPage,
         currentPage * productsPerPage + productsPerPage
       );
+
+  const visibleLatestModels = useMemo(() => {
+    if (!isLatestHome) return [];
+    return latestModels.slice(
+      currentPage * productsPerPage,
+      currentPage * productsPerPage + productsPerPage
+    );
+  }, [isLatestHome, latestModels, currentPage, productsPerPage]);
 
   const goNext = () => setPage((p) => Math.min(p + 1, totalPages - 1));
   const goPrev = () => setPage((p) => Math.max(p - 1, 0));
@@ -311,63 +341,39 @@ export function ProductGrid({
         <BestSellingCarousel products={visibleProducts} pricingAccount={pricingAccount} />
       ) : isLatestHome ? (
         <>
-          <ProductPeekCarousel
-            className="sm:hidden"
-            products={filteredProducts}
-            pricingAccount={pricingAccount}
-            variant="latest"
-            sectionLabel="أحدث المنتجات"
-            ariaLabel="أحدث المنتجات"
-          />
+          <div className="sm:hidden">
+            <ModelChoiceGrid
+              models={latestModels.filter((m) => m.href)}
+              getHref={(m) => (m as LatestModelRow).href}
+              ctaLabel="متابعة"
+            />
+          </div>
 
           <div className="hidden sm:flex sm:flex-nowrap sm:items-center sm:gap-4">
             <button
               type="button"
               onClick={goNext}
-              disabled={currentPage >= totalPages - 1 || filteredProducts.length === 0}
-              aria-label="المزيد من المنتجات"
+              disabled={currentPage >= totalPages - 1 || latestModels.length === 0}
+              aria-label="المزيد من الموديلات"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-50"
             >
               <ChevronRight className="h-5 w-5 text-gray-600" />
             </button>
 
             <div className="min-w-0 flex-1">
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-                {visibleProducts.map((product, index) => {
-                  const tiered = product as {
-                    price?: number;
-                    priceRetail?: number;
-                    priceWholesale?: number;
-                    priceReparateur?: number;
-                  };
-                  const effectivePrice = getEffectivePrice(
-                    {
-                      price: tiered.price,
-                      priceRetail: tiered.priceRetail,
-                      priceWholesale: tiered.priceWholesale,
-                      priceReparateur: tiered.priceReparateur,
-                    },
-                    pricingAccount
-                  );
-                  return (
-                    <ProductGridCard
-                      key={product.id}
-                      product={product}
-                      effectivePrice={effectivePrice}
-                      index={index}
-                      imageSizes="(max-width: 1024px) 50vw, 25vw"
-                      className="overflow-visible hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)] sm:overflow-hidden"
-                    />
-                  );
-                })}
-              </div>
+              <ModelChoiceGrid
+                models={visibleLatestModels.filter((m) => m.href)}
+                getHref={(m) => (m as LatestModelRow).href}
+                ctaLabel="متابعة"
+                className="sm:grid-cols-2 lg:grid-cols-4"
+              />
             </div>
 
             <button
               type="button"
               onClick={goPrev}
-              disabled={currentPage === 0 || filteredProducts.length === 0}
-              aria-label="المنتجات السابقة"
+              disabled={currentPage === 0 || latestModels.length === 0}
+              aria-label="الموديلات السابقة"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 disabled:pointer-events-none disabled:opacity-50"
             >
               <ChevronLeft className="h-5 w-5 text-gray-600" />

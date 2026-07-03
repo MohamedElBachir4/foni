@@ -43,6 +43,24 @@ export function IphoneOrPlainModelGrid({ brandParam, brandName, models, ctaLabel
   );
 }
 
+/** شبكة بطاقات الموديل بترتيب الـ API — للصفحة الرئيسية وغيرها */
+export function ModelChoiceGrid({
+  models,
+  getHref,
+  ctaLabel = "متابعة",
+  className = "",
+}: {
+  models: IphoneModelItem[];
+  getHref: (m: IphoneModelItem) => string;
+  ctaLabel?: string;
+  className?: string;
+}) {
+  if (models.length === 0) return null;
+  return (
+    <PlainGrid models={models} getHref={getHref} ctaLabel={ctaLabel} className={className} />
+  );
+}
+
 const cardClassName =
   "group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-right shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:ring-1 hover:ring-slate-300/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:rounded-[1.25rem]";
 
@@ -51,14 +69,16 @@ function PlainGrid({
   getHref,
   onModelNavigate,
   ctaLabel,
+  className = "",
 }: {
   models: IphoneModelItem[];
   getHref?: (m: IphoneModelItem) => string;
   onModelNavigate?: (m: IphoneModelItem) => void;
   ctaLabel: string;
+  className?: string;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div className={`grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 ${className}`.trim()}>
       {models.map((m) => {
         const inner = (
           <>
