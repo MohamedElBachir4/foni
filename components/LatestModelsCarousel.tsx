@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ProductImage } from "@/components/ProductImage";
+import { getProductImageUrl } from "@/lib/productImage";
 import {
   ProductPeekCarousel,
   type TieredProduct,
@@ -32,11 +32,13 @@ function ModelPeekCard({
       className={`group flex h-full min-h-[318px] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-right shadow-sm ${className}`}
     >
       <div className="relative flex min-h-[136px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50/95 to-white px-3 py-6">
-        <ProductImage
-          src={model.image || ""}
-          alt={model.name}
-          sizes="68vw"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={getProductImageUrl(model.image)}
+          alt=""
           className="max-h-[110px] w-full max-w-[110px] object-contain transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
+          decoding="async"
         />
         <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
           موديل
