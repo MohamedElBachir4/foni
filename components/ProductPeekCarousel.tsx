@@ -16,6 +16,15 @@ export type TieredProduct = Product & {
 
 export type ProductPeekVariant = "latest" | "bestSelling";
 
+export type PeekRenderCardOptions = {
+  index: number;
+  compact: boolean;
+  className: string;
+  isNearActive: boolean;
+  isActive: boolean;
+  theme: (typeof VARIANT_THEME)[ProductPeekVariant];
+};
+
 type ProductPeekCarouselProps = {
   products: TieredProduct[];
   pricingAccount: AccountInfo | null;
@@ -24,6 +33,7 @@ type ProductPeekCarouselProps = {
   ariaLabel: string;
   showRankBadges?: boolean;
   className?: string;
+  renderCard?: (product: TieredProduct, options: PeekRenderCardOptions) => React.ReactNode;
 };
 
 const AUTOPLAY_MS = 5500;
@@ -129,6 +139,7 @@ export function ProductPeekCarousel({
   ariaLabel,
   showRankBadges = false,
   className = "",
+  renderCard,
 }: ProductPeekCarouselProps) {
   const theme = VARIANT_THEME[variant];
   const [activeIndex, setActiveIndex] = useState(0);
@@ -365,19 +376,34 @@ export function ProductPeekCarousel({
 
                   {showRankBadges && <RankBadge rank={index} floating />}
 
-                  <ProductGridCard
-                    product={product}
-                    effectivePrice={getEffective(product)}
-                    index={index}
-                    priority={index === activeIndex}
-                    compact
-                    imageSizes="68vw"
-                    className={`transition-[box-shadow,border-color,filter] duration-500 ${
-                      isNearActive
-                        ? theme.activeCard
-                        : "cursor-pointer border-slate-200/40 shadow-[0_8px_24px_rgba(15,23,42,0.08)] saturate-[0.88]"
-                    }`}
-                  />
+                  {renderCard ? (
+                    renderCard(product, {
+                      index,
+                      compact: true,
+                      className: `transition-[box-shadow,border-color,filter] duration-500 ${
+                        isNearActive
+                          ? theme.activeCard
+                          : "cursor-pointer border-slate-200/40 shadow-[0_8px_24px_rgba(15,23,42,0.08)] saturate-[0.88]"
+                      }`,
+                      isNearActive,
+                      isActive,
+                      theme,
+                    })
+                  ) : (
+                    <ProductGridCard
+                      product={product}
+                      effectivePrice={getEffective(product)}
+                      index={index}
+                      priority={index === activeIndex}
+                      compact
+                      imageSizes="68vw"
+                      className={`transition-[box-shadow,border-color,filter] duration-500 ${
+                        isNearActive
+                          ? theme.activeCard
+                          : "cursor-pointer border-slate-200/40 shadow-[0_8px_24px_rgba(15,23,42,0.08)] saturate-[0.88]"
+                      }`}
+                    />
+                  )}
                 </div>
               </div>
             );

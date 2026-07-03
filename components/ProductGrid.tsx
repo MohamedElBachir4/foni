@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { type Product } from "@/lib/productsData";
 import { ProductGridCard } from "@/components/ProductGridCard";
 import { BestSellingCarousel } from "@/components/BestSellingCarousel";
+import { LatestModelsCarousel } from "@/components/LatestModelsCarousel";
 import {
   ModelChoiceGrid,
   type IphoneModelItem,
@@ -341,13 +342,7 @@ export function ProductGrid({
         <BestSellingCarousel products={visibleProducts} pricingAccount={pricingAccount} />
       ) : isLatestHome ? (
         <>
-          <div className="sm:hidden">
-            <ModelChoiceGrid
-              models={latestModels.filter((m) => m.href)}
-              getHref={(m) => (m as LatestModelRow).href}
-              ctaLabel="متابعة"
-            />
-          </div>
+          <LatestModelsCarousel models={latestModels.filter((m) => m.href)} />
 
           <div className="hidden sm:flex sm:flex-nowrap sm:items-center sm:gap-4">
             <button
