@@ -35,6 +35,39 @@ const MONGO_ID = /^[a-f0-9]{24}$/i;
 
 type LatestModelRow = IphoneModelItem & { href: string; createdAt?: string };
 
+type ProductMapMode = "brandPhones" | "latestModels" | "homeProducts";
+
+function mapHomeProductRow(row: {
+  id?: string;
+  _id?: string;
+  name?: string;
+  price?: number;
+  priceRetail?: number;
+  priceWholesale?: number;
+  priceReparateur?: number;
+  category?: string;
+  image?: string;
+  colors?: string[];
+  options?: string[];
+  createdAt?: string;
+}) {
+  return {
+    id: String(row.id || row._id || ""),
+    name: String(row.name || ""),
+    price: Number(row.price ?? 0),
+    priceRetail: typeof row.priceRetail === "number" ? row.priceRetail : undefined,
+    priceWholesale: typeof row.priceWholesale === "number" ? row.priceWholesale : undefined,
+    priceReparateur:
+      typeof row.priceReparateur === "number" ? row.priceReparateur : undefined,
+    brand: "",
+    category: String(row.category || "هواتف"),
+    image: String(row.image || ""),
+    colors: Array.isArray(row.colors) ? row.colors : [],
+    options: Array.isArray(row.options) ? row.options : [],
+    createdAt: row.createdAt,
+  };
+}
+
 function mapApiPhoneToProduct(phone: {
   _id: string;
   name: string;
@@ -128,9 +161,9 @@ export function ProductGrid({
   }, [queryKey]);
 
   const mapResponseToProducts = useCallback(
-    (data: unknown, isMixedHome: boolean) => {
+    (data: unknown, mode: ProductMapMode) => {
       if (!Array.isArray(data)) return [];
-      if (isMixedHome) {
+      if (mode === "latestModels") {
         return data.map((row: any) => {
           const id = String(row.phoneTypeId || row.id || row._id || "");
           const href =
@@ -151,6 +184,9 @@ export function ProductGrid({
           };
         });
       }
+      if (mode === "homeProducts") {
+        return data.map((row: any) => mapHomeProductRow(row));
+      }
       const list = data.map(mapApiPhoneToProduct);
       const isApple = list.length > 0 && list[0]!.brand === "apple";
       if (isApple) return sortPhoneTypesForAppleIphone(list);
@@ -167,6 +203,11 @@ export function ProductGrid({
     if (!hydrated) return;
 
     const isMixedHome = mixedLatest && !selectedBrandId && !phoneTypeId && !bestSelling;
+    const mapMode: ProductMapMode = isMixedHome
+      ? "latestModels"
+      : bestSelling
+        ? "homeProducts"
+        : "brandPhones";
     const endpoint = (() => {
       if (bestSelling) return "/api/home/best-selling-products";
       if (isMixedHome) return "/api/home/latest-products";
@@ -207,7 +248,7 @@ export function ProductGrid({
       })
       .then((data) => {
         if (isStale()) return;
-        const mapped = mapResponseToProducts(data, isMixedHome || bestSelling);
+        const mapped = mapResponseToProducts(data, mapMode);
         setApiProducts(mapped);
         if (typeof window !== "undefined" && mapped.length > 0) {
           try {
