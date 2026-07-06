@@ -618,7 +618,7 @@ export default function AdminOrdersPage() {
                     </p>
                   ) : null}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700">
                     <Package className="h-4 w-4 text-slate-500" />
                     المنتجات
@@ -627,81 +627,84 @@ export default function AdminOrdersPage() {
                     {order.items.map((item, i) => (
                       <li
                         key={i}
-                        className="flex flex-col justify-center rounded-lg bg-slate-50 px-3 py-2 text-sm"
+                        className="flex flex-col justify-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm"
                       >
-                        <div className="flex justify-between">
-                          <span className="flex-1">
-                            <input
-                              type="text"
-                              value={item.name}
-                              onChange={(e) =>
-                                updateOrderItemField(order._id, i, "name", e.target.value)
-                              }
-                              className="w-full rounded border border-slate-300 px-2 py-1 text-slate-800"
-                            />
-                            <span className="mt-1 inline-block text-xs text-slate-500">
-                              {item.variantSelections?.length ? (
-                                <span className="block space-y-1.5">
-                                  {item.variantSelections.map((v) => (
-                                    <span
-                                      key={v.label}
-                                      className="flex flex-wrap items-center gap-2 rounded border border-slate-200/80 bg-white px-2 py-1.5"
-                                    >
-                                      <span className="min-w-0 flex-1 font-medium text-slate-700">
-                                        {v.label}
-                                      </span>
-                                      <label className="flex shrink-0 items-center gap-1 text-slate-600">
-                                        <span className="whitespace-nowrap">كمية</span>
-                                        <input
-                                          type="number"
-                                          min={1}
-                                          step={1}
-                                          disabled={Boolean(order.yalidineTracking)}
-                                          value={v.quantity}
-                                          onChange={(e) =>
-                                            updateOrderVariantQuantity(
-                                              order._id,
-                                              i,
-                                              v.label,
-                                              e.target.value
-                                            )
-                                          }
-                                          className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center text-slate-800"
-                                        />
-                                      </label>
-                                      <span className="shrink-0 text-slate-500">
-                                        {(Number(v.price) * Number(v.quantity)).toLocaleString()} دج
-                                      </span>
+                        <textarea
+                          value={item.name}
+                          onChange={(e) =>
+                            updateOrderItemField(order._id, i, "name", e.target.value)
+                          }
+                          rows={Math.min(
+                            6,
+                            Math.max(1, Math.ceil((item.name?.length || 0) / 40))
+                          )}
+                          className="w-full resize-y break-words rounded border border-slate-300 px-2 py-1 text-slate-800"
+                        />
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <span className="min-w-0 flex-1 text-xs text-slate-500">
+                            {item.variantSelections?.length ? (
+                              <span className="block space-y-1.5">
+                                {item.variantSelections.map((v) => (
+                                  <span
+                                    key={v.label}
+                                    className="flex flex-wrap items-center gap-2 rounded border border-slate-200/80 bg-white px-2 py-1.5"
+                                  >
+                                    <span className="min-w-0 flex-1 break-words font-medium text-slate-700">
+                                      {v.label}
                                     </span>
-                                  ))}
-                                  <span className="font-semibold text-slate-600">
-                                    المجموع: {orderItemLineTotal(item).toLocaleString()} دج
+                                    <label className="flex shrink-0 items-center gap-1 text-slate-600">
+                                      <span className="whitespace-nowrap">كمية</span>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        step={1}
+                                        disabled={Boolean(order.yalidineTracking)}
+                                        value={v.quantity}
+                                        onChange={(e) =>
+                                          updateOrderVariantQuantity(
+                                            order._id,
+                                            i,
+                                            v.label,
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center text-slate-800"
+                                      />
+                                    </label>
+                                    <span className="shrink-0 text-slate-500">
+                                      {(Number(v.price) * Number(v.quantity)).toLocaleString()} دج
+                                    </span>
                                   </span>
+                                ))}
+                                <span className="font-semibold text-slate-600">
+                                  المجموع: {orderItemLineTotal(item).toLocaleString()} دج
                                 </span>
-                              ) : (
-                                <span className="flex flex-wrap items-center gap-2">
-                                  <label className="flex items-center gap-1 text-slate-600">
-                                    <span>الكمية</span>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      step={1}
-                                      disabled={Boolean(order.yalidineTracking)}
-                                      value={item.quantity}
-                                      onChange={(e) =>
-                                        updateOrderItemQuantity(order._id, i, e.target.value)
-                                      }
-                                      className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center text-slate-800"
-                                    />
-                                  </label>
-                                  {item.option ? (
-                                    <span className="text-slate-600">— الخيار: {item.option}</span>
-                                  ) : null}
-                                </span>
-                              )}
-                            </span>
+                              </span>
+                            ) : (
+                              <span className="flex flex-wrap items-center gap-2">
+                                <label className="flex items-center gap-1 text-slate-600">
+                                  <span>الكمية</span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    disabled={Boolean(order.yalidineTracking)}
+                                    value={item.quantity}
+                                    onChange={(e) =>
+                                      updateOrderItemQuantity(order._id, i, e.target.value)
+                                    }
+                                    className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center text-slate-800"
+                                  />
+                                </label>
+                                {item.option ? (
+                                  <span className="break-words text-slate-600">
+                                    — الخيار: {item.option}
+                                  </span>
+                                ) : null}
+                              </span>
+                            )}
                           </span>
-                          <span className="font-semibold text-slate-700">
+                          <span className="shrink-0 font-semibold text-slate-700">
                             <input
                               type="number"
                               min={0}

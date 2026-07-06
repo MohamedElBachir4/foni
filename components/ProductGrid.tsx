@@ -6,6 +6,7 @@ import { type Product } from "@/lib/productsData";
 import { ProductGridCard } from "@/components/ProductGridCard";
 import { BestSellingCarousel } from "@/components/BestSellingCarousel";
 import { LatestModelsCarousel } from "@/components/LatestModelsCarousel";
+import { RankBadge } from "@/components/ProductPeekCarousel";
 import {
   ModelChoiceGrid,
   type IphoneModelItem,
@@ -308,21 +309,35 @@ export function ProductGrid({
     }));
   }, [filteredProducts, isLatestHome]);
 
+  const bestSellingProducts = useMemo(() => {
+    if (!bestSelling) return [];
+    return filteredProducts.slice(0, HOME_BEST_SELLING_LIMIT);
+  }, [filteredProducts, bestSelling]);
+
+  const pagedItemCount = bestSelling
+    ? bestSellingProducts.length
+    : isLatestHome
+      ? latestModels.length
+      : filteredProducts.length;
+
   useEffect(() => {
     // eslint-disable-next-line
     setPage(0);
   }, [selectedBrandId, productsPerPage, phoneTypeId]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productsPerPage));
+  const totalPages = Math.max(1, Math.ceil(pagedItemCount / productsPerPage));
   const currentPage = Math.min(page, totalPages - 1);
   const visibleProducts = isBrandPage
     ? filteredProducts
     : bestSelling
-    ? filteredProducts.slice(0, HOME_BEST_SELLING_LIMIT)
-    : filteredProducts.slice(
-        currentPage * productsPerPage,
-        currentPage * productsPerPage + productsPerPage
-      );
+      ? bestSellingProducts.slice(
+          currentPage * productsPerPage,
+          currentPage * productsPerPage + productsPerPage
+        )
+      : filteredProducts.slice(
+          currentPage * productsPerPage,
+          currentPage * productsPerPage + productsPerPage
+        );
 
   const visibleLatestModels = useMemo(() => {
     if (!isLatestHome) return [];
@@ -380,7 +395,72 @@ export function ProductGrid({
           </div>
         </div>
       ) : bestSelling ? (
-        <BestSellingCarousel products={visibleProducts} pricingAccount={pricingAccount} />
+        <>
+          <BestSellingCarousel products={bestSellingProducts} pricingAccount={pricingAccount} />
+
+          <div className="hidden sm:flex sm:flex-nowrap sm:items-center sm:gap-4">
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={currentPage >= totalPages - 1 || bestSellingProducts.length === 0}
+              aria-label="المزيد من الأكثر مبيعاً"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-600" />
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {visibleProducts.map((product, index) => {
+                  const rank = currentPage * productsPerPage + index;
+                  const tiered = product as {
+                    price?: number;
+                    priceRetail?: number;
+                    priceWholesale?: number;
+                    priceReparateur?: number;
+                  };
+                  const effectivePrice = getEffectivePrice(
+                    {
+                      price: tiered.price,
+                      priceRetail: tiered.priceRetail,
+                      priceWholesale: tiered.priceWholesale,
+                      priceReparateur: tiered.priceReparateur,
+                    },
+                    pricingAccount
+                  );
+                  return (
+                    <div key={product.id} className="group relative">
+                      <div className="mb-3 flex justify-center">
+                        <RankBadge rank={rank} />
+                      </div>
+                      <ProductGridCard
+                        product={product}
+                        effectivePrice={effectivePrice}
+                        index={index}
+                        imageSizes="(max-width: 1024px) 50vw, 25vw"
+                        className={
+                          rank === 0
+                            ? "border-amber-200/80 shadow-[0_16px_40px_rgba(245,158,11,0.18)] hover:-translate-y-1.5 hover:border-amber-300 hover:shadow-[0_22px_48px_rgba(245,158,11,0.28)]"
+                            : "hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_18px_40px_rgba(37,99,235,0.16)]"
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={goPrev}
+              disabled={currentPage === 0 || bestSellingProducts.length === 0}
+              aria-label="المنتجات السابقة"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 disabled:pointer-events-none disabled:opacity-50"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+        </>
       ) : isLatestHome ? (
         <>
           <LatestModelsCarousel models={latestModels.filter((m) => m.href)} />

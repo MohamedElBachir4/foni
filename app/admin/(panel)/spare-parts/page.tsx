@@ -95,6 +95,7 @@ type ImportArchiveItem = {
   _id: string;
   fileName: string;
   uploadedByAdminEmail?: string;
+  autoCreatePhones?: boolean;
   status: ImportArchiveStatus;
   createdAt: string;
   report?: {
@@ -170,6 +171,7 @@ export default function AdminSparePartsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
+  const [autoCreatePhonesOnImport, setAutoCreatePhonesOnImport] = useState(false);
   const [importReport, setImportReport] = useState<{
     createdProducts: number;
     updatedProducts: number;
@@ -1221,6 +1223,7 @@ export default function AdminSparePartsPage() {
     try {
       const formData = new FormData();
       formData.append("file", importFile);
+      formData.append("autoCreatePhones", autoCreatePhonesOnImport ? "1" : "0");
       const token = getToken();
       const res = await fetch(`${API_URL}/api/spare-parts/import`, {
         method: "POST",
@@ -1306,6 +1309,7 @@ export default function AdminSparePartsPage() {
   const closeImportModal = () => {
     setImportOpen(false);
     setImportFile(null);
+    setAutoCreatePhonesOnImport(false);
   };
 
   const clearImportReport = () => {
@@ -1446,6 +1450,29 @@ export default function AdminSparePartsPage() {
               <p className="mt-1 text-xs text-slate-500">{importFile.name}</p>
             )}
           </div>
+
+          <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-800">
+                إنشاء الهواتف تلقائياً أثناء الاستيراد
+              </span>
+              <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+                عند التفعيل: إذا لم يُعثر على الموديل في القاعدة يُنشأ هاتف جديد بعد التحقق من
+                عدم وجوده. عند التعطيل (الافتراضي): يبقى السلوك الحالي ويُرفض السطر إذا لم يُوجد
+                الهاتف.
+              </span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2 pt-0.5 text-xs text-slate-500">
+              {autoCreatePhonesOnImport ? "مفعّل" : "معطّل"}
+              <input
+                type="checkbox"
+                checked={autoCreatePhonesOnImport}
+                onChange={(e) => setAutoCreatePhonesOnImport(e.target.checked)}
+                disabled={importing}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+            </span>
+          </label>
 
           <div className="flex gap-3 pt-2">
             <AdminButton
@@ -2642,9 +2669,20 @@ export default function AdminSparePartsPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-700">
-            {archiveConfirm?.mode === "all"
-              ? "هل تريد حذف جميع المنتجات المرتبطة بعملية الرفع هذه؟"
-              : `هل تريد حذف المنتج "${archiveConfirm?.productName || ""}" من هذه العملية؟`}
+            {archiveConfirm?.mode === "all" ? (
+              <>
+                هل تريد حذف جميع المنتجات المرتبطة بعملية الرفع هذه؟
+                {selectedArchive?.autoCreatePhones ? (
+                  <span className="mt-2 block text-xs leading-relaxed text-amber-800">
+                    هذه العملية أُجريت مع تفعيل «إنشاء الهواتف تلقائياً». عند حذف جميع
+                    المنتجات، سيحاول النظام أيضاً حذف الهواتف التي أُنشئت تلقائياً خلالها
+                    فقط — دون حذف أي هاتف كان موجوداً مسبقاً أو مرتبطاً بمنتجات أخرى.
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              `هل تريد حذف المنتج "${archiveConfirm?.productName || ""}" من هذه العملية؟`
+            )}
           </p>
           <div className="flex gap-2">
             <AdminButton
