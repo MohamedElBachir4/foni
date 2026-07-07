@@ -1,11 +1,13 @@
-/** صورة افتراضية عند غياب صورة المنتج — PHOTO NON DISPONIBLE (foni/public). */
-const DEFAULT_PHONE_IMAGE = "/photo-non-disponible.jpeg";
+/** صورة افتراضية عند غياب صورة المنتج — foni/public/images/part-defaults/ */
+const DEFAULT_PHONE_IMAGE = "/images/part-defaults/photo-non-disponible.jpeg";
+const LEGACY_DEFAULT_PHONE_IMAGE = "/photo-non-disponible.jpeg";
 
 /** صور قطع الغيار الافتراضية من استيراد Excel — foni/public/images/part-defaults/ */
 const PART_DEFAULT_IMAGES_PREFIX = "/images/part-defaults/";
 const LEGACY_PART_DEFAULT_IMAGES_PREFIX = "/part-defaults/";
 
 function remapPartDefaultImagePath(path: string): string {
+  if (path === LEGACY_DEFAULT_PHONE_IMAGE) return DEFAULT_PHONE_IMAGE;
   if (path.startsWith(LEGACY_PART_DEFAULT_IMAGES_PREFIX)) {
     return `${PART_DEFAULT_IMAGES_PREFIX}${path.slice(LEGACY_PART_DEFAULT_IMAGES_PREFIX.length)}`;
   }
@@ -98,3 +100,12 @@ export function getProductMediaUrl(mediaUrl: string | undefined | null): string 
 }
 
 export { DEFAULT_PHONE_IMAGE };
+
+/** يعيد أول مسار صورة صالح من الحقول المتاحة (image / imageUrl). */
+export function resolveProductImageSrc(
+  image?: string | null,
+  imageUrl?: string | null
+): string {
+  const raw = (image ?? imageUrl ?? "").trim();
+  return raw ? getProductImageUrl(raw) : DEFAULT_PHONE_IMAGE;
+}

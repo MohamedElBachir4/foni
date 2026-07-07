@@ -1,6 +1,7 @@
 "use client";
 
-import { getProductImageUrl } from "@/lib/productImage";
+import { useState } from "react";
+import { getProductImageUrl, DEFAULT_PHONE_IMAGE } from "@/lib/productImage";
 
 interface AdminTableProps {
   columns: { key: string; label: string; className?: string }[];
@@ -84,6 +85,8 @@ export function AdminTableCellImage({
   alt?: string;
   size?: number;
 }) {
+  const [useFallback, setUseFallback] = useState(false);
+
   if (!src) {
     return (
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
@@ -92,7 +95,7 @@ export function AdminTableCellImage({
     );
   }
 
-  const imageSrc = getProductImageUrl(src);
+  const imageSrc = useFallback ? DEFAULT_PHONE_IMAGE : getProductImageUrl(src);
 
   return (
     <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
@@ -103,6 +106,7 @@ export function AdminTableCellImage({
         width={size}
         height={size}
         className="h-10 w-10 object-cover"
+        onError={() => setUseFallback(true)}
       />
     </div>
   );

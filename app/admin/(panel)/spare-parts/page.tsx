@@ -122,6 +122,7 @@ type ImportArchiveProduct = {
   _id: string;
   name: string;
   image?: string;
+  imageUrl?: string;
   priceRetail?: number;
   price?: number;
   createdAt?: string;
@@ -226,6 +227,7 @@ export default function AdminSparePartsPage() {
   const [archiveProductsTotalPages, setArchiveProductsTotalPages] = useState(1);
   const [archiveProductsTotal, setArchiveProductsTotal] = useState(0);
   const [archiveDeleting, setArchiveDeleting] = useState(false);
+  const [archiveRefetching, setArchiveRefetching] = useState(false);
   const [archiveConfirm, setArchiveConfirm] = useState<{
     mode: "single" | "all";
     archiveId: string;
@@ -376,6 +378,39 @@ export default function AdminSparePartsPage() {
       setArchiveProductsLoading(false);
     }
   }, []);
+
+  const refetchArchiveImages = useCallback(async (archiveId: string) => {
+    setArchiveRefetching(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/spare-parts/import-archives/${archiveId}/refetch-images`,
+        { method: "POST", headers: getAuthHeaders(), credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({
+          type: "error",
+          text: data.error || "تعذّر إعادة جلب الصور",
+        });
+        return;
+      }
+      const refetched = Number(data.refetched ?? 0);
+      const failed = Number(data.failed ?? 0);
+      const targets = Number(data.targets ?? 0);
+      let text = `تم جلب ${refetched} صورة من أصل ${targets} منتج`;
+      if (failed > 0) text += ` — فشل ${failed}`;
+      if (data.serperEnabled === false) {
+        text += ". تحذير: Serper غير متاح — تحقق من IMAGE_SEARCH_API_KEY";
+      }
+      setMessage({ type: refetched > 0 ? "success" : "error", text });
+      await fetchArchiveProducts(archiveId, archiveProductsPage);
+      fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم أثناء جلب الصور" });
+    } finally {
+      setArchiveRefetching(false);
+    }
+  }, [archiveProductsPage, brandFilter, currentPage, debouncedSearch, fetchArchiveProducts, fetchParts]);
 
   useEffect(() => {
     fetchBrands();
@@ -2236,7 +2271,7 @@ export default function AdminSparePartsPage() {
                   ),
                 }
               : {}),
-            image: <AdminTableCellImage src={p.image} alt={getAdminDisplayName(p)} />,
+            image: <AdminTableCellImage src={p.image || p.imageUrl} alt={getAdminDisplayName(p)} />,
             name: (
               <span className="inline-flex flex-wrap items-center gap-1.5 font-medium text-slate-800">
                 {getAdminDisplayName(p)}
@@ -2557,6 +2592,18 @@ export default function AdminSparePartsPage() {
                 تحميل تقرير Excel
               </AdminButton>
             ) : null}
+            {selectedArchive && selectedArchive.status !== "processing" ? (
+              <AdminButton
+                variant="outline"
+                size="sm"
+                icon={<RefreshCw className="h-4 w-4" />}
+                disabled={archiveRefetching || archiveProductsTotal === 0}
+                loading={archiveRefetching}
+                onClick={() => void refetchArchiveImages(selectedArchive._id)}
+              >
+                إعادة جلب الصور
+              </AdminButton>
+            ) : null}
             <AdminButton
               variant="danger"
               size="sm"
@@ -2602,7 +2649,7 @@ export default function AdminSparePartsPage() {
                   archiveProducts.map((product) => (
                     <tr key={product._id} className="border-b border-slate-100">
                       <td className="px-3 py-2">
-                        <AdminTableCellImage src={product.image} alt={product.name} />
+                        <AdminTableCellImage src={product.image || product.imageUrl} alt={product.name} />
                       </td>
                       <td className="px-3 py-2 font-medium text-slate-800">{product.name}</td>
                       <td className="px-3 py-2">{Number(product.priceRetail ?? product.price ?? 0)} دج</td>
