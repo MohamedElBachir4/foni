@@ -2,19 +2,22 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { getProductImageUrl, DEFAULT_PHONE_IMAGE } from "@/lib/productImage";
+import {
+  getProductImageUrl,
+  DEFAULT_PHONE_IMAGE,
+  type ProductImageSize,
+} from "@/lib/productImage";
 
 type ProductImageProps = {
   src: string;
   alt: string;
   className?: string;
-  /** أولوية التحميل للصور الظاهرة أولاً (أسرع تحميلاً) */
+  /** thumb للمصغّرات، card للبطاقات، hero لصفحة المنتج */
+  size?: ProductImageSize;
+  /** أولوية التحميل للصورة الأولى فقط (LCP) */
   priority?: boolean;
   /** أحجام العرض المتوقعة (لتقليل حجم التحميل) */
   sizes?: string;
-  /**
-   * جودة ضغط محسنة Next (1–100). الافتراضي أعلى للصور الأولى وظهور أفضل على الشاشات عالية الدقة.
-   */
   quality?: number;
 };
 
@@ -22,20 +25,20 @@ const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjFmNWY5Ii8+PC9zdmc+";
 
 /**
- * يعرض صورة المنتج مع تحميل كسول وأولوية للصور الأولى. عند الفشل يعرض الصورة الافتراضية.
+ * يعرض صورة المنتج مع تحميل كسول. روابط Cloudinary تُضغَّط تلقائياً حسب size.
  */
 export function ProductImage({
   src,
   alt,
   className,
+  size = "card",
   priority = false,
   sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
   quality: qualityProp,
 }: ProductImageProps) {
   const [useFallback, setUseFallback] = useState(false);
-  const resolvedSrc = getProductImageUrl(src);
-  const jpegQuality = qualityProp ?? (priority ? 92 : 88);
-  /** مسارات نسبية من جذر الموقع (مثل /uploads) تمر عبر Next Image؛ أي رابط مطلق أو data: يعرض tag img */
+  const resolvedSrc = getProductImageUrl(src, { size });
+  const jpegQuality = qualityProp ?? (priority ? 82 : 75);
   const isLocalPathForOptimizer =
     resolvedSrc.startsWith("/") &&
     !resolvedSrc.toLowerCase().startsWith("///");
@@ -64,7 +67,7 @@ export function ProductImage({
         className={className}
         loading={priority ? "eager" : "lazy"}
         fetchPriority={priority ? "high" : "auto"}
-        decoding={priority ? "sync" : "async"}
+        decoding="async"
         style={{ width: "100%", height: "100%", objectFit: "contain" }}
         onError={() => setUseFallback(true)}
       />

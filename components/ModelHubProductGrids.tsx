@@ -8,6 +8,8 @@ import { useAccount } from "@/context/AccountContext";
 import { formatDzd, getEffectivePrice, getPricingAccount } from "@/lib/pricing";
 import { publicFetch } from "@/lib/publicFetch";
 
+const GRID_PAGE_SIZE = 24;
+
 type HubProduct = {
   _id: string;
   name: string;
@@ -40,6 +42,13 @@ function ProductGridSection({
 }) {
   const { account } = useAccount();
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
+  const [visibleCount, setVisibleCount] = useState(GRID_PAGE_SIZE);
+  const shownItems = items.slice(0, visibleCount);
+  const hasMore = items.length > visibleCount;
+
+  useEffect(() => {
+    setVisibleCount(GRID_PAGE_SIZE);
+  }, [items]);
 
   return (
     <div>
@@ -56,8 +65,9 @@ function ProductGridSection({
           لا توجد منتجات لهذا الموديل حالياً.
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
-          {items.map((item) => {
+          {shownItems.map((item) => {
             const effectivePrice = getEffectivePrice(
               {
                 price: item.price,
@@ -115,6 +125,18 @@ function ProductGridSection({
             );
           })}
         </div>
+        {hasMore ? (
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((n) => n + GRID_PAGE_SIZE)}
+              className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              عرض المزيد ({items.length - visibleCount} متبقية)
+            </button>
+          </div>
+        ) : null}
+        </>
       )}
     </div>
   );

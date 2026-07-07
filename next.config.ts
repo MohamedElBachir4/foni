@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
       { protocol: "http", hostname: "localhost", pathname: "/**" },
       { protocol: "https", hostname: "localhost", pathname: "/**" },
       { protocol: "https", hostname: "api.foni-dz.com", pathname: "/**" },
+      { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1440, 1920, 2048],
     imageSizes: [96, 128, 160, 256, 384, 512, 640],

@@ -52,7 +52,7 @@ export function ProductGridCard({
         <ProductImage
           src={product.image}
           alt={product.name}
-          priority={priority || index < 4}
+          priority={priority || index === 0}
           sizes={imageSizes}
           className={`h-full w-full object-contain drop-shadow-[0_12px_22px_rgba(15,23,42,0.24)] ${
             compact ? "rounded-xl p-1.5" : "rounded-2xl p-2 sm:p-3"

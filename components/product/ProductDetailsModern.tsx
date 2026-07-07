@@ -424,6 +424,7 @@ export function ProductDetailsModern({
                 <ProductImage
                   src={selectedMedia}
                   alt={product.name}
+                  size="hero"
                   priority
                   sizes="(max-width: 1024px) 95vw, min(640px, 45vw)"
                   className="object-contain p-2 sm:p-4"
@@ -446,6 +447,7 @@ export function ProductDetailsModern({
                     <ProductImage
                       src={img}
                       alt={`${product.name}-${idx + 1}`}
+                      size="thumb"
                       sizes="64px"
                       className="object-cover p-0"
                     />
@@ -806,6 +808,7 @@ export function ProductDetailsModern({
                   <ProductImage
                     src={item.image ?? ""}
                     alt={item.name}
+                    size="card"
                     sizes="(max-width: 640px) 50vw, 25vw"
                     className="object-contain w-full max-w-[100px] sm:max-w-[130px]"
                   />

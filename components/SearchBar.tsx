@@ -238,7 +238,7 @@ export function SearchBar() {
                           >
                             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 sm:h-14 sm:w-14">
                               <img
-                                src={getProductImageUrl(item.image)}
+                                src={getProductImageUrl(item.image, { size: "thumb" })}
                                 alt=""
                                 className="h-full w-full object-contain"
                                 loading="lazy"

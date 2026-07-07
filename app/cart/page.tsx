@@ -78,6 +78,7 @@ export default function CartPage() {
                     <ProductImage
                       src={item.image}
                       alt={item.name}
+                      size="thumb"
                       className="object-contain p-1"
                       sizes="128px"
                     />

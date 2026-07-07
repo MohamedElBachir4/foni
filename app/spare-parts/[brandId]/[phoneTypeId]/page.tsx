@@ -13,6 +13,8 @@ import { resolveBrandRouteParam } from "@/lib/resolveBrandRouteParam";
 
 import { publicFetch } from "@/lib/publicFetch";
 
+const PAGE_SIZE = 24;
+
 type SparePart = {
   _id: string;
   name: string;
@@ -41,8 +43,19 @@ export default function SparePartsListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [page, setPage] = useState(1);
   const { account } = useAccount();
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
+
+  const totalPages = Math.max(1, Math.ceil(parts.length / PAGE_SIZE));
+  const visibleParts = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return parts.slice(start, start + PAGE_SIZE);
+  }, [parts, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [phoneTypeId]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
@@ -169,6 +182,11 @@ export default function SparePartsListPage() {
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
             اختر القطعة وأضفها إلى السلة.
+            {parts.length > 0 ? (
+              <span className="mr-1 text-slate-500">
+                ({parts.length} قطعة)
+              </span>
+            ) : null}
           </p>
         </header>
 
@@ -198,7 +216,7 @@ export default function SparePartsListPage() {
               <div
                 className={`grid ${isMobile ? "grid-cols-2 gap-3 sm:gap-4" : "grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"}`}
               >
-                {parts.map((part, index) => {
+                {visibleParts.map((part, index) => {
                   const effectivePrice = getEffectivePrice(
                     {
                       price: part.price,
@@ -218,8 +236,8 @@ export default function SparePartsListPage() {
                       <ProductImage
                         src={part.image ?? ""}
                         alt={part.name}
-                        priority={index < 4}
-                        sizes={isMobile ? "(max-width: 640px) 50vw, 25vw" : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"}
+                        priority={page === 1 && index < 2}
+                        sizes={isMobile ? "(max-width: 640px) 45vw, 180px" : "(max-width: 1024px) 25vw, 220px"}
                         className="h-full w-full object-contain p-2 sm:p-3"
                       />
                       <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm sm:start-4 sm:top-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
@@ -268,6 +286,29 @@ export default function SparePartsListPage() {
                   );
                 })}
               </div>
+              {totalPages > 1 && (
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    السابق
+                  </button>
+                  <span className="px-2 text-sm text-slate-600">
+                    صفحة {page} من {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    التالي
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

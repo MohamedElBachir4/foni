@@ -34,7 +34,7 @@ function ModelPeekCard({
       <div className="relative flex min-h-[136px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50/95 to-white px-3 py-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={getProductImageUrl(model.image)}
+          src={getProductImageUrl(model.image, { size: "thumb" })}
           alt=""
           className="max-h-[110px] w-full max-w-[110px] object-contain transition-transform duration-300 group-hover:scale-105"
           loading="lazy"

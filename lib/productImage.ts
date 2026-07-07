@@ -2,6 +2,17 @@
 const DEFAULT_PHONE_IMAGE = "/images/part-defaults/photo-non-disponible.jpeg";
 const LEGACY_DEFAULT_PHONE_IMAGE = "/photo-non-disponible.jpeg";
 
+/** أحجام العرض — تُطبَّق على روابط Cloudinary لتسريع التحميل */
+export type ProductImageSize = "thumb" | "card" | "hero" | "full";
+
+const IMAGE_SIZE_WIDTH: Record<Exclude<ProductImageSize, "full">, number> = {
+  thumb: 128,
+  card: 384,
+  hero: 960,
+};
+
+const CLOUDINARY_HOST_RE = /res\.cloudinary\.com/i;
+
 /** صور قطع الغيار الافتراضية من استيراد Excel — foni/public/images/part-defaults/ */
 const PART_DEFAULT_IMAGES_PREFIX = "/images/part-defaults/";
 const LEGACY_PART_DEFAULT_IMAGES_PREFIX = "/part-defaults/";
@@ -36,6 +47,47 @@ function looksLikeDomainUrl(raw: string): boolean {
   return /^[a-z0-9.-]+\.[a-z]{2,}(?:[/:?#].*)?$/i.test(s);
 }
 
+export function isCloudinaryImageUrl(url: string): boolean {
+  return CLOUDINARY_HOST_RE.test(String(url || ""));
+}
+
+/** يُضيف تحويلات Cloudinary (عرض + ضغط تلقائي) دون إعادة رفع الصورة */
+function applyCloudinaryTransform(url: string, width: number): string {
+  if (!isCloudinaryImageUrl(url) || !width || width <= 0) return url;
+  const marker = "/image/upload/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return url;
+
+  const prefix = url.slice(0, idx + marker.length);
+  const rest = url.slice(idx + marker.length);
+  const transform = `w_${width},c_limit,q_auto:good,f_auto,dpr_auto`;
+
+  if (/^w_\d+/.test(rest)) {
+    return `${prefix}${rest.replace(/^w_\d+/, `w_${width}`)}`;
+  }
+  if (/^v\d+\//.test(rest)) {
+    return `${prefix}${transform}/${rest}`;
+  }
+  if (rest.includes("/") && !/^v\d+\//.test(rest)) {
+    return `${prefix}${transform}/${rest}`;
+  }
+  return `${prefix}${transform}/${rest}`;
+}
+
+export type ProductImageUrlOptions = {
+  /** thumb=128px, card=384px, hero=960px, full=بدون تحويل */
+  size?: ProductImageSize;
+  /** عرض مخصص بالبكسل — يُستخدم مع Cloudinary فقط */
+  width?: number;
+};
+
+function resolveTargetWidth(opts?: ProductImageUrlOptions): number | null {
+  if (!opts) return null;
+  if (opts.width && opts.width > 0) return Math.round(opts.width);
+  if (opts.size && opts.size !== "full") return IMAGE_SIZE_WIDTH[opts.size];
+  return null;
+}
+
 /**
  * يعيد رابطاً صالحاً لصورة المنتج.
  * - فارغ: الصورة الافتراضية.
@@ -43,35 +95,37 @@ function looksLikeDomainUrl(raw: string): boolean {
  * - http(s)، data:، blob:، file:، وغيرها من المخططات: كما أُدخلت.
  * - مسار نسبي من جذر الموقع /uploads/...: يُعاد كما هو ليمرّ عبر نفس الأصل (next/image أو rewrites).
  */
-export function getProductImageUrl(imageUrl: string | undefined | null): string {
+export function getProductImageUrl(
+  imageUrl: string | undefined | null,
+  opts?: ProductImageUrlOptions
+): string {
   const raw = (imageUrl ?? "").trim();
+  const targetWidth = resolveTargetWidth(opts);
+
+  let resolved = "";
   if (raw.startsWith("//") && !raw.toLowerCase().startsWith("///")) {
-    return `https:${raw}`;
-  }
-  if (looksLikeDomainUrl(raw)) {
-    return `https://${raw.replace(/^\/+/, "")}`;
-  }
-  if (
+    resolved = `https:${raw}`;
+  } else if (looksLikeDomainUrl(raw)) {
+    resolved = `https://${raw.replace(/^\/+/, "")}`;
+  } else if (
     raw.startsWith("http://") ||
     raw.startsWith("https://") ||
     /^data:/i.test(raw) ||
     /^blob:/i.test(raw) ||
     /^file:/i.test(raw)
   ) {
-    return raw;
-  }
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) || /^[a-z][a-z0-9+.-]+:/i.test(raw)) {
-    return raw;
+    resolved = raw;
+  } else if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) || /^[a-z][a-z0-9+.-]+:/i.test(raw)) {
+    resolved = raw;
+  } else {
+    const path = remapPartDefaultImagePath(normalizeImagePath(raw));
+    resolved = path || DEFAULT_PHONE_IMAGE;
   }
 
-  const path = remapPartDefaultImagePath(normalizeImagePath(raw));
-  if (!path) return DEFAULT_PHONE_IMAGE;
-
-  // نُعيد دائماً مساراً نسبياً من جذر الموقع (/uploads/...). هكذا يمرّ التحميل عبر نفس
-  // الأصل: إمّا عبر next/image (تحسين على الخادم) أو عبر <img> ثم rewrites في next.config
-  // إلى الـ API. هذا يتجنّب تحميل الصور مباشرةً من النطاق الفرعي api.foni-dz.com الذي
-  // يتعطّل على بيانات الجوال 4G/5G (DNS/مشغّل الشبكة) بينما يعمل على الـ Wi‑Fi.
-  return path;
+  if (targetWidth && isCloudinaryImageUrl(resolved)) {
+    return applyCloudinaryTransform(resolved, targetWidth);
+  }
+  return resolved;
 }
 
 /** نفس منطق الصور — للفيديو والوسائط الأخرى (بدون صورة افتراضية). */
@@ -104,8 +158,9 @@ export { DEFAULT_PHONE_IMAGE };
 /** يعيد أول مسار صورة صالح من الحقول المتاحة (image / imageUrl). */
 export function resolveProductImageSrc(
   image?: string | null,
-  imageUrl?: string | null
+  imageUrl?: string | null,
+  opts?: ProductImageUrlOptions
 ): string {
   const raw = (image ?? imageUrl ?? "").trim();
-  return raw ? getProductImageUrl(raw) : DEFAULT_PHONE_IMAGE;
+  return raw ? getProductImageUrl(raw, opts) : DEFAULT_PHONE_IMAGE;
 }

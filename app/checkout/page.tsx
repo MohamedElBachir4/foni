@@ -486,6 +486,7 @@ export default function CheckoutPage() {
                       <ProductImage
                         src={item.image}
                         alt={item.name}
+                        size="thumb"
                         className="object-contain"
                         sizes="56px"
                       />
