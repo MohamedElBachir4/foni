@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1440, 1920, 2048],
     imageSizes: [96, 128, 160, 256, 384, 512, 640],
     /** صور منتج عالية الوضوح لا تستخدم قيمًا غير موجودة هنا */
-    qualities: [75, 78, 80, 85, 88, 90, 92, 95],
+    qualities: [75, 78, 80, 82, 85, 88, 90, 92, 95],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },

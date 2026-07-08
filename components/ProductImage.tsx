@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getProductImageUrl,
   DEFAULT_PHONE_IMAGE,
@@ -24,8 +24,20 @@ type ProductImageProps = {
 const BLUR_DATA =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjFmNWY5Ii8+PC9zdmc+";
 
+type RenderMode = "optimized" | "native" | "placeholder";
+
+function resolveInitialMode(resolvedSrc: string): RenderMode {
+  const isLocalPathForOptimizer =
+    resolvedSrc.startsWith("/") &&
+    !resolvedSrc.toLowerCase().startsWith("///");
+  if (resolvedSrc === DEFAULT_PHONE_IMAGE) return "placeholder";
+  if (!isLocalPathForOptimizer) return "native";
+  return "optimized";
+}
+
 /**
  * يعرض صورة المنتج مع تحميل كسول. روابط Cloudinary تُضغَّط تلقائياً حسب size.
+ * عند فشل تحسين Next Image (جودة غير مسموحة / إلخ) يُعاد العرض بـ <img> قبل الصورة الافتراضية.
  */
 export function ProductImage({
   src,
@@ -36,15 +48,16 @@ export function ProductImage({
   sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
   quality: qualityProp,
 }: ProductImageProps) {
-  const [useFallback, setUseFallback] = useState(false);
   const resolvedSrc = getProductImageUrl(src, { size });
-  const jpegQuality = qualityProp ?? (priority ? 82 : 75);
-  const isLocalPathForOptimizer =
-    resolvedSrc.startsWith("/") &&
-    !resolvedSrc.toLowerCase().startsWith("///");
-  const useNativeImg = !isLocalPathForOptimizer && resolvedSrc !== DEFAULT_PHONE_IMAGE;
+  /** يجب أن تكون الجودة ضمن next.config.ts → images.qualities وإلا يفشل /_next/image */
+  const jpegQuality = qualityProp ?? (priority ? 85 : 75);
+  const [mode, setMode] = useState<RenderMode>(() => resolveInitialMode(resolvedSrc));
 
-  if (useFallback) {
+  useEffect(() => {
+    setMode(resolveInitialMode(resolvedSrc));
+  }, [resolvedSrc]);
+
+  if (mode === "placeholder") {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -58,7 +71,7 @@ export function ProductImage({
     );
   }
 
-  if (useNativeImg) {
+  if (mode === "native") {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -69,7 +82,7 @@ export function ProductImage({
         fetchPriority={priority ? "high" : "auto"}
         decoding="async"
         style={{ width: "100%", height: "100%", objectFit: "contain" }}
-        onError={() => setUseFallback(true)}
+        onError={() => setMode("placeholder")}
       />
     );
   }
@@ -88,7 +101,7 @@ export function ProductImage({
           placeholder="blur"
           blurDataURL={BLUR_DATA}
           quality={jpegQuality}
-          onError={() => setUseFallback(true)}
+          onError={() => setMode("native")}
         />
       </div>
     );
@@ -96,12 +109,13 @@ export function ProductImage({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={DEFAULT_PHONE_IMAGE}
+        src={resolvedSrc || DEFAULT_PHONE_IMAGE}
         alt={alt}
         className={className}
         loading="lazy"
         decoding="async"
         style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        onError={() => setMode("placeholder")}
       />
     );
   }
