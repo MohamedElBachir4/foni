@@ -69,7 +69,11 @@ export default function SpareModelsPage() {
 
   const fetchBrands = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/api/brands`, { headers: getAuthHeaders(), credentials: 'include',  });
+      const res = await fetch(`${API_URL}/api/brands`, {
+        headers: getAuthHeaders(),
+        credentials: "include",
+        cache: "no-store",
+      });
       if (res.ok) {
         const data = await res.json();
         setBrands(Array.isArray(data) ? data : []);
@@ -121,6 +125,7 @@ export default function SpareModelsPage() {
 
   function openCreatePhoneModal() {
     resetForm();
+    void fetchBrands();
     setPhoneModalOpen(true);
   }
 
@@ -396,17 +401,29 @@ export default function SpareModelsPage() {
     }
   }
 
-  // نفس الماركات الموجودة في /spare-parts (قائمة ثابتة) لكن مربوطة ببيانات API عند التوفر
+  // القائمة الثابتة + كل الماركات المضافة من لوحة الماركات (API)
   const brandsForDisplay = useMemo(() => {
     const apiByKey = new Map<string, Brand>();
     for (const b of brands) {
       apiByKey.set(normalizeKey(b.name), b);
     }
 
-    return SPARE_PARTS_STATIC_BRANDS.map((sb) => {
+    const merged = new Map<string, Brand>();
+
+    for (const sb of SPARE_PARTS_STATIC_BRANDS) {
       const fromApi = apiByKey.get(sb.slug) || apiByKey.get(normalizeKey(sb.name));
-      return fromApi || { _id: `static:${sb.slug}`, name: sb.name };
-    });
+      const brand = fromApi || { _id: `static:${sb.slug}`, name: sb.name };
+      merged.set(normalizeKey(brand.name), brand);
+    }
+
+    for (const b of brands) {
+      const key = normalizeKey(b.name);
+      if (!merged.has(key)) {
+        merged.set(key, b);
+      }
+    }
+
+    return Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [brands]);
 
   function startEdit(item: PhoneType) {
