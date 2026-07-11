@@ -2,17 +2,14 @@
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
   XCircle,
   ShoppingCart,
-  ClipboardList,
   Minus,
   Plus,
 } from "lucide-react";
 import { AddToCartButton } from "@/components/AddToCartButton";
-import { ProductColorSwatches } from "@/components/ProductColorSwatches";
 import { ProductImage } from "@/components/ProductImage";
 import { getProductMediaUrl } from "@/lib/productImage";
 import { Play } from "lucide-react";
@@ -26,10 +23,14 @@ import {
 } from "@/lib/pricing";
 import type { PricedVariant } from "@/lib/productPricedOptions";
 import { useAccount } from "@/context/AccountContext";
-import { useCart } from "@/context/CartContext";
 import { slugifyProductName } from "@/lib/seo";
 import { publicFetch } from "@/lib/publicFetch";
 import { parsePricedVariantsFromApi } from "@/lib/productPricedOptions";
+import { linkifyHtml, linkifyPlainText } from "@/lib/linkifyDescription";
+import {
+  ProductQuickOrderForm,
+  type QuickOrderLineItem,
+} from "@/components/product/ProductQuickOrderForm";
 
 type RelatedProduct = {
   _id: string;
@@ -101,8 +102,6 @@ export function ProductDetailsModern({
   product,
   relatedProducts,
 }: ProductDetailsModernProps) {
-  const router = useRouter();
-  const { addToCart } = useCart();
   const { account } = useAccount();
 
   const [tierOverrides, setTierOverrides] = useState<{
@@ -189,7 +188,6 @@ export function ProductDetailsModern({
   const [selectedMedia, setSelectedMedia] = useState<string>(images[0] || PRODUCT_VIDEO_KEY);
   const [selectedColorId, setSelectedColorId] = useState("");
   const [selectedOption, setSelectedOption] = useState("");
-  const [orderHint, setOrderHint] = useState("");
   const [variantQtys, setVariantQtys] = useState<Record<string, number>>({});
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -311,26 +309,21 @@ export function ProductDetailsModern({
   const isAvailable = product.manageStock ? Number(product.stock || 0) > 0 : true;
   const sanitizedDescription = sanitizeHtml(product.description || "");
   const hasHtmlDescription = isHtml(sanitizedDescription);
+  const descriptionHtml = hasHtmlDescription ? linkifyHtml(sanitizedDescription) : "";
 
-  function handleOrderNow() {
+  function buildOrderItems(): { error: string } | { items: QuickOrderLineItem[] } {
     if (!isAvailable) {
-      setOrderHint("نفد المخزون حالياً.");
-      return;
+      return { error: "نفد المخزون حالياً." };
     }
     const cols = product.colors || [];
     const optLabels =
       !multiVariantMode && variantList.length
-      ? variantList.map((v) => v.label)
-      : Array.isArray(product.options)
-        ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
-        : [];
-    if (cols.length > 0 && !String(selectedColorId || "").trim()) {
-      setOrderHint("اختر لوناً قبل إتمام الطلب.");
-      return;
-    }
+        ? variantList.map((v) => v.label)
+        : Array.isArray(product.options)
+          ? product.options.map((x) => String(x || "").trim()).filter(Boolean)
+          : [];
     if (!multiVariantMode && optLabels.length > 0 && !String(selectedOption || "").trim()) {
-      setOrderHint("اختر خيار المنتج قبل إتمام الطلب.");
-      return;
+      return { error: "اختر خيار المنتج قبل إتمام الطلب." };
     }
     if (multiVariantMode) {
       const selections = variantList
@@ -338,52 +331,42 @@ export function ProductDetailsModern({
           label: v.label,
           price: getEffectivePriceForVariant(v, pricingAccount),
           quantity: variantQtys[v.label] ?? 0,
-          retailPrice: v.retailPrice,
-          wholesalePrice: v.wholesalePrice,
-          repairPrice: v.repairPrice,
         }))
         .filter((x) => x.quantity > 0);
       if (selections.length === 0) {
-        setOrderHint("حدّد كمية لخيار واحد على الأقل.");
-        return;
+        return { error: "حدّد كمية لخيار واحد على الأقل." };
       }
-      setOrderHint("");
       const totalQty = selections.reduce((s, x) => s + x.quantity, 0);
       const subtotal = selections.reduce((s, x) => s + x.price * x.quantity, 0);
-      const colorNorm = cols.length ? String(selectedColorId).trim().toLowerCase() : undefined;
-      addToCart({
-        id: product.id,
-        name: product.name,
-        price: totalQty > 0 ? subtotal / totalQty : 0,
-        quantity: totalQty,
-        image: product.image,
-        color: colorNorm,
-        availableColors: cols.length ? cols.map((c) => String(c).trim().toLowerCase()) : undefined,
-        hasVariants: true,
-        variantSelections: selections,
-        productType: cartProductType(product.category),
-      });
-      router.push("/checkout");
-      return;
+      return {
+        items: [
+          {
+            productId: product.id,
+            name: product.name,
+            price: totalQty > 0 ? subtotal / totalQty : 0,
+            quantity: totalQty,
+            image: product.image,
+            color: cols.length ? String(selectedColorId).trim().toLowerCase() : undefined,
+            variantSelections: selections,
+            productType: cartProductType(product.category),
+          },
+        ],
+      };
     }
-    setOrderHint("");
-    const colorNorm = cols.length ? String(selectedColorId).trim().toLowerCase() : undefined;
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: effectivePrice,
-      priceRetail: tiered.priceRetail ?? effectivePrice,
-      priceWholesale: tiered.priceWholesale ?? undefined,
-      priceReparateur: tiered.priceReparateur ?? undefined,
-      image: product.image,
-      quantity: 1,
-      color: colorNorm,
-      availableColors: cols.length ? cols.map((c) => String(c).trim().toLowerCase()) : undefined,
-      option: optLabels.length ? selectedOption : undefined,
-      availableOptions: optLabels.length ? optLabels : undefined,
-      productType: cartProductType(product.category),
-    });
-    router.push("/checkout");
+    return {
+      items: [
+        {
+          productId: product.id,
+          name: product.name,
+          price: effectivePrice,
+          quantity: 1,
+          image: product.image,
+          color: cols.length ? String(selectedColorId).trim().toLowerCase() : undefined,
+          option: optLabels.length ? selectedOption : undefined,
+          productType: cartProductType(product.category),
+        },
+      ],
+    };
   }
 
   return (
@@ -500,23 +483,6 @@ export function ProductDetailsModern({
               </p>
             </div>
 
-            {product.colors && product.colors.length > 0 && (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="mb-2 text-sm font-extrabold text-slate-800">الألوان المتوفرة</p>
-                <ProductColorSwatches
-                  colorIds={product.colors}
-                  value={selectedColorId}
-                  onChange={(id) => {
-                    setSelectedColorId(id);
-                    setOrderHint("");
-                  }}
-                  size="md"
-                  className="justify-start"
-                />
-                <p className="mt-2 text-xs text-slate-500">يُستخدم اللون المحدّد عند «أضف للسلة» أو «اطلب الآن».</p>
-              </div>
-            )}
-
             {multiVariantMode && (
               <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
                 <p className="mb-2 text-sm font-extrabold text-slate-800">الخيارات والكميات</p>
@@ -565,7 +531,6 @@ export function ProductDetailsModern({
                             ...prev,
                             [v.label]: n,
                           }));
-                          setOrderHint("");
                         };
                         return (
                           <tr key={v.label}>
@@ -663,7 +628,6 @@ export function ProductDetailsModern({
                         type="button"
                         onClick={() => {
                           setSelectedOption(opt);
-                          setOrderHint("");
                         }}
                         className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
                           isActive
@@ -686,12 +650,12 @@ export function ProductDetailsModern({
               </p>
               {hasHtmlDescription ? (
                 <div
-                  className="space-y-2 rounded-xl bg-slate-50 p-3 text-base leading-8 text-slate-800 sm:text-lg"
-                  dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
+                  className="space-y-2 rounded-xl bg-slate-50 p-3 text-base leading-8 text-slate-800 sm:text-lg [&_a]:inline [&_a]:break-all [&_a]:font-bold [&_a]:text-blue-600 [&_a]:underline [&_a]:decoration-2 [&_a]:underline-offset-4 hover:[&_a]:text-blue-500"
+                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
                 />
               ) : (
                 <p className="whitespace-pre-line rounded-xl bg-slate-50 p-3 text-base leading-8 text-slate-800 sm:text-lg">
-                  {product.description}
+                  {linkifyPlainText(product.description || "")}
                 </p>
               )}
             </div>
@@ -704,6 +668,7 @@ export function ProductDetailsModern({
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs font-semibold text-slate-500">تفاصيل إضافية</p>
+                <p className="mt-1 text-sm font-semibold text-slate-800">جميع الألوان متوفرة</p>
                 <p className="mt-1 text-sm font-semibold text-slate-800">
                   الحالة: {isAvailable ? "متوفر" : "غير متوفر"}
                 </p>
@@ -727,13 +692,7 @@ export function ProductDetailsModern({
               )}
             </div>
 
-            {orderHint ? (
-              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                {orderHint}
-              </p>
-            ) : null}
-
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5">
               <AddToCartButton
                 id={product.id}
                 name={product.name}
@@ -743,8 +702,7 @@ export function ProductDetailsModern({
                 priceReparateur={tiered.priceReparateur ?? undefined}
                 image={product.image}
                 colors={product.colors || []}
-                lockColorToSelection={!!(product.colors && product.colors.length > 0)}
-                lockedColor={selectedColorId}
+                lockColorToSelection={false}
                 variantCartSelections={multiVariantMode ? variantCartSelections : undefined}
                 options={
                   multiVariantMode
@@ -761,7 +719,7 @@ export function ProductDetailsModern({
                 }
                 lockedOption={selectedOption}
                 productType={cartProductType(product.category)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500 disabled:pointer-events-none disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500 disabled:pointer-events-none disabled:opacity-50"
                 disabled={
                   !isAvailable ||
                   (multiVariantMode && !variantCartSelections.some((x) => x.quantity > 0))
@@ -770,16 +728,16 @@ export function ProductDetailsModern({
                 <ShoppingCart className="h-5 w-5" />
                 إضافة إلى السلة
               </AddToCartButton>
-              <button
-                type="button"
-                onClick={handleOrderNow}
-                disabled={!isAvailable}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-600"
-              >
-                <ClipboardList className="h-5 w-5" />
-                اطلب الآن
-              </button>
             </div>
+
+            <ProductQuickOrderForm
+              itemsSubtotal={effectivePrice}
+              availableColors={product.colors || []}
+              selectedColor={selectedColorId}
+              onColorChange={setSelectedColorId}
+              disabled={!isAvailable}
+              buildOrderItems={buildOrderItems}
+            />
           </div>
         </div>
       </section>

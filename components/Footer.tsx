@@ -188,11 +188,11 @@ export function Footer() {
               © {new Date().getFullYear()} FONI — جميع الحقوق محفوظة
             </p>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] font-medium">
-              <Link href="#" className="text-[var(--color-luxury-muted)] transition-colors hover:text-blue-700">
+              <Link href="/privacy" className="text-[var(--color-luxury-muted)] transition-colors hover:text-blue-700">
                 سياسة الخصوصية
               </Link>
               <span className="hidden h-3 w-px bg-slate-300 sm:inline-block" aria-hidden />
-              <Link href="#" className="text-[var(--color-luxury-muted)] transition-colors hover:text-blue-700">
+              <Link href="/terms" className="text-[var(--color-luxury-muted)] transition-colors hover:text-blue-700">
                 الشروط والأحكام
               </Link>
             </div>

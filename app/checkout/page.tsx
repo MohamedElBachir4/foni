@@ -18,6 +18,7 @@ import {
   saveGuestCheckoutShippingPrefs,
 } from "@/lib/guestCheckoutPrefs";
 import { publicFetch } from "@/lib/publicFetch";
+import { TermsConsentCheckbox } from "@/components/legal/TermsConsentCheckbox";
 
 type Wilaya = { id: number; name: string };
 type Commune = { id: number; name: string; wilaya_id?: number };
@@ -83,6 +84,7 @@ export default function CheckoutPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const pendingStopdeskRestore = useRef<number | null>(null);
   /** يُستهلك عند استلام قائمة البلديات (بعد ضبط الولاية)، لا يعتمد على setCommuneName من /me */
   const pendingCommuneRestoreRef = useRef<PendingCommuneRestore | null>(null);
@@ -338,6 +340,10 @@ export default function CheckoutPage() {
     }
     if (deliveryType === "stopdesk" && !stopdeskId) {
       setError("اختر مركز التسليم");
+      return;
+    }
+    if (!acceptedTerms) {
+      setError("يجب الموافقة على الشروط والأحكام وسياسة الخصوصية قبل إرسال الطلب.");
       return;
     }
     for (const i of items) {
@@ -798,6 +804,18 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            <div className="mt-6">
+              <TermsConsentCheckbox
+                id="checkout-terms"
+                checked={acceptedTerms}
+                onChange={(v) => {
+                  setAcceptedTerms(v);
+                  if (v) setError("");
+                }}
+                disabled={loading}
+              />
+            </div>
+
             {error && (
               <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                 {error}
@@ -806,7 +824,7 @@ export default function CheckoutPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !acceptedTerms}
               className="mt-8 w-full rounded-full bg-gradient-to-l from-blue-600 to-blue-500 py-4 font-bold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-500 hover:to-blue-600 hover:shadow-xl disabled:opacity-60"
             >
               {loading ? "جاري إرسال الطلب..." : "إرسال الطلب"}
