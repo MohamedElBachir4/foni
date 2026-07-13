@@ -32,6 +32,7 @@ import {
   Plus,
   Eye,
   EyeOff,
+  ImagePlus,
 } from "lucide-react";
 import {
   AdminButton,
@@ -43,6 +44,7 @@ import {
   AdminPagination,
   AdminProductColorsPicker,
   AdminSparePartModelPicker,
+  BulkAssignSparePartImageModal,
 } from "@/components/admin";
 import { getProductColorHex } from "@/lib/productColors";
 
@@ -214,6 +216,7 @@ export default function AdminSparePartsPage() {
   const [selectedPartIds, setSelectedPartIds] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkAssignImageOpen, setBulkAssignImageOpen] = useState(false);
   const [archives, setArchives] = useState<ImportArchiveItem[]>([]);
   const [archivePage, setArchivePage] = useState(1);
   const [archiveTotalPages, setArchiveTotalPages] = useState(1);
@@ -1395,6 +1398,14 @@ export default function AdminSparePartsPage() {
               إنشاء قطعة غيار
             </AdminButton>
             <AdminButton
+              variant="secondary"
+              size="md"
+              icon={<ImagePlus className="h-4 w-4" />}
+              onClick={() => setBulkAssignImageOpen(true)}
+            >
+              تعيين صورة لعدة منتجات
+            </AdminButton>
+            <AdminButton
               variant="success"
               size="md"
               icon={<FileSpreadsheet className="h-4 w-4" />}
@@ -1445,6 +1456,18 @@ export default function AdminSparePartsPage() {
           {message.text}
         </div>
       )}
+
+      <BulkAssignSparePartImageModal
+        open={bulkAssignImageOpen}
+        onClose={() => setBulkAssignImageOpen(false)}
+        onSuccess={(updatedCount) => {
+          setMessage({
+            type: "success",
+            text: `تم تحديث صور ${updatedCount} منتج بنجاح`,
+          });
+          void fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
+        }}
+      />
 
       <AdminModal
         open={importOpen}

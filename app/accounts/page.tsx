@@ -3,6 +3,8 @@
 import { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Phone } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { publicFetch } from "@/lib/publicFetch";
@@ -12,6 +14,34 @@ import { MyOrdersTab } from "@/components/accounts/MyOrdersTab";
 import { roleLabelAr, isMerchantRole } from "@/lib/accountRoles";
 
 type Role = "customer" | "merchant" | null;
+
+const FALLBACK_WHATSAPP = "213542458175";
+const FALLBACK_PHONE_DISPLAY = "+213 542 45 81 75";
+const FALLBACK_PHONE_TEL = "+213542458175";
+
+type SupportContact = {
+  whatsappHref: string;
+  whatsappDisplay: string;
+  phoneHref: string;
+  phoneDisplay: string;
+};
+
+function formatWaDisplay(digits: string) {
+  const d = digits.replace(/\D/g, "");
+  if (d.startsWith("213") && d.length >= 12) {
+    return `+${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6, 8)} ${d.slice(8)}`;
+  }
+  return d ? `+${d}` : FALLBACK_PHONE_DISPLAY;
+}
+
+function buildActivationWhatsAppHref(number: string, role: Role) {
+  const n = number.replace(/\D/g, "") || FALLBACK_WHATSAPP;
+  const roleAr = role === "merchant" ? "تاجر" : "زبون";
+  const text = encodeURIComponent(
+    `السلام عليكم، قمت بإنشاء حساب ${roleAr} على موقع فوني وأرغب في تفعيل الحساب.`
+  );
+  return `https://wa.me/${n}?text=${text}`;
+}
 
 const WILAYAS = [
   "01 - أدرار",
@@ -91,6 +121,12 @@ function AccountsPageContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [supportContact, setSupportContact] = useState<SupportContact>({
+    whatsappHref: buildActivationWhatsAppHref(FALLBACK_WHATSAPP, null),
+    whatsappDisplay: formatWaDisplay(FALLBACK_WHATSAPP),
+    phoneHref: `tel:${FALLBACK_PHONE_TEL}`,
+    phoneDisplay: FALLBACK_PHONE_DISPLAY,
+  });
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -100,6 +136,44 @@ function AccountsPageContent() {
   const [wholesaleSaving, setWholesaleSaving] = useState(false);
   const [wholesaleError, setWholesaleError] = useState("");
   const registrationFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/contact-settings/public", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        const wa = items.find(
+          (i: { id?: string; href?: string }) =>
+            String(i.id || "").startsWith("whatsapp") && i.href
+        );
+        const phone = items.find(
+          (i: { id?: string; href?: string }) => i.id === "phone" && i.href
+        );
+        if (cancelled) return;
+        const waDigits =
+          String(wa?.href || "")
+            .match(/wa\.me\/(\d+)/)?.[1] || FALLBACK_WHATSAPP;
+        const phoneHref = phone?.href || `tel:${FALLBACK_PHONE_TEL}`;
+        const phoneDigits = String(phoneHref).replace(/^tel:/i, "");
+        setSupportContact({
+          whatsappHref: buildActivationWhatsAppHref(waDigits, role),
+          whatsappDisplay: formatWaDisplay(waDigits),
+          phoneHref,
+          phoneDisplay: formatWaDisplay(phoneDigits.replace(/\D/g, "")) || FALLBACK_PHONE_DISPLAY,
+        });
+      } catch {
+        /* keep fallbacks */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
 
   async function handleWholesaleToggle(enabled: boolean) {
     setWholesaleError("");
@@ -205,10 +279,15 @@ function AccountsPageContent() {
       }
       setSuccess(
         data.message ||
-          (isMerchant
-            ? "تم إرسال طلب إنشاء الحساب بنجاح. حسابك الآن قيد المراجعة وسيتم تفعيله بعد موافقة الإدارة."
-            : "تم إنشاء حسابك بنجاح. يمكنك تسجيل الدخول الآن.")
+          "تم استلام طلب إنشاء الحساب بنجاح. يرجى مراسلة فريق الدعم عبر واتساب أو الاتصال هاتفياً لتفعيل حسابك."
       );
+      setSupportContact((prev) => ({
+        ...prev,
+        whatsappHref: buildActivationWhatsAppHref(
+          prev.whatsappHref.match(/wa\.me\/(\d+)/)?.[1] || FALLBACK_WHATSAPP,
+          role
+        ),
+      }));
       setSuccessModalOpen(true);
       setFirstName("");
       setLastName("");
@@ -651,7 +730,7 @@ function AccountsPageContent() {
                   )}
                   {success && (
                     <div className="sm:col-span-2">
-                      <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 sm:text-sm">
+                      <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs font-medium leading-relaxed text-amber-900 sm:text-sm">
                         {success}
                       </p>
                     </div>
@@ -687,45 +766,128 @@ function AccountsPageContent() {
       </main>
       <Footer />
       {successModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="activation-modal-title"
+        >
           <button
             type="button"
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]"
             onClick={() => setSuccessModalOpen(false)}
             aria-label="إغلاق النافذة"
           />
-          <div className="relative w-full max-w-md animate-[successPop_.32s_ease-out] rounded-3xl border border-emerald-100 bg-white p-6 shadow-2xl">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              ✓
+          <div className="relative w-full max-w-[26rem] animate-[successPop_.34s_cubic-bezier(.22,1,.36,1)] overflow-hidden rounded-3xl bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,.45)] ring-1 ring-slate-200/80">
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 px-6 pb-8 pt-7 text-center text-white">
+              <div
+                className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-blue-500/20 blur-2xl"
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute -bottom-12 -right-8 h-40 w-40 rounded-full bg-sky-400/15 blur-2xl"
+                aria-hidden
+              />
+              <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 shadow-inner ring-1 ring-white/20 backdrop-blur-sm">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-8 w-8 text-emerald-300"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <p className="relative text-[11px] font-semibold tracking-wide text-sky-200/90">
+                فوني · تفعيل الحساب
+              </p>
+              <h3
+                id="activation-modal-title"
+                className="relative mt-1.5 text-xl font-extrabold tracking-tight"
+              >
+                تم استلام طلبك بنجاح
+              </h3>
+              <p className="relative mx-auto mt-2 max-w-xs text-[13px] leading-relaxed text-slate-200/90">
+                حسابك جاهز تقريباً — يبقى خطوة أخيرة لتفعيله.
+              </p>
             </div>
-            <h3 className="text-center text-xl font-extrabold text-slate-900">تم التسجيل بنجاح</h3>
-            <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
-              {role === "merchant" ? (
-                <>
-                  تم إنشاء حسابك بنجاح، وطلب تفعيل الحساب الآن{" "}
-                  <span className="font-bold text-amber-700">قيد المراجعة</span> من الإدارة.
-                  ستتمكن من تسجيل الدخول فور الموافقة.
-                </>
-              ) : (
-                <>
-                  تم إنشاء حساب الزبون بنجاح. يمكنك{" "}
-                  <span className="font-bold text-emerald-700">تسجيل الدخول الآن</span>.
-                </>
-              )}
-            </p>
-            <button
-              type="button"
-              onClick={() => setSuccessModalOpen(false)}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
-            >
-              فهمت
-            </button>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-4 py-3.5 text-center">
+                <p className="text-sm font-bold leading-relaxed text-slate-800">
+                  يجب عليك مراسلة فريق الدعم عبر{" "}
+                  <span className="text-emerald-700">واتساب</span> أو{" "}
+                  <span className="text-blue-700">الاتصال هاتفياً</span> لتفعيل الحساب
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                  لن تتمكن من تسجيل الدخول قبل تفعيل الحساب من فريق الدعم.
+                </p>
+              </div>
+
+              <div className="grid gap-2.5">
+                <a
+                  href={supportContact.whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex w-full items-center justify-between gap-3 rounded-2xl bg-[#25D366] px-4 py-3.5 text-white shadow-sm transition hover:bg-[#1ebe57] hover:shadow-md active:scale-[0.99]"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                      <SiWhatsapp className="h-5 w-5" />
+                    </span>
+                    <span className="text-start">
+                      <span className="block text-sm font-bold">مراسلة عبر واتساب</span>
+                      <span className="mt-0.5 block text-[11px] font-medium text-white/85" dir="ltr">
+                        {supportContact.whatsappDisplay}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="text-lg opacity-80 transition group-hover:translate-x-[-2px]" aria-hidden>
+                    ←
+                  </span>
+                </a>
+
+                <a
+                  href={supportContact.phoneHref}
+                  className="group inline-flex w-full items-center justify-between gap-3 rounded-2xl bg-blue-700 px-4 py-3.5 text-white shadow-sm transition hover:bg-blue-800 hover:shadow-md active:scale-[0.99]"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+                      <Phone className="h-5 w-5" />
+                    </span>
+                    <span className="text-start">
+                      <span className="block text-sm font-bold">اتصال هاتفي</span>
+                      <span className="mt-0.5 block text-[11px] font-medium text-white/85" dir="ltr">
+                        {supportContact.phoneDisplay}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="text-lg opacity-80 transition group-hover:translate-x-[-2px]" aria-hidden>
+                    ←
+                  </span>
+                </a>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSuccessModalOpen(false)}
+                className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-800"
+              >
+                حسناً، سأتواصل لاحقاً
+              </button>
+            </div>
           </div>
           <style jsx>{`
             @keyframes successPop {
               0% {
                 opacity: 0;
-                transform: translateY(14px) scale(0.96);
+                transform: translateY(16px) scale(0.96);
               }
               100% {
                 opacity: 1;
