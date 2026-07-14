@@ -505,6 +505,14 @@ function AccountsPageContent() {
                     onChange={(e) => setLoginPassword(e.target.value)}
                     className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100 sm:text-sm"
                   />
+                  <div className="pt-1">
+                    <Link
+                      href="/accounts/forgot-password"
+                      className="text-[11px] font-semibold text-blue-700 underline-offset-4 transition hover:text-blue-800 hover:underline sm:text-xs"
+                    >
+                      هل نسيت كلمة المرور؟
+                    </Link>
+                  </div>
                 </div>
                 <div className="flex items-end">
                   <button
