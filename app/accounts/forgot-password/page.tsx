@@ -51,8 +51,8 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Navbar />
-      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:py-14">
-        <div className="w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-xl sm:p-8">
+      <main className="mx-auto flex w-full flex-1 flex-col items-center px-4 pt-32 pb-16 sm:pt-40 sm:pb-20 md:pt-44">
+        <div className="mt-4 w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-xl sm:mt-6 sm:p-8">
           <div className="mb-6 space-y-2 text-center">
             <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
               استعادة كلمة المرور
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
                 <Link
                   href="/accounts"
-                  className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
+                  className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold !text-white transition hover:bg-blue-800 hover:!text-white"
                 >
                   العودة لتسجيل الدخول
                 </Link>

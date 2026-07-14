@@ -137,7 +137,7 @@ function ResetPasswordForm() {
           </div>
           <Link
             href="/accounts"
-            className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold !text-white transition hover:bg-blue-800 hover:!text-white"
           >
             تسجيل الدخول الآن
           </Link>
@@ -151,7 +151,7 @@ function ResetPasswordForm() {
           </div>
           <Link
             href="/accounts/forgot-password"
-            className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold !text-white transition hover:bg-blue-800 hover:!text-white"
           >
             طلب رابط جديد
           </Link>
@@ -214,16 +214,18 @@ export default function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Navbar />
-      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:py-14">
-        <Suspense
-          fallback={
-            <div className="w-full max-w-md rounded-3xl border border-slate-100 bg-white p-8 text-center text-sm text-slate-500 shadow-xl">
-              جاري التحميل...
-            </div>
-          }
-        >
-          <ResetPasswordForm />
-        </Suspense>
+      <main className="mx-auto flex w-full flex-1 flex-col items-center px-4 pt-32 pb-16 sm:pt-40 sm:pb-20 md:pt-44">
+        <div className="mt-4 w-full max-w-md sm:mt-6">
+          <Suspense
+            fallback={
+              <div className="w-full rounded-3xl border border-slate-100 bg-white p-8 text-center text-sm text-slate-500 shadow-xl">
+                جاري التحميل...
+              </div>
+            }
+          >
+            <ResetPasswordForm />
+          </Suspense>
+        </div>
       </main>
       <Footer />
     </div>
