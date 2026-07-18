@@ -388,10 +388,10 @@ export function ProductDetailsModern({
         ) : null}
       </nav>
 
-      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-0 lg:grid-cols-2">
-          <div className="border-b border-slate-100 p-4 sm:p-6 lg:border-b-0 lg:border-e">
-            <div className="relative mb-4 h-[320px] overflow-hidden rounded-2xl bg-slate-50 sm:h-[460px]">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="grid gap-0 lg:grid-cols-2 lg:items-start">
+          <div className="min-w-0 border-b border-slate-100 p-4 sm:p-6 lg:border-b-0 lg:border-e">
+            <div className="relative mb-4 h-[320px] w-full overflow-hidden rounded-2xl bg-slate-50 sm:h-[460px]">
               {selectedMedia === PRODUCT_VIDEO_KEY && videoUrl ? (
                 <video
                   ref={videoRef}
@@ -454,7 +454,7 @@ export function ProductDetailsModern({
             )}
           </div>
 
-          <div className="p-4 sm:p-6 lg:p-8">
+          <div className="min-w-0 p-4 sm:p-6 lg:p-8">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
                 {product.brandLabel}
@@ -464,7 +464,7 @@ export function ProductDetailsModern({
               </span>
             </div>
 
-            <h1 className="text-2xl font-black leading-tight text-slate-900 sm:text-3xl">
+            <h1 className="break-words text-2xl font-black leading-tight text-slate-900 sm:text-3xl [word-break:break-word]">
               {product.name}
             </h1>
 
