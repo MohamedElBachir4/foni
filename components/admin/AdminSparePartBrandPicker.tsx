@@ -4,18 +4,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 
-export type PickablePhoneType = { _id: string; name: string; brandName?: string };
+export type PickableBrand = { _id: string; name: string };
 
-interface AdminSparePartModelPickerProps {
-  brandSelected: boolean;
-  phoneTypes: PickablePhoneType[];
+interface AdminSparePartBrandPickerProps {
+  brands: PickableBrand[];
   selectedIds: string[];
   onChangeIds: (ids: string[]) => void;
-  newModelName: string;
-  onNewModelNameChange: (v: string) => void;
-  blockedNewBecauseSelection?: boolean;
-  /** إذا كانت `false` تُخفى حق «موديل جديد بالاسم» (مثلاً أكسسوارات تُنشأ بالمعرف فقط). */
-  showNewModelRow?: boolean;
+  placeholder?: string;
 }
 
 interface DropdownPos {
@@ -25,16 +20,16 @@ interface DropdownPos {
   maxHeight: number;
 }
 
-export function AdminSparePartModelPicker({
-  brandSelected,
-  phoneTypes,
+/**
+ * اختيار متعدّد للماركات (إنشاء/تعديل قطع الغيار يدوياً). عند اختيار أكثر من
+ * ماركة تُدمج هواتف جميعها في قائمة الموديلات. النمط مطابق لمنتقي الموديلات.
+ */
+export function AdminSparePartBrandPicker({
+  brands,
   selectedIds,
   onChangeIds,
-  newModelName,
-  onNewModelNameChange,
-  blockedNewBecauseSelection = false,
-  showNewModelRow = true,
-}: AdminSparePartModelPickerProps) {
+  placeholder = "اختر ماركة أو أكثر",
+}: AdminSparePartBrandPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -50,37 +45,22 @@ export function AdminSparePartModelPicker({
 
   const nameById = useMemo(() => {
     const m = new Map<string, string>();
-    for (const p of phoneTypes) m.set(p._id, p.name);
+    for (const b of brands) m.set(b._id, b.name);
     return m;
-  }, [phoneTypes]);
-
-  const brandById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const p of phoneTypes) if (p.brandName) m.set(p._id, p.brandName);
-    return m;
-  }, [phoneTypes]);
+  }, [brands]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return phoneTypes;
-    return phoneTypes.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.brandName ? p.brandName.toLowerCase().includes(q) : false)
-    );
-  }, [phoneTypes, query]);
-
-  const hasBrandLabels = useMemo(
-    () => phoneTypes.some((p) => !!p.brandName),
-    [phoneTypes]
-  );
+    if (!q) return brands;
+    return brands.filter((b) => b.name.toLowerCase().includes(q));
+  }, [brands, query]);
 
   const commitDropdownMeasure = () => {
     const el = comboRef.current;
     if (!el || typeof window === "undefined") return;
     const r = el.getBoundingClientRect();
     const gap = 6;
-    const minW = 280;
+    const minW = 240;
     const width = Math.max(r.width, minW);
 
     let left = r.left;
@@ -94,12 +74,7 @@ export function AdminSparePartModelPicker({
     const spaceBelow = vh - r.bottom - gap - pad;
     const maxHeight = Math.max(108, Math.min(240, spaceBelow));
 
-    setDropdownPos({
-      top: r.bottom + gap,
-      left,
-      width,
-      maxHeight,
-    });
+    setDropdownPos({ top: r.bottom + gap, left, width, maxHeight });
   };
 
   useLayoutEffect(() => {
@@ -118,7 +93,7 @@ export function AdminSparePartModelPicker({
       window.removeEventListener("resize", onViewportChange);
       window.removeEventListener("scroll", onViewportChange, true);
     };
-  }, [open, portalEl, phoneTypes.length]);
+  }, [open, portalEl, brands.length]);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -134,28 +109,12 @@ export function AdminSparePartModelPicker({
   }, [open]);
 
   function toggle(id: string) {
-    if (selectedIds.includes(id))
-      onChangeIds(selectedIds.filter((x) => x !== id));
+    if (selectedIds.includes(id)) onChangeIds(selectedIds.filter((x) => x !== id));
     else onChangeIds([...selectedIds, id]);
-  }
-
-  function selectAllBrandPhones() {
-    if (!filtered.length) return;
-    const merged = new Set(selectedIds);
-    for (const p of filtered) merged.add(p._id);
-    onChangeIds([...merged]);
   }
 
   function clearAll() {
     onChangeIds([]);
-  }
-
-  if (!brandSelected) {
-    return (
-      <p className="rounded-md border border-dashed border-slate-200/90 bg-white/60 px-2 py-3 text-center text-[10px] leading-snug text-slate-500">
-        اختر الماركة أولاً
-      </p>
-    );
   }
 
   const fldCombo =
@@ -181,46 +140,35 @@ export function AdminSparePartModelPicker({
             dir="auto"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={hasBrandLabels ? "بحث بالاسم أو الموديل أو الماركة…" : "اكتب للتصفية…"}
+            placeholder="بحث عن ماركة…"
             className="shrink-0 border-b border-slate-100 px-2 py-1.5 text-[11px] outline-none placeholder:text-slate-400"
-            aria-label="تصفية الموديلات"
+            aria-label="تصفية الماركات"
             autoComplete="off"
             onMouseDown={(e) => e.stopPropagation()}
           />
           <div className="flex shrink-0 flex-wrap gap-1 border-b border-slate-100 px-2 py-1">
             <button
               type="button"
-              onClick={selectAllBrandPhones}
-              disabled={!filtered.length}
-              className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-white disabled:opacity-40"
-            >
-              {query.trim()
-                ? `تحديد نتائج البحث (${filtered.length})`
-                : `تحديد كل الهواتف (${phoneTypes.length})`}
-            </button>
-            <button
-              type="button"
               onClick={clearAll}
-              className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-50"
+              disabled={selectedIds.length === 0}
+              className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
             >
-              إفراغ
+              إفراغ الماركات
             </button>
           </div>
           <ul className="min-h-0 flex-1 overflow-y-auto py-1 text-[11px]">
             {filtered.length === 0 ? (
-              <li className="px-2 py-2 text-center text-[10px] text-slate-500">
-                لا نتائج
-              </li>
+              <li className="px-2 py-2 text-center text-[10px] text-slate-500">لا نتائج</li>
             ) : (
-              filtered.map((p) => {
-                const on = selectedIds.includes(p._id);
+              filtered.map((b) => {
+                const on = selectedIds.includes(b._id);
                 return (
-                  <li key={p._id}>
+                  <li key={b._id}>
                     <button
                       type="button"
                       role="option"
                       aria-selected={on}
-                      onClick={() => toggle(p._id)}
+                      onClick={() => toggle(b._id)}
                       className={`flex w-full items-center gap-2 px-2 py-1.5 text-start transition hover:bg-slate-50 ${
                         on ? "bg-sky-50/90" : ""
                       }`}
@@ -232,12 +180,7 @@ export function AdminSparePartModelPicker({
                       >
                         {on ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-slate-800">{p.name}</span>
-                      {p.brandName ? (
-                        <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium text-slate-500">
-                          {p.brandName}
-                        </span>
-                      ) : null}
+                      <span className="min-w-0 flex-1 truncate text-slate-800">{b.name}</span>
                     </button>
                   </li>
                 );
@@ -250,30 +193,21 @@ export function AdminSparePartModelPicker({
     ) : null;
 
   return (
-    <div ref={rootRef} className="flex min-h-0 flex-1 flex-col gap-1">
+    <div ref={rootRef} className="flex flex-col gap-1">
       {dropdown}
 
       <div className="flex flex-wrap gap-1">
         {selectedIds.length === 0 ? (
           <span className="rounded-md bg-slate-100/90 px-1.5 py-0.5 text-[10px] text-slate-500">
-            لم يتم اختيار موديل
+            لم يتم اختيار ماركة
           </span>
         ) : (
           selectedIds.map((id) => (
             <span
               key={id}
               className="group inline-flex max-w-full items-center gap-0.5 rounded-full border border-sky-200/80 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-950"
-              title={
-                brandById.get(id)
-                  ? `${brandById.get(id)} — ${nameById.get(id) ?? id}`
-                  : nameById.get(id) ?? id
-              }
+              title={nameById.get(id) ?? id}
             >
-              {brandById.get(id) ? (
-                <span className="shrink-0 rounded-full bg-white/70 px-1 text-[9px] font-semibold text-sky-700">
-                  {brandById.get(id)}
-                </span>
-              ) : null}
               <span className="max-w-[8.5rem] truncate">{nameById.get(id) ?? id}</span>
               <button
                 type="button"
@@ -302,28 +236,11 @@ export function AdminSparePartModelPicker({
             aria-hidden
           />
           <span className="min-w-0 flex-1 text-start text-[10px] text-slate-500">
-            بحث في الموديلات وإضافتها
+            {selectedIds.length > 0 ? `${selectedIds.length} ماركة مختارة` : placeholder}
           </span>
           <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
         </button>
       </div>
-
-      {showNewModelRow ? (
-        <div className="mt-auto shrink-0">
-          <label className="mb-0.5 block text-[10px] font-medium text-slate-500">موديل جديد بالاسم</label>
-          <input
-            type="text"
-            disabled={blockedNewBecauseSelection || !brandSelected}
-            value={newModelName}
-            onChange={(e) => onNewModelNameChange(e.target.value)}
-            className="admin-input h-7 rounded-md px-2 py-0.5 text-[11px] disabled:opacity-45"
-            placeholder={
-              blockedNewBecauseSelection ? "أزل تحديد القائمة" : "اختياري — بدون اختيار من القائمة"
-            }
-            dir="auto"
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

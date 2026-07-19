@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useLayoutEffect } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useMemo } from "react";
 import { API_URL, getAuthHeaders, getToken } from "@/lib/adminAuth";
 import {
   ADMIN_COPY_UNCHANGED_MESSAGE,
@@ -44,6 +44,7 @@ import {
   AdminPagination,
   AdminProductColorsPicker,
   AdminSparePartModelPicker,
+  AdminSparePartBrandPicker,
   BulkAssignSparePartImageModal,
 } from "@/components/admin";
 import { getProductColorHex } from "@/lib/productColors";
@@ -153,7 +154,8 @@ export default function AdminSparePartsPage() {
   const [priceRetail, setPriceRetail] = useState("");
   const [priceWholesale, setPriceWholesale] = useState("");
   const [priceReparateur, setPriceReparateur] = useState("");
-  const [selectedBrand, setSelectedBrand] = useState("");
+  /** متعدّد الماركات (إنشاء/تعديل يدوي) — يدمج هواتف كل الماركات المختارة */
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedPhoneType, setSelectedPhoneType] = useState("");
   /** متعدّد الموديلات (إنشاء/تعديل يدوي) — مطابق لتدفّق الإكسسوار */
   const [selectedPhoneTypes, setSelectedPhoneTypes] = useState<string[]>([]);
@@ -259,20 +261,38 @@ export default function AdminSparePartsPage() {
     }
   }, []);
 
-  const fetchPhoneTypesForBrand = useCallback(async (brandId: string) => {
-    if (!brandId) {
+  /**
+   * يجلب هواتف كل الماركات المختارة ويدمجها في قائمة واحدة (بدون تكرار).
+   * ماركة واحدة => نفس السلوك القديم. عدة ماركات => دمج جميع هواتفها.
+   */
+  const fetchPhoneTypesForBrands = useCallback(async (brandIds: string[]) => {
+    const uniq = [...new Set((brandIds || []).filter(Boolean))];
+    if (uniq.length === 0) {
       setPhoneTypes([]);
       return;
     }
     try {
-      const res = await fetch(
-        `${API_URL}/api/phone-types?brand=${encodeURIComponent(brandId)}`,
-        { headers: getAuthHeaders(), credentials: 'include',  }
+      const results = await Promise.all(
+        uniq.map(async (bid) => {
+          const res = await fetch(
+            `${API_URL}/api/phone-types?brand=${encodeURIComponent(bid)}`,
+            { headers: getAuthHeaders(), credentials: "include" }
+          );
+          if (!res.ok) return [] as PhoneType[];
+          const data = await res.json();
+          return (Array.isArray(data) ? data : []) as PhoneType[];
+        })
       );
-      if (res.ok) {
-        const data = await res.json();
-        setPhoneTypes(Array.isArray(data) ? data : []);
-      } else setPhoneTypes([]);
+      const merged: PhoneType[] = [];
+      const seen = new Set<string>();
+      for (const arr of results) {
+        for (const p of arr) {
+          if (!p?._id || seen.has(p._id)) continue;
+          seen.add(p._id);
+          merged.push(p);
+        }
+      }
+      setPhoneTypes(merged);
     } catch {
       setPhoneTypes([]);
     }
@@ -420,14 +440,14 @@ export default function AdminSparePartsPage() {
   }, [fetchBrands]);
 
   useEffect(() => {
-    if (selectedBrand) {
-      fetchPhoneTypesForBrand(selectedBrand);
+    if (selectedBrands.length > 0) {
+      fetchPhoneTypesForBrands(selectedBrands);
     } else {
       setPhoneTypes([]);
       setSelectedPhoneType("");
       setSelectedPhoneTypes([]);
     }
-  }, [selectedBrand, fetchPhoneTypesForBrand]);
+  }, [selectedBrands, fetchPhoneTypesForBrands]);
 
   useEffect(() => {
     fetchParts(brandFilter || undefined, currentPage, debouncedSearch);
@@ -441,6 +461,20 @@ export default function AdminSparePartsPage() {
     if (!selectedArchive?._id) return;
     fetchArchiveProducts(selectedArchive._id, archiveProductsPage);
   }, [fetchArchiveProducts, selectedArchive, archiveProductsPage]);
+
+  /** قائمة الموديلات لمنتقي الهواتف — تُضاف تسمية الماركة عند اختيار أكثر من ماركة للتمييز والبحث. */
+  const modelPickerPhoneTypes = useMemo(() => {
+    const showBrand = selectedBrands.length > 1;
+    return phoneTypes.map((p) => {
+      let brandName: string | undefined;
+      if (showBrand) {
+        if (p.brand && typeof p.brand === "object") brandName = p.brand.name;
+        else if (typeof p.brand === "string")
+          brandName = brands.find((b) => b._id === p.brand)?.name;
+      }
+      return { _id: p._id, name: p.name, brandName };
+    });
+  }, [phoneTypes, selectedBrands, brands]);
 
   function sparePartPhoneTypeIds(item: SparePart): string[] {
     const out: string[] = [];
@@ -460,6 +494,51 @@ export default function AdminSparePartsPage() {
     return out;
   }
 
+  /** كل الماركات المرتبطة بالقطعة (الماركة الأساسية + ماركات كل الموديلات) لاستعادة الاختيار عند التعديل/النسخ. */
+  function sparePartBrandIds(item: SparePart): string[] {
+    const set = new Set<string>();
+    const primary = typeof item.brand === "string" ? item.brand : item.brand?._id;
+    if (primary) set.add(String(primary));
+    if (Array.isArray(item.phoneTypes)) {
+      for (const pt of item.phoneTypes) {
+        if (pt && typeof pt === "object") {
+          const b =
+            typeof pt.brand === "string"
+              ? pt.brand
+              : pt.brand && typeof pt.brand === "object"
+                ? pt.brand._id
+                : "";
+          if (b) set.add(String(b));
+        }
+      }
+    }
+    return [...set];
+  }
+
+  /** تغيير الماركات المختارة مع إزالة أي موديل تابع لماركة أُلغيت. */
+  function handleSelectedBrandsChange(nextBrandIds: string[]) {
+    const nextSet = new Set(nextBrandIds);
+    const removed = selectedBrands.filter((b) => !nextSet.has(b));
+    if (removed.length > 0) {
+      const removedSet = new Set(removed);
+      setSelectedPhoneTypes((prev) =>
+        prev.filter((id) => {
+          const pt = phoneTypes.find((p) => p._id === id);
+          if (!pt) return true;
+          const b =
+            typeof pt.brand === "string"
+              ? pt.brand
+              : pt.brand && typeof pt.brand === "object"
+                ? pt.brand._id
+                : "";
+          return !removedSet.has(String(b));
+        })
+      );
+    }
+    setSelectedBrands(nextBrandIds);
+    setNewPhoneTypeName("");
+  }
+
   function resetForm() {
     setName("");
     setDetails("");
@@ -470,7 +549,7 @@ export default function AdminSparePartsPage() {
     setPriceRetail("");
     setPriceWholesale("");
     setPriceReparateur("");
-    setSelectedBrand("");
+    setSelectedBrands([]);
     setSelectedPhoneType("");
     setSelectedPhoneTypes([]);
     setNewPhoneTypeName("");
@@ -953,7 +1032,7 @@ export default function AdminSparePartsPage() {
     }
     const normalizedDetails = details.trim();
 
-    if (selectedPhoneTypes.length > 0 && !selectedBrand) {
+    if (selectedPhoneTypes.length > 0 && selectedBrands.length === 0) {
       setPartModalNotice({ type: "error", text: "اختر الماركة عند اختيار موديل واحد أو أكثر" });
       return;
     }
@@ -998,20 +1077,24 @@ export default function AdminSparePartsPage() {
 
     /** إنشاء يدوي فقط يُطبَّق عبر هذا النموذج — المصدر لا يصل من واجهة الاستيراد */
     const isCreating = !editing?._id;
+    const primaryBrand = selectedBrands[0] || null;
     if (isCreating) {
       payload.creationSource = "manual";
-      payload.brand = selectedBrand || null;
+      payload.brand = primaryBrand;
+      payload.brands = [...selectedBrands];
       if (selectedPhoneTypes.length > 0) payload.phoneTypes = [...selectedPhoneTypes];
       else {
         payload.phoneType = null;
-        if (newPhoneTypeName.trim()) payload.phoneTypeName = newPhoneTypeName.trim();
+        if (selectedBrands.length === 1 && newPhoneTypeName.trim())
+          payload.phoneTypeName = newPhoneTypeName.trim();
       }
     } else {
-      payload.brand = selectedBrand || null;
+      payload.brand = primaryBrand;
+      payload.brands = [...selectedBrands];
       payload.phoneTypes = [...selectedPhoneTypes];
       payload.phoneType = selectedPhoneTypes.length > 0 ? selectedPhoneTypes[0] : null;
       payload.phoneTypeName =
-        selectedPhoneTypes.length === 0 && newPhoneTypeName.trim()
+        selectedPhoneTypes.length === 0 && selectedBrands.length === 1 && newPhoneTypeName.trim()
           ? newPhoneTypeName.trim()
           : selectedPhoneTypes.length === 0
             ? ""
@@ -1029,7 +1112,7 @@ export default function AdminSparePartsPage() {
           priceRetail,
           priceWholesale,
           priceReparateur,
-          selectedBrand,
+          selectedBrand: selectedBrands[0] || "",
           selectedPhoneTypes,
           newPhoneTypeName,
           selectedSpareColors,
@@ -1107,9 +1190,9 @@ export default function AdminSparePartsPage() {
     setPriceReparateur(
       item.priceReparateur != null ? String(item.priceReparateur) : ""
     );
-    const brandId = typeof item.brand === "string" ? item.brand : item.brand?._id;
+    const brandIds = sparePartBrandIds(item);
     const linkedIds = sparePartPhoneTypeIds(item);
-    setSelectedBrand(brandId || "");
+    setSelectedBrands(brandIds);
     setSelectedPhoneType("");
     setSelectedPhoneTypes(linkedIds);
     setNewPhoneTypeName("");
@@ -1119,7 +1202,7 @@ export default function AdminSparePartsPage() {
     setManageStock(Boolean(item.manageStock));
     setHidden(false);
     setStock(item.stock != null ? String(item.stock) : "");
-    if (brandId) fetchPhoneTypesForBrand(brandId);
+    if (brandIds.length > 0) fetchPhoneTypesForBrands(brandIds);
     setPartModalNotice(null);
     setPartModalOpen(true);
   }
@@ -1142,9 +1225,9 @@ export default function AdminSparePartsPage() {
     setPriceReparateur(
       item.priceReparateur != null ? String(item.priceReparateur) : ""
     );
-    const brandId = typeof item.brand === "string" ? item.brand : item.brand?._id;
+    const brandIds = sparePartBrandIds(item);
     const linkedIds = sparePartPhoneTypeIds(item);
-    setSelectedBrand(brandId || "");
+    setSelectedBrands(brandIds);
     setSelectedPhoneType("");
     setSelectedPhoneTypes(linkedIds);
     setNewPhoneTypeName("");
@@ -1154,7 +1237,7 @@ export default function AdminSparePartsPage() {
     setManageStock(Boolean(item.manageStock));
     setHidden(Boolean(item.hidden));
     setStock(item.stock != null ? String(item.stock) : "");
-    if (brandId) fetchPhoneTypesForBrand(brandId);
+    if (brandIds.length > 0) fetchPhoneTypesForBrands(brandIds);
   }
 
   async function handleDelete(item: SparePart) {
@@ -1852,35 +1935,24 @@ export default function AdminSparePartsPage() {
 
             <div className="grid gap-2 sm:grid-cols-2 sm:items-start">
               <div className="min-w-0 space-y-1">
-                <label className={lbl}>الماركة (اختياري)</label>
-                <select
-                  value={selectedBrand}
-                  onChange={(e) => {
-                    setSelectedBrand(e.target.value);
-                    setSelectedPhoneType("");
-                    setSelectedPhoneTypes([]);
-                    setNewPhoneTypeName("");
-                  }}
-                  className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
-                >
-                  <option value="">—</option>
-                  {brands.map((b) => (
-                    <option key={b._id} value={b._id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
+                <label className={lbl}>الماركة (اختياري — يمكن اختيار أكثر من واحدة)</label>
+                <AdminSparePartBrandPicker
+                  brands={brands}
+                  selectedIds={selectedBrands}
+                  onChangeIds={handleSelectedBrandsChange}
+                />
               </div>
               <div className="min-w-0">
                 <label className={lbl}>الموديلات</label>
                 <AdminSparePartModelPicker
-                  brandSelected={!!selectedBrand}
-                  phoneTypes={phoneTypes}
+                  brandSelected={selectedBrands.length > 0}
+                  phoneTypes={modelPickerPhoneTypes}
                   selectedIds={selectedPhoneTypes}
                   onChangeIds={setSelectedPhoneTypes}
                   newModelName={newPhoneTypeName}
                   onNewModelNameChange={setNewPhoneTypeName}
                   blockedNewBecauseSelection={selectedPhoneTypes.length > 0}
+                  showNewModelRow={selectedBrands.length <= 1}
                 />
               </div>
             </div>

@@ -58,15 +58,16 @@ export default function AdminLoginPage() {
             )}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-300">
-                البريد الإلكتروني
+                اسم المستخدم
               </label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="username"
                 className="w-full rounded-xl border border-slate-600 bg-slate-700/50 px-4 py-3 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                placeholder="admin@foni.com"
+                placeholder="اسم المستخدم"
               />
             </div>
             <div>
