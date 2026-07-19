@@ -19,6 +19,16 @@ import {
 import { parseExtraImagesFromText } from "@/lib/adminProductMedia";
 import { AdminProductMediaFields } from "@/components/admin/AdminProductMediaFields";
 import {
+  Package,
+  Plus,
+  CheckCircle,
+  AlertCircle,
+  Trash2,
+  Search,
+  Copy,
+  Pencil,
+} from "lucide-react";
+import {
   AdminButton,
   AdminCard,
   AdminModal,
