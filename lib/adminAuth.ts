@@ -1,10 +1,16 @@
 function getApiBase(): string {
+  // المتصفح: نفس الأصل فقط (foni-dz.com/api) — لا api.foni-dz.com على LTE
+  if (typeof window !== "undefined") return "";
+  const internal = (process.env.INTERNAL_API_URL || "").trim();
+  if (internal) return internal.replace(/\/+$/, "");
   const raw = (process.env.NEXT_PUBLIC_API_URL || "").trim();
   if (raw) return raw.replace(/\/+$/, "");
-  // Browser: use same-origin /api (handled by Next rewrites/proxy in deployment).
-  if (typeof window !== "undefined") return "";
-  // Server-side fallback for local dev/runtime scripts.
   return "http://localhost:5001";
+}
+
+/** عنوان API — في المتصفح يُرجع "" (مسار نسبي /api...) */
+export function getApiUrl(): string {
+  return getApiBase();
 }
 
 const API_URL = getApiBase();
@@ -47,4 +53,4 @@ export function getAuthHeaders(): HeadersInit {
   };
 }
 
-export { API_URL };
+export { API_URL, getApiUrl };

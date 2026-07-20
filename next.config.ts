@@ -28,7 +28,11 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
   async rewrites() {
-    const raw = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+    // على السيرفر: INTERNAL_API_URL=http://127.0.0.1:5001 (أسرع وأكثر استقراراً من HTTPS loopback)
+    const raw =
+      process.env.INTERNAL_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:5001";
     const base = String(raw).replace(/\/+$/, "");
     return [
       {
