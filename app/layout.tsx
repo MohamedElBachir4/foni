@@ -6,6 +6,11 @@ import { PopupAdModal } from "@/components/PopupAdModal";
 import { buildMetadata } from "@/lib/seo";
 import "./globals.css";
 
+/** منع كاش Full Route لسنة (s-maxage=31536000) الذي يسبب 404 متقطع بعد النشر */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
   weight: ["300", "400", "500", "600", "700"],

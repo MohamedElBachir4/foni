@@ -286,6 +286,8 @@ export default async function ProductDetailPage({
   let sparePartContext: { brandId?: string; phoneTypeId?: string; brandSlug?: string } = {};
   let accessoryContext: { typeId?: string; typeLabel?: string } = {};
   let modelHubContext: { href: string; label: string } | null = null;
+  /** فشل شبكة/5xx أثناء الجلب — لا يُعامل كـ notFound (سبب شائع لـ 404 متقطع) */
+  let transientFetchFailure = false;
 
   if (isNumericId) {
     const staticProduct = getProductById(numericId);
@@ -364,9 +366,11 @@ export default async function ProductDetailPage({
           manageStock: Boolean(phone.manageStock),
         };
         source = "phone";
+      } else if (res.status !== 404) {
+        transientFetchFailure = true;
       }
     } catch {
-      // ignore
+      transientFetchFailure = true;
     }
   }
 
@@ -376,7 +380,7 @@ export default async function ProductDetailPage({
       const byIdRes = await publicFetch(`/api/spare-parts/${id}`, { cache: "no-store" });
       if (byIdRes.ok) {
         part = await byIdRes.json();
-      } else {
+      } else if (byIdRes.status === 404) {
         const listRes = await publicFetch(`/api/spare-parts?limit=1000`, {
           cache: "no-store",
         });
@@ -386,7 +390,11 @@ export default async function ProductDetailPage({
           part = Array.isArray(parts)
             ? parts.find((item: { _id?: string }) => item?._id === id) ?? null
             : null;
+        } else if (listRes.status !== 404) {
+          transientFetchFailure = true;
         }
+      } else {
+        transientFetchFailure = true;
       }
 
       if (part?._id) {
@@ -452,7 +460,7 @@ export default async function ProductDetailPage({
           buildModelHubContext(brandSlug, phoneTypeId, phoneTypeName) ?? modelHubContext;
       }
     } catch {
-      // ignore
+      transientFetchFailure = true;
     }
   }
 
@@ -532,14 +540,20 @@ export default async function ProductDetailPage({
           manageStock: Boolean(acc.manageStock),
         };
         source = "accessory";
+      } else if (accRes.status !== 404) {
+        transientFetchFailure = true;
       }
     } catch {
-      // ignore
+      transientFetchFailure = true;
     }
   }
 
-  if (!product) notFound();
-
+  if (!product) {
+    if (transientFetchFailure) {
+      throw new Error("تعذّر تحميل المنتج مؤقتاً بسبب الشبكة أو الخادم. حاول مجدداً.");
+    }
+    notFound();
+  }
   const descriptionFallback =
     source === "sparePart"
       ? `قطعة غيار عالية الجودة من ${brandLabel || "الماركة المطلوبة"}، مصممة لأداء ثابت واعتمادية طويلة.`

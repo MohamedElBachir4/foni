@@ -35,19 +35,22 @@ export default async function ModelHubPage({
   const brandParam = brand.toLowerCase();
   if (!MONGO_ID.test(phoneTypeId)) notFound();
 
-  let pt: PhoneTypeOne | null = null;
+  // فشل الشبكة/5xx ≠ «غير موجود» — وإلا يظهر 404 متقطع أثناء التنقّل على LTE
+  let res: Response;
   try {
-    const res = await publicFetch(`/api/phone-types/${phoneTypeId}`, {
+    res = await publicFetch(`/api/phone-types/${phoneTypeId}`, {
       cache: "no-store",
     });
-    if (!res.ok) notFound();
-    pt = (await res.json()) as PhoneTypeOne;
   } catch {
-    notFound();
+    throw new Error("تعذّر الاتصال بالخادم أثناء تحميل الموديل");
   }
+  if (res.status === 404) notFound();
+  if (!res.ok) {
+    throw new Error(`تعذّر تحميل الموديل (HTTP ${res.status})`);
+  }
+  const pt = (await res.json()) as PhoneTypeOne;
   if (!pt || !pt.brand?._id) notFound();
   if (!brandParamMatchesPhoneType(brandParam, pt)) notFound();
-
   const brandName = pt.brand?.name ?? brandParam;
   const modelName = pt.name;
   const brandMongoId = pt.brand._id;

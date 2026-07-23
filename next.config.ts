@@ -5,6 +5,16 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  /**
+   * لا تُبقِ حمولة RSC في كاش الموجّه على العميل بعد التنقّل —
+   * يقلّل ظهور 404 زائف عند تعارض نسخة قديمة مع نشر جديد.
+   */
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 30,
+    },
+  },
   images: {
     /**
      * لا يدعم Next.js 16 نمط hostname: "**" بشكل موثوق — يؤدي إلى رفض التحسين وطلبات 404 على /_next/image.
