@@ -6,6 +6,7 @@ import { getProductById, getBrandLabel } from "@/lib/productsData";
 import { ProductDetailsModern } from "@/components/product/ProductDetailsModern";
 import { buildMetadata, getSiteUrl, slugifyProductName } from "@/lib/seo";
 import { publicFetch } from "@/lib/publicFetch";
+import { logServerError } from "@/lib/serverLog";
 import {
   parsePricedVariantsFromApi,
   type PricedVariant,
@@ -550,6 +551,12 @@ export default async function ProductDetailPage({
 
   if (!product) {
     if (transientFetchFailure) {
+      logServerError(new Error("transient fetch failure resolving product/spare-part/accessory"), {
+        route: "app/product/[id]/page.tsx",
+        pathname: `/product/${id}`,
+        params: { id },
+        extra: { isNumericId },
+      });
       throw new Error("تعذّر تحميل المنتج مؤقتاً بسبب الشبكة أو الخادم. حاول مجدداً.");
     }
     notFound();

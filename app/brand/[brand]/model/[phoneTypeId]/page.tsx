@@ -4,6 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { ModelHubProductGrids } from "@/components/ModelHubProductGrids";
 import { publicFetch } from "@/lib/publicFetch";
+import { logServerError } from "@/lib/serverLog";
 
 const MONGO_ID = /^[a-f0-9]{24}$/i;
 
@@ -41,11 +42,23 @@ export default async function ModelHubPage({
     res = await publicFetch(`/api/phone-types/${phoneTypeId}`, {
       cache: "no-store",
     });
-  } catch {
+  } catch (err) {
+    logServerError(err, {
+      route: "app/brand/[brand]/model/[phoneTypeId]/page.tsx",
+      pathname: `/brand/${brandParam}/model/${phoneTypeId}`,
+      params: { brand: brandParam, phoneTypeId },
+      extra: { stage: "fetch-throw" },
+    });
     throw new Error("تعذّر الاتصال بالخادم أثناء تحميل الموديل");
   }
   if (res.status === 404) notFound();
   if (!res.ok) {
+    logServerError(new Error(`upstream ${res.status} for /api/phone-types/${phoneTypeId}`), {
+      route: "app/brand/[brand]/model/[phoneTypeId]/page.tsx",
+      pathname: `/brand/${brandParam}/model/${phoneTypeId}`,
+      params: { brand: brandParam, phoneTypeId },
+      extra: { stage: "non-ok-response", status: res.status },
+    });
     throw new Error(`تعذّر تحميل الموديل (HTTP ${res.status})`);
   }
   const pt = (await res.json()) as PhoneTypeOne;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Error({
   error,
@@ -9,9 +10,27 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const pathname = usePathname();
+
   useEffect(() => {
     console.error("[foni] route error:", error);
-  }, [error]);
+    // يُعوّض عن إخفاء Next.js لرسالة الخطأ الأصلية في الإنتاج — يربط digest الظاهر
+    // للعميل بسجل الخادم القابل للبحث (grep foni_error) حيث الرسالة/الـ stack الأصليان.
+    fetch("/internal/client-error-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        message: error.message,
+        digest: error.digest,
+        stack: error.stack,
+        name: error.name,
+        pathname,
+      }),
+    }).catch(() => {
+      // تجاهل فشل التسجيل نفسه
+    });
+  }, [error, pathname]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">

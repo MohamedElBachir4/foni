@@ -52,7 +52,18 @@ function backoffWithJitter(attempt: number): number {
 }
 
 function shouldRetryHttpStatus(status: number): boolean {
-  return status === 408 || status === 502 || status === 503 || status === 504;
+  return status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
+}
+
+/** يحترم رأس Retry-After (ثوانٍ أو تاريخ HTTP) عند وجوده — مهم لـ 429 كي لا نُعيد المحاولة أبكر مما يسمح الخادم. */
+function retryAfterMs(res: Response): number | null {
+  const header = res.headers.get("Retry-After");
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const dateMs = Date.parse(header);
+  if (!Number.isNaN(dateMs)) return Math.max(0, dateMs - Date.now());
+  return null;
 }
 
 function mergeUserAndTimeoutSignal(
@@ -134,8 +145,9 @@ export async function publicFetch(
         cleanup();
         return res;
       }
+      const waitMs = retryAfterMs(res);
       cleanup();
-      await sleep(backoffWithJitter(attempt));
+      await sleep(waitMs != null ? Math.min(waitMs, 10_000) : backoffWithJitter(attempt));
     } catch (e) {
       cleanup();
       if (userSignal?.aborted) throw e;
