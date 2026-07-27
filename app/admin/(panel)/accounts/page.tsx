@@ -243,21 +243,21 @@ export default function AdminAccountsPage() {
         </div>
       ) : null}
 
-      <div className="mt-4">
-        <div className="relative max-w-md">
+      <div className="mt-3 sm:mt-4">
+        <div className="relative w-full sm:max-w-md">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
-            type="text"
+            type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث عن زبون بالاسم أو رقم الهاتف"
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pr-10 pl-3 text-sm text-slate-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            placeholder="ابحث بالاسم أو رقم الهاتف"
+            className="w-full rounded-xl border border-slate-300 bg-white py-3 pr-10 pl-3 text-sm text-slate-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
           />
         </div>
       </div>
 
       {showBulkBar ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3">
+        <div className="mt-4 flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-4">
           <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
             <input
               type="checkbox"
@@ -272,25 +272,29 @@ export default function AdminAccountsPage() {
               <span className="text-sm font-semibold text-violet-800">
                 {selectedIds.length} محدّد
               </span>
-              <AdminButton
-                size="sm"
-                variant="success"
-                loading={bulkLoading}
-                disabled={bulkLoading}
-                onClick={() => setBulkConfirm({ mode: "approved", count: selectedIds.length })}
-              >
-                قبول المحدّد
-              </AdminButton>
-              <AdminButton
-                size="sm"
-                variant="danger"
-                loading={bulkLoading}
-                disabled={bulkLoading}
-                onClick={() => setBulkConfirm({ mode: "rejected", count: selectedIds.length })}
-              >
-                رفض المحدّد
-              </AdminButton>
-              <AdminButton size="sm" variant="outline" onClick={clearSelection} disabled={bulkLoading}>
+              <div className="grid grid-cols-2 gap-2 sm:contents">
+                <AdminButton
+                  size="sm"
+                  variant="success"
+                  loading={bulkLoading}
+                  disabled={bulkLoading}
+                  className="w-full sm:w-auto"
+                  onClick={() => setBulkConfirm({ mode: "approved", count: selectedIds.length })}
+                >
+                  قبول المحدّد
+                </AdminButton>
+                <AdminButton
+                  size="sm"
+                  variant="danger"
+                  loading={bulkLoading}
+                  disabled={bulkLoading}
+                  className="w-full sm:w-auto"
+                  onClick={() => setBulkConfirm({ mode: "rejected", count: selectedIds.length })}
+                >
+                  رفض المحدّد
+                </AdminButton>
+              </div>
+              <AdminButton size="sm" variant="outline" onClick={clearSelection} disabled={bulkLoading} className="w-full sm:w-auto">
                 إلغاء التحديد
               </AdminButton>
             </>

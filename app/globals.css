@@ -238,6 +238,23 @@ select {
 .admin-panel-page {
   min-width: 0;
   overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* لمسات جوال مشتركة للوحة التحكم */
+@media (max-width: 639px) {
+  .admin-panel-page input,
+  .admin-panel-page select,
+  .admin-panel-page textarea {
+    font-size: 16px; /* يمنع تكبير iOS التلقائي */
+  }
+
+  .admin-panel-page .admin-input,
+  .admin-panel-page .admin-select {
+    min-height: 44px;
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+  }
 }
 
 /* علامة الصح عند الإضافة للسلة */

@@ -39,13 +39,13 @@ export function AdminTable({
 
   return (
     <div className="admin-table-scroll -mx-1 overflow-x-auto rounded-lg border border-slate-200 px-1 sm:mx-0 sm:px-0">
-      <table className="w-full min-w-[520px] text-right text-sm sm:min-w-[600px]">
+      <table className="w-full min-w-[480px] text-right text-sm sm:min-w-[600px]">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50/80">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`whitespace-nowrap px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600 sm:px-4 sm:py-3 ${col.className ?? ""}`}
+                className={`whitespace-nowrap px-2.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600 sm:px-4 sm:py-3 sm:text-xs ${col.className ?? ""}`}
               >
                 {col.label}
               </th>
@@ -61,7 +61,7 @@ export function AdminTable({
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={`px-3 py-2.5 text-slate-700 sm:px-4 sm:py-3 ${col.className ?? ""} ${
+                  className={`px-2.5 py-2 text-slate-700 sm:px-4 sm:py-3 ${col.className ?? ""} ${
                     col.key === imageColumn ? "align-middle" : ""
                   }`}
                 >

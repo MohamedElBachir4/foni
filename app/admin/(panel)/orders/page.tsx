@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
-import { User, Phone, MapPin, Package, Calendar, Loader2, Send } from "lucide-react";
+import { User, Phone, MapPin, Package, Calendar, Loader2, Send, Search } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin";
 
 const YALIDINE_MAX_PRICE = 150000;
@@ -114,6 +114,7 @@ export default function AdminOrdersPage() {
     type: "success" | "error" | "info";
     text: string;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   async function updateOrderStatus(orderId: string, status: string) {
     // التحقق من أن المعرف موجود وصحيح
@@ -259,7 +260,23 @@ export default function AdminOrdersPage() {
     );
   }
 
-  const eligibleForYalidine = orders.filter(canSendOrderToYalidine);
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const searchDigits = normalizedSearch.replace(/\D/g, "");
+  const filteredOrders = useMemo(() => {
+    if (!normalizedSearch) return orders;
+    return orders.filter((order) => {
+      const fullName = String(order.fullName || "").toLowerCase();
+      const phone = String(order.phone || "").toLowerCase();
+      const phoneDigits = phone.replace(/\D/g, "");
+      return (
+        fullName.includes(normalizedSearch) ||
+        phone.includes(normalizedSearch) ||
+        (searchDigits.length > 0 && phoneDigits.includes(searchDigits))
+      );
+    });
+  }, [orders, normalizedSearch, searchDigits]);
+
+  const eligibleForYalidine = filteredOrders.filter(canSendOrderToYalidine);
   const selectedCount = selectedIds.size;
 
   function toggleOrderSelection(orderId: string) {
@@ -435,7 +452,7 @@ export default function AdminOrdersPage() {
     <div className="mx-auto max-w-4xl">
       <AdminPageHeader
         title="الطلبات"
-        description="حدّد عدة طلبات وأرسلها دفعة واحدة إلى Yalidine، أو عدّل الكمية/السعر ثم أرسل — التعديلات تُحفظ عند نجاح الإرسال."
+        description="حدّد الطلبات وأرسلها إلى Yalidine، أو عدّل الكمية والسعر قبل الإرسال."
         icon={<Package className="h-5 w-5" />}
       />
 
@@ -453,8 +470,22 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {orders.length > 0 && eligibleForYalidine.length > 0 ? (
-        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+      <div className="mt-3 sm:mt-4">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ابحث بالاسم أو رقم الهاتف"
+            className="w-full rounded-xl border border-slate-300 bg-white py-3 pr-10 pl-3 text-sm text-slate-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            aria-label="بحث بالاسم أو رقم الهاتف"
+          />
+        </div>
+      </div>
+
+      {filteredOrders.length > 0 && eligibleForYalidine.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 py-3 sm:mt-6 sm:flex-row sm:flex-wrap sm:items-center sm:px-4">
           <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               type="checkbox"
@@ -466,14 +497,14 @@ export default function AdminOrdersPage() {
               disabled={sendingBulk || Boolean(sendingId)}
               className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
             />
-            تحديد الكل القابل للإرسال ({eligibleForYalidine.length})
+            تحديد الكل ({eligibleForYalidine.length})
           </label>
           {selectedCount > 0 ? (
             <button
               type="button"
               onClick={clearSelection}
               disabled={sendingBulk}
-              className="text-sm font-medium text-slate-600 underline-offset-2 hover:underline disabled:opacity-50"
+              className="self-start text-sm font-medium text-slate-600 underline-offset-2 hover:underline disabled:opacity-50"
             >
               إلغاء التحديد
             </button>
@@ -482,7 +513,7 @@ export default function AdminOrdersPage() {
             type="button"
             onClick={sendSelectedToYalidine}
             disabled={selectedCount === 0 || sendingBulk || Boolean(sendingId)}
-            className="mr-auto inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm disabled:opacity-50 sm:mr-auto sm:w-auto sm:rounded-full"
           >
             {sendingBulk ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -490,30 +521,35 @@ export default function AdminOrdersPage() {
               <Send className="h-4 w-4" aria-hidden />
             )}
             {sendingBulk
-              ? "جاري الإرسال الجماعي..."
-              : `إرسال المحدد إلى Yalidine (${selectedCount})`}
+              ? "جاري الإرسال..."
+              : `إرسال المحدد (${selectedCount})`}
           </button>
         </div>
       ) : null}
 
       {orders.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-          <Package className="mx-auto h-14 w-14 text-slate-300" />
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12">
+          <Package className="mx-auto h-12 w-12 text-slate-300 sm:h-14 sm:w-14" />
           <p className="mt-4 font-medium text-slate-600">لا توجد طلبات حتى الآن</p>
         </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12">
+          <Search className="mx-auto h-12 w-12 text-slate-300 sm:h-14 sm:w-14" />
+          <p className="mt-4 font-medium text-slate-600">لا يوجد طلب مطابق لبحثك</p>
+        </div>
       ) : (
-        <div className="mt-8 space-y-6">
-          {orders.map((order) => (
+        <div className="mt-5 space-y-4 sm:mt-8 sm:space-y-6">
+          {filteredOrders.map((order) => (
             <div
               key={order._id}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:transition sm:hover:shadow-md"
             >
-              <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex flex-wrap items-center gap-4">
+              <div className="border-b border-slate-100 bg-slate-50/50 px-3 py-3 sm:px-6 sm:py-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
                     {canSendOrderToYalidine(order) ? (
                       <label
-                        className="inline-flex cursor-pointer items-center"
+                        className="mt-1 inline-flex min-h-[44px] min-w-[28px] cursor-pointer items-center"
                         title="تحديد للإرسال الجماعي إلى Yalidine"
                       >
                         <input
@@ -525,28 +561,39 @@ export default function AdminOrdersPage() {
                         />
                       </label>
                     ) : null}
-                    <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
-                      <User className="h-4 w-4" />
-                      {order.fullName}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 text-sm text-slate-600" dir="ltr">
-                      <Phone className="h-4 w-4" />
-                      {order.phone}
-                    </span>
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${customerTypeClasses[order.customerType || "retail"] ||
-                        "bg-slate-100 text-slate-700"
-                        }`}
-                      title="نوع الزبون (يُحدد عند الطلب حسب تسجيل العميل)"
-                    >
-                      {customerTypeLabels[order.customerType || "retail"]}
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex max-w-full items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
+                          <User className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{order.fullName}</span>
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium sm:text-sm ${customerTypeClasses[order.customerType || "retail"] ||
+                            "bg-slate-100 text-slate-700"
+                            }`}
+                        >
+                          {customerTypeLabels[order.customerType || "retail"]}
+                        </span>
+                      </div>
+                      <a
+                        href={`tel:${order.phone}`}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600"
+                        dir="ltr"
+                      >
+                        <Phone className="h-4 w-4" />
+                        {order.phone}
+                      </a>
+                      <p className="text-xs text-slate-500 sm:text-sm">
+                        <Calendar className="ml-1 inline h-3.5 w-3.5" />
+                        {formatDate(order.createdAt)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white sm:rounded-full sm:px-4 sm:py-1.5 sm:text-lg">
+                      {order.totalPrice.toLocaleString()} دج
                     </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-sm text-slate-500">
-                      <Calendar className="mr-1 inline h-4 w-4" />
-                      {formatDate(order.createdAt)}
-                    </span>
+
+                  <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                     <select
                       value={order.status || "pending"}
                       data-order-id={order._id}
@@ -554,13 +601,12 @@ export default function AdminOrdersPage() {
                         const selectElement = e.currentTarget as HTMLSelectElement;
                         const id = selectElement.getAttribute("data-order-id");
                         const newStatus = e.target.value;
-                        console.log("Select changed - orderId:", id, "newStatus:", newStatus);
                         if (id) {
                           updateOrderStatus(id, newStatus);
                         }
                       }}
                       disabled={updatingId === order._id}
-                      className={`rounded-full px-3 py-1 text-sm font-medium ${statusClasses[order.status || "pending"] || "bg-slate-100 text-slate-700"
+                      className={`min-h-[44px] w-full rounded-xl px-3 py-2 text-sm font-medium sm:w-auto sm:rounded-full sm:py-1 ${statusClasses[order.status || "pending"] || "bg-slate-100 text-slate-700"
                         } border-0 focus:ring-2 focus:ring-sky-500`}
                     >
                       {(["pending", "completed", "cancelled"] as const).map((s) => (
@@ -578,7 +624,7 @@ export default function AdminOrdersPage() {
                         Boolean(order.yalidineTracking) ||
                         (Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE
                       }
-                      className="rounded-full bg-indigo-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
+                      className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50 sm:w-auto sm:rounded-full sm:py-1.5"
                       title={
                         (Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE
                           ? "خفّض مجموع الأسعار إلى 150000 دج أو أقل قبل الإرسال"
@@ -591,26 +637,23 @@ export default function AdminOrdersPage() {
                         ? "جاري الإرسال..."
                         : "إرسال إلى Yalidine"}
                     </button>
-                    <span className="rounded-full bg-blue-600 px-4 py-1.5 text-lg font-bold text-white">
-                      {order.totalPrice.toLocaleString()} دج
-                    </span>
                   </div>
                 </div>
                 {(Number(order.totalPrice) || 0) > YALIDINE_MAX_PRICE ? (
-                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 sm:px-4 sm:text-sm">
                     Yalidine تقبل مبلغ تحصيل حتى {YALIDINE_MAX_PRICE.toLocaleString()} دج فقط.
                     عدّل أسعار المنتجات قبل الإرسال.
                   </div>
                 ) : null}
               </div>
-              <div className="grid gap-6 p-6 sm:grid-cols-2">
+              <div className="grid gap-5 p-3 sm:gap-6 sm:p-6 sm:grid-cols-2">
                 <div>
                   <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700">
                     <MapPin className="h-4 w-4 text-slate-500" />
                     العنوان
                   </h3>
-                  <p className="text-slate-600">{order.wilaya}</p>
-                  <p className="mt-1 text-slate-600">{order.address}</p>
+                  <p className="text-sm text-slate-600 sm:text-base">{order.wilaya}</p>
+                  <p className="mt-1 text-sm text-slate-600 sm:text-base">{order.address}</p>
                   {order.notes?.trim() ? (
                     <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50/80 px-3 py-2 text-sm text-amber-950">
                       <span className="font-bold">ملاحظة الزبون: </span>
@@ -638,16 +681,16 @@ export default function AdminOrdersPage() {
                             6,
                             Math.max(1, Math.ceil((item.name?.length || 0) / 40))
                           )}
-                          className="w-full resize-y break-words rounded border border-slate-300 px-2 py-1 text-slate-800"
+                          className="w-full resize-y break-words rounded border border-slate-300 px-2 py-1.5 text-slate-800"
                         />
-                        <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                           <span className="min-w-0 flex-1 text-xs text-slate-500">
                             {item.variantSelections?.length ? (
                               <span className="block space-y-1.5">
                                 {item.variantSelections.map((v) => (
                                   <span
                                     key={v.label}
-                                    className="flex flex-wrap items-center gap-2 rounded border border-slate-200/80 bg-white px-2 py-1.5"
+                                    className="flex flex-col gap-2 rounded border border-slate-200/80 bg-white px-2 py-1.5 sm:flex-row sm:flex-wrap sm:items-center"
                                   >
                                     <span className="min-w-0 flex-1 break-words font-medium text-slate-700">
                                       {v.label}
@@ -668,7 +711,7 @@ export default function AdminOrdersPage() {
                                             e.target.value
                                           )
                                         }
-                                        className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center text-slate-800"
+                                        className="w-16 rounded border border-slate-300 px-1 py-1.5 text-center text-slate-800"
                                       />
                                     </label>
                                     <span className="shrink-0 text-slate-500">
@@ -693,7 +736,7 @@ export default function AdminOrdersPage() {
                                     onChange={(e) =>
                                       updateOrderItemQuantity(order._id, i, e.target.value)
                                     }
-                                    className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center text-slate-800"
+                                    className="w-16 rounded border border-slate-300 px-1 py-1.5 text-center text-slate-800"
                                   />
                                 </label>
                                 {item.option ? (
@@ -704,7 +747,7 @@ export default function AdminOrdersPage() {
                               </span>
                             )}
                           </span>
-                          <span className="shrink-0 font-semibold text-slate-700">
+                          <span className="flex shrink-0 items-center gap-1 font-semibold text-slate-700">
                             <input
                               type="number"
                               min={0}
@@ -712,13 +755,13 @@ export default function AdminOrdersPage() {
                               onChange={(e) =>
                                 updateOrderItemField(order._id, i, "price", e.target.value)
                               }
-                              className="w-24 rounded border border-slate-300 px-2 py-1 text-right"
+                              className="w-24 rounded border border-slate-300 px-2 py-1.5 text-right"
                             />
-                            <span className="mr-1 text-xs text-slate-500">دج</span>
+                            <span className="text-xs text-slate-500">دج</span>
                           </span>
                         </div>
                         {item.color && (
-                          <span className="text-xs text-slate-500 mt-0.5">
+                          <span className="mt-0.5 text-xs text-slate-500">
                             اللون: {
                               {
                                 white: "أبيض",

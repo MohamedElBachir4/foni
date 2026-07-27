@@ -175,10 +175,10 @@ export default function AdminPanelLayout({
         onClick={() => {
           if (!isDesktop) setIsSidebarOpen(false);
         }}
-        className={`group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-300 ${
+        className={`group relative flex min-h-[44px] items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-300 sm:px-4 sm:py-3 ${
           active
-            ? "bg-indigo-50/80 text-indigo-700 shadow-[inset_0_1px_4px_rgba(0,0,0,0.03)]"
-            : "text-slate-600 hover:bg-slate-50/80 hover:text-slate-900"
+            ? "bg-indigo-50 text-indigo-700"
+            : "text-slate-600 active:bg-slate-100 hover:bg-slate-50 hover:text-slate-900"
         }`}
       >
         {active && (
@@ -207,7 +207,7 @@ export default function AdminPanelLayout({
   const sidebarOpenOnDesktop = isDesktop && isSidebarOpen;
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC] selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="flex min-h-[100dvh] bg-[#F8FAFC] selection:bg-indigo-100 selection:text-indigo-900">
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -224,16 +224,17 @@ export default function AdminPanelLayout({
         <button
           type="button"
           aria-label="إغلاق القائمة"
-          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-[2px] lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/45 backdrop-blur-[1px] lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       ) : null}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 right-0 z-50 flex w-[min(88vw,18rem)] flex-col border-l border-slate-200/60 bg-white/95 shadow-[0_0_40px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-transform duration-300 ease-in-out lg:w-72 ${
+        className={`fixed inset-y-0 right-0 z-50 flex w-[min(86vw,17.5rem)] flex-col border-l border-slate-200/60 bg-white shadow-[0_0_40px_rgba(0,0,0,0.1)] transition-transform duration-300 ease-in-out lg:w-72 ${
           isSidebarOpen ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {isDesktop ? (
           <button
@@ -416,17 +417,20 @@ export default function AdminPanelLayout({
 
       {/* المحتوى الرئيسي */}
       <div
-        className={`flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out ${
+        className={`flex min-h-[100dvh] min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out ${
           sidebarOpenOnDesktop ? "lg:mr-72" : ""
         }`}
       >
         {/* شريط علوي — جوال */}
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-md lg:hidden">
+        <header
+          className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 backdrop-blur-md sm:px-4 lg:hidden"
+          style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
           <button
             type="button"
             onClick={() => setIsSidebarOpen(true)}
             aria-label="فتح القائمة"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-95"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -434,31 +438,31 @@ export default function AdminPanelLayout({
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 text-sm font-black text-white">
               F
             </div>
-            <span className="truncate text-sm font-bold text-slate-800">لوحة التحكم</span>
+            <span className="truncate text-sm font-bold text-slate-800">FONI</span>
           </div>
-          {pendingCount > 0 ? (
-            <Link
-              href="/admin/orders"
-              className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm"
-              aria-label={`${pendingCount} طلبات معلقة`}
-            >
-              <ShoppingCart className="h-5 w-5" />
+          <Link
+            href="/admin/orders"
+            className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm active:scale-95"
+            aria-label={pendingCount > 0 ? `${pendingCount} طلبات معلقة` : "الطلبات"}
+          >
+            <ShoppingCart className="h-5 w-5" />
+            {pendingCount > 0 ? (
               <span className="absolute -left-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
                 {pendingCount > 99 ? "99+" : pendingCount}
               </span>
-            </Link>
-          ) : (
-            <div className="w-10 shrink-0" aria-hidden />
-          )}
+            ) : null}
+          </Link>
         </header>
 
-        <main className="relative min-w-0 flex-1 p-4 sm:p-6 lg:p-10">
-          <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <main className="relative min-w-0 flex-1 overflow-x-hidden p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 lg:p-10">
+          <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden max-lg:hidden">
             <div className="absolute -left-[10%] -top-[10%] h-[40%] w-[40%] rounded-full bg-gradient-to-tr from-sky-100/40 to-indigo-100/40 blur-[100px]" />
             <div className="absolute -bottom-[10%] left-[20%] flex h-[40%] w-[40%] rounded-full bg-gradient-to-tr from-rose-100/30 to-purple-100/30 blur-[100px]" />
           </div>
 
-          <div className="relative z-10 mx-auto w-full min-w-0 max-w-[1600px]">{children}</div>
+          <div className="admin-panel-page relative z-10 mx-auto w-full min-w-0 max-w-[1600px]">
+            {children}
+          </div>
         </main>
       </div>
     </div>
