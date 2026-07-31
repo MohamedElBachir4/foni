@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getProductImageUrl } from "@/lib/productImage";
+import { publicFetch } from "@/lib/publicFetch";
 
 type Banner = {
   _id: string;
@@ -14,6 +15,12 @@ type Banner = {
 };
 
 const AUTOPLAY_MS = 5000;
+/** مهلة قصيرة للبنر — لا يجب أن يعلّق الهيرو */
+const BANNER_TIMEOUT_MS = 12_000;
+const BANNER_MAX_RETRIES = 2;
+/** سقف مطلق لمغادرة حالة التحميل حتى لو علّق الـ promise */
+const BANNER_LOADING_HARD_CAP_MS =
+  BANNER_TIMEOUT_MS * BANNER_MAX_RETRIES + 8_000;
 
 function normalizeBannerHref(url: string): string {
   const raw = String(url || "").trim();
@@ -62,9 +69,30 @@ export function HomeBannerSlider() {
 
   useEffect(() => {
     let cancelled = false;
+    const ac = new AbortController();
+
+    const leaveLoading = () => {
+      if (!cancelled) setLoading(false);
+    };
+
+    // ضمان مطلق: لا يبقى loading=true إلى الأبد (Safari resume / promise معلّق)
+    const hardCap = window.setTimeout(() => {
+      ac.abort();
+      if (!cancelled) {
+        setBanners([]);
+        setLoading(false);
+      }
+    }, BANNER_LOADING_HARD_CAP_MS);
+
     (async () => {
       try {
-        const res = await fetch("/api/home/banners", { credentials: "include" });
+        const res = await publicFetch("/api/home/banners", {
+          credentials: "include",
+          cache: "no-store",
+          signal: ac.signal,
+          timeoutMs: BANNER_TIMEOUT_MS,
+          maxRetries: BANNER_MAX_RETRIES,
+        });
         if (!res.ok) throw new Error("fetch failed");
         const data = await res.json();
         if (!cancelled) {
@@ -73,11 +101,14 @@ export function HomeBannerSlider() {
       } catch {
         if (!cancelled) setBanners([]);
       } finally {
-        if (!cancelled) setLoading(false);
+        leaveLoading();
       }
     })();
+
     return () => {
       cancelled = true;
+      window.clearTimeout(hardCap);
+      ac.abort();
     };
   }, []);
 
