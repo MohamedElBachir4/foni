@@ -18,7 +18,8 @@ export function HomePageClient() {
         <HomeBannerSlider />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <ProductGrid selectedBrandId={selectedBrandId} mixedLatest />
-          <ProductGrid selectedBrandId={selectedBrandId} bestSelling />
+          {/* TEMP: قسم الأكثر مبيعًا معطّل مؤقتًا بسبب بطء/تعليق API */}
+          {/* <ProductGrid selectedBrandId={selectedBrandId} bestSelling /> */}
           <CategorySlider />
           <BrandGrid
             selectedBrandId={selectedBrandId}
