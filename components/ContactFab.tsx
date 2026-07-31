@@ -124,7 +124,13 @@ export function ContactFab() {
               {items.map((item, i) => {
                 const meta =
                   ITEM_META[item.id] ||
-                  (item.id.startsWith("whatsapp") ? ITEM_META.whatsapp : ITEM_META.phone);
+                  (item.id.startsWith("whatsapp")
+                    ? ITEM_META.whatsapp
+                    : item.id.startsWith("phone")
+                      ? ITEM_META.phone
+                      : item.id.startsWith("messenger")
+                        ? ITEM_META.messenger
+                        : ITEM_META.phone);
                 return (
                   <motion.a
                     key={item.id}

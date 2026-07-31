@@ -9,6 +9,8 @@ import { formatDzd, getEffectivePrice, getPricingAccount } from "@/lib/pricing";
 import { publicFetch } from "@/lib/publicFetch";
 
 const GRID_PAGE_SIZE = 24;
+/** قطع الغيار في صفحة الموديل: آخر 4 مرفوعة أولاً */
+const SPARE_PARTS_INITIAL_COUNT = 4;
 
 type HubProduct = {
   _id: string;
@@ -18,12 +20,21 @@ type HubProduct = {
   priceRetail?: number;
   priceWholesale?: number;
   priceReparateur?: number;
+  createdAt?: string;
 };
 
 type ModelHubProductGridsProps = {
   brandMongoId: string;
   phoneTypeId: string;
 };
+
+function sortByNewest(items: HubProduct[]): HubProduct[] {
+  return [...items].sort((a, b) => {
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return tb - ta;
+  });
+}
 
 function ProductGridSection({
   title,
@@ -32,6 +43,9 @@ function ProductGridSection({
   category,
   items,
   loading,
+  initialCount = GRID_PAGE_SIZE,
+  expandAllOnMore = false,
+  moreLabel = "عرض المزيد",
 }: {
   title: string;
   icon: React.ReactNode;
@@ -39,16 +53,22 @@ function ProductGridSection({
   category: string;
   items: HubProduct[];
   loading: boolean;
+  /** عدد العناصر الظاهرة أولاً */
+  initialCount?: number;
+  /** عند الضغط: إظهار الباقي دفعة واحدة بدل زيادة تدريجية */
+  expandAllOnMore?: boolean;
+  moreLabel?: string;
 }) {
   const { account } = useAccount();
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
-  const [visibleCount, setVisibleCount] = useState(GRID_PAGE_SIZE);
+  const [visibleCount, setVisibleCount] = useState(initialCount);
   const shownItems = items.slice(0, visibleCount);
   const hasMore = items.length > visibleCount;
+  const remaining = items.length - visibleCount;
 
   useEffect(() => {
-    setVisibleCount(GRID_PAGE_SIZE);
-  }, [items]);
+    setVisibleCount(initialCount);
+  }, [items, initialCount]);
 
   return (
     <div>
@@ -129,10 +149,15 @@ function ProductGridSection({
           <div className="mt-4 flex justify-center">
             <button
               type="button"
-              onClick={() => setVisibleCount((n) => n + GRID_PAGE_SIZE)}
-              className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              onClick={() =>
+                setVisibleCount((n) =>
+                  expandAllOnMore ? items.length : n + initialCount
+                )
+              }
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-100"
             >
-              عرض المزيد ({items.length - visibleCount} متبقية)
+              {moreLabel}
+              {remaining > 0 ? ` (${remaining})` : ""}
             </button>
           </div>
         ) : null}
@@ -171,7 +196,7 @@ export function ModelHubProductGrids({
         .then(async (res) => (res.ok ? ((await res.json()) as HubProduct[]) : []))
         .catch(() => []),
       publicFetch(
-        `/api/spare-parts?brand=${encodeURIComponent(brandMongoId)}&phoneType=${encodeURIComponent(phoneTypeId)}&limit=200`,
+        `/api/spare-parts?brand=${encodeURIComponent(brandMongoId)}&phoneType=${encodeURIComponent(phoneTypeId)}&limit=200&sort=newest`,
         { cache: "no-store" }
       )
         .then(async (res) => {
@@ -184,7 +209,7 @@ export function ModelHubProductGrids({
       if (cancelled) return;
       setPhones(p);
       setAccessories(a);
-      setSpareParts(s);
+      setSpareParts(sortByNewest(s));
       setLoading(false);
     });
 
@@ -210,6 +235,9 @@ export function ModelHubProductGrids({
         category="قطع غيار"
         items={spareParts}
         loading={loading}
+        initialCount={SPARE_PARTS_INITIAL_COUNT}
+        expandAllOnMore
+        moreLabel="اعرض المزيد"
       />
       <ProductGridSection
         title="الإكسسوارات"

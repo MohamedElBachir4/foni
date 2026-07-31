@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Phone, Clock, Sparkles, ShoppingBag, ExternalLink } from "lucide-react";
@@ -20,6 +21,12 @@ const serviceLinks = [
   { href: "/accounts", label: "حساب التاجر / الزبون" },
   { href: "/cart", label: "سلة الشراء" },
 ];
+
+const FALLBACK_PHONES = [
+  { display: "+213 542 45 81 75", href: "tel:+213542458175" },
+];
+
+type FooterPhone = { display: string; href: string };
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
@@ -48,9 +55,36 @@ function FooterLinkList({ links }: { links: { href: string; label: string }[] })
 }
 
 export function Footer() {
+  const [phones, setPhones] = useState<FooterPhone[]>(FALLBACK_PHONES);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/contact-settings/public", { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = Array.isArray(data?.phones) ? data.phones : [];
+        const mapped: FooterPhone[] = list
+          .map((p: { display?: string; href?: string; tel?: string }) => {
+            const href = String(p?.href || (p?.tel ? `tel:${p.tel}` : "")).trim();
+            const display = String(p?.display || p?.tel || "").trim();
+            if (!href || !display) return null;
+            return { display, href };
+          })
+          .filter(Boolean) as FooterPhone[];
+        if (!cancelled && mapped.length > 0) setPhones(mapped);
+      } catch {
+        // keep fallback
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <footer className="relative z-10 mt-20">
-      {/* تمويه خفيف متواصل مع خلفية الصفحة */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 -top-px h-32 bg-gradient-to-b from-transparent to-sky-100/35"
@@ -64,7 +98,6 @@ export function Footer() {
           />
 
           <div className="grid gap-10 p-8 sm:p-10 lg:gap-14 lg:p-11">
-            {/* صف العلامة */}
             <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-lg">
                 <div className="mb-5 flex flex-wrap items-center gap-4">
@@ -115,7 +148,6 @@ export function Footer() {
                 </div>
               </div>
 
-              {/* شريطة دعوة — نفس روح أزرار النافبار */}
               <div className="w-full shrink-0 rounded-2xl border border-blue-100/90 bg-gradient-to-br from-blue-600/[0.07] via-white to-sky-50 p-6 shadow-inner shadow-blue-500/10 sm:max-w-sm lg:w-80">
                 <div className="mb-4 flex items-center gap-2 text-[var(--color-luxury-blue)]">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600/10 text-blue-700 ring-1 ring-blue-600/15">
@@ -136,7 +168,6 @@ export function Footer() {
               </div>
             </div>
 
-            {/* أعمدة الروابط + الاتصال */}
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
               <nav aria-label="تسوق">
                 <SectionLabel>تسوق</SectionLabel>
@@ -157,14 +188,20 @@ export function Footer() {
                       </span>
                       <span className="pt-1 leading-relaxed text-slate-700">الجزائر العاصمة · متجر أونلاين</span>
                     </li>
-                    <li className="flex gap-3">
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[var(--color-luxury-blue-light)] ring-1 ring-blue-600/15">
-                        <Phone className="h-4 w-4" aria-hidden />
-                      </span>
-                      <a href="tel:+213542458175" className="pt-1 font-semibold text-slate-900 hover:text-[var(--color-luxury-blue-light)]" dir="ltr">
-                        +213 542 45 81 75
-                      </a>
-                    </li>
+                    {phones.map((phone) => (
+                      <li key={phone.href} className="flex gap-3">
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[var(--color-luxury-blue-light)] ring-1 ring-blue-600/15">
+                          <Phone className="h-4 w-4" aria-hidden />
+                        </span>
+                        <a
+                          href={phone.href}
+                          className="pt-1 font-semibold text-slate-900 hover:text-[var(--color-luxury-blue-light)]"
+                          dir="ltr"
+                        >
+                          {phone.display}
+                        </a>
+                      </li>
+                    ))}
                     <li className="flex items-center gap-3 text-slate-600">
                       <Clock className="h-5 w-5 shrink-0 text-blue-600/80" aria-hidden />
                       الطلب متاح على مدار الساعة
@@ -182,7 +219,6 @@ export function Footer() {
             </div>
           </div>
 
-          {/* الشريط السفلي */}
           <div className="flex flex-col items-center gap-4 border-t border-blue-950/10 bg-gradient-to-r from-slate-50/90 via-blue-50/30 to-slate-50/90 px-6 py-5 sm:flex-row sm:justify-between sm:gap-6 sm:px-10">
             <p className="text-center text-[13px] text-slate-600 sm:text-right">
               © {new Date().getFullYear()} FONI — جميع الحقوق محفوظة
