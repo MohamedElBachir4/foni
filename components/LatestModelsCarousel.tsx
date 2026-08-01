@@ -2,10 +2,6 @@
 
 import Link from "next/link";
 import { getProductImageUrl } from "@/lib/productImage";
-import {
-  ProductPeekCarousel,
-  type TieredProduct,
-} from "@/components/ProductPeekCarousel";
 import type { IphoneModelItem } from "@/components/brand/IphoneModelSections";
 
 export type LatestModelItem = IphoneModelItem & { href: string };
@@ -15,28 +11,24 @@ type LatestModelsCarouselProps = {
   ctaLabel?: string;
 };
 
-type CarouselModel = TieredProduct & { href: string };
-
-function ModelPeekCard({
+function ModelStaticCard({
   model,
-  className,
   ctaLabel,
 }: {
-  model: CarouselModel;
-  className: string;
+  model: LatestModelItem;
   ctaLabel: string;
 }) {
   return (
     <Link
       href={model.href}
-      className={`group flex h-full min-h-[318px] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-right shadow-sm ${className}`}
+      className="group flex h-full min-h-[280px] w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-right shadow-sm"
     >
-      <div className="relative flex min-h-[136px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50/95 to-white px-3 py-6">
+      <div className="relative flex min-h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50/95 to-white px-3 py-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={getProductImageUrl(model.image, { size: "thumb" })}
           alt=""
-          className="max-h-[110px] w-full max-w-[110px] object-contain transition-transform duration-300 group-hover:scale-105"
+          className="max-h-[100px] w-full max-w-[100px] object-contain"
           loading="lazy"
           decoding="async"
         />
@@ -68,36 +60,16 @@ function ModelPeekCard({
   );
 }
 
+/** TEMP: static mobile list — replaces ProductPeekCarousel (no rAF / setInterval / motion). */
 export function LatestModelsCarousel({ models, ctaLabel = "متابعة" }: LatestModelsCarouselProps) {
-  const products: CarouselModel[] = models
-    .filter((m) => m.href)
-    .map((m) => ({
-      id: m._id,
-      name: m.name,
-      image: m.image || "",
-      price: 0,
-      brand: "",
-      category: "موديل",
-      href: m.href,
-    }));
-
-  if (!products.length) return null;
+  const items = models.filter((m) => m.href);
+  if (!items.length) return null;
 
   return (
-    <ProductPeekCarousel
-      className="sm:hidden"
-      products={products}
-      pricingAccount={null}
-      variant="latest"
-      sectionLabel="أحدث المنتجات"
-      ariaLabel="أحدث المنتجات"
-      renderCard={(product, { className }) => (
-        <ModelPeekCard
-          model={product as CarouselModel}
-          className={className}
-          ctaLabel={ctaLabel}
-        />
-      )}
-    />
+    <div className="-mx-4 grid grid-cols-2 gap-3 px-2 sm:hidden" aria-label="أحدث المنتجات">
+      {items.map((model) => (
+        <ModelStaticCard key={model._id} model={model} ctaLabel={ctaLabel} />
+      ))}
+    </div>
   );
 }
