@@ -18,6 +18,9 @@ import { formatPublicFetchError, publicFetch } from "@/lib/publicFetch";
 
 const HOME_LATEST_TIMEOUT_MS = 22_000;
 const HOME_LATEST_MAX_RETRIES = 2;
+/** سقف مطلق لمغادرة حالة التحميل حتى لو علّق الـ promise (Safari resume / hung promise) */
+const HOME_LATEST_LOADING_HARD_CAP_MS =
+  HOME_LATEST_TIMEOUT_MS * HOME_LATEST_MAX_RETRIES + 8_000;
 
 export type { Product };
 
@@ -227,6 +230,18 @@ export function ProductGrid({
     setApiLoading(true);
     setFetchError(null);
 
+    // ضمان مطلق: لا يبقى apiLoading=true إلى الأبد إذا علّق الـ promise
+    // (WebKit: fetch قيد التنفيذ عند تعليق التبويب في الخلفية قد لا يُسوَّى أبداً بعد العودة).
+    const hardCap = window.setTimeout(() => {
+      ac.abort();
+      if (!isStale()) {
+        setApiLoading(false);
+        setFetchError((prev) =>
+          prev ?? "انتهت مهلة الاتصال أو الشبكة غير مستقرة. حاول مجدداً بعد لحظات."
+        );
+      }
+    }, HOME_LATEST_LOADING_HARD_CAP_MS);
+
     publicFetch(endpoint, {
       signal: ac.signal,
       timeoutMs: HOME_LATEST_TIMEOUT_MS,
@@ -267,10 +282,12 @@ export function ProductGrid({
         );
       })
       .finally(() => {
+        window.clearTimeout(hardCap);
         if (!isStale()) setApiLoading(false);
       });
 
     return () => {
+      window.clearTimeout(hardCap);
       ac.abort();
     };
   }, [
