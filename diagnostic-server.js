@@ -7,6 +7,13 @@
 const { createServer } = require("http");
 const { parse } = require("url");
 const path = require("path");
+
+// Production entry: force production unless explicitly overridden.
+// (PM2 `npm start` often leaves NODE_ENV unset, which would boot Next in dev.)
+if (process.env.FONI_FORCE_DEV !== "1") {
+  process.env.NODE_ENV = "production";
+}
+
 const next = require("next");
 const {
   isDiagnosticEnabled,
@@ -18,8 +25,8 @@ const hostname = process.env.HOSTNAME || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 const baseDir = __dirname;
 
-/** On in production by default; set DIAGNOSTIC_REQUEST_LOG=0 to disable */
-const diagDefaultOn = process.env.NODE_ENV === "production";
+/** On by default for this entry; set DIAGNOSTIC_REQUEST_LOG=0 to disable */
+const diagDefaultOn = true;
 const diagOn = isDiagnosticEnabled(diagDefaultOn);
 
 const app = next({ dev, hostname, port });
