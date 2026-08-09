@@ -132,7 +132,9 @@ export function snapshotFromPhoneForCopy(phone: {
 export function buildAccessoryCreateComparePayload(args: {
   name: string;
   selectedType: string;
-  selectedBrand: string;
+  /** @deprecated استخدم selectedBrands */
+  selectedBrand?: string;
+  selectedBrands?: string[];
   selectedPhoneTypes: string[];
   image: string;
   extraImagesText: string;
@@ -149,10 +151,17 @@ export function buildAccessoryCreateComparePayload(args: {
   const pricedOptions = [...args.pricedOptions]
     .slice()
     .sort((a, b) => a.label.localeCompare(b.label, "ar"));
+  const brands =
+    Array.isArray(args.selectedBrands) && args.selectedBrands.length > 0
+      ? [...args.selectedBrands]
+      : args.selectedBrand
+        ? [String(args.selectedBrand).trim()]
+        : [];
   return {
     name: args.name.trim(),
     type: args.selectedType,
-    brand: String(args.selectedBrand).trim(),
+    brand: brands[0] || "",
+    brands,
     phoneTypes: [...args.selectedPhoneTypes],
     image: args.image.trim(),
     extraImages: parseExtraImagesLines(args.extraImagesText),
@@ -192,11 +201,21 @@ type AccessoryLike = {
   hasVariants?: boolean;
 };
 
-function accessoryBrandId(item: AccessoryLike): string {
+function accessoryBrandIdsFromItem(item: AccessoryLike): string[] {
+  const set = new Set<string>();
   const b = item.brand;
-  if (typeof b === "object" && b && "_id" in b) return String((b as { _id: string })._id);
-  if (typeof b === "string") return b;
-  return "";
+  if (typeof b === "object" && b && "_id" in b) set.add(String((b as { _id: string })._id));
+  else if (typeof b === "string" && b) set.add(b);
+  if (Array.isArray(item.phoneTypes)) {
+    for (const pt of item.phoneTypes) {
+      if (pt && typeof pt === "object" && "brand" in pt) {
+        const br = (pt as { brand?: { _id?: string } | string }).brand;
+        if (typeof br === "object" && br && br._id) set.add(String(br._id));
+        else if (typeof br === "string" && br) set.add(br);
+      }
+    }
+  }
+  return [...set];
 }
 
 function accessoryTypeId(item: AccessoryLike): string {
@@ -212,7 +231,6 @@ export function snapshotAccessoryAfterModelsResolved(
   item: AccessoryLike,
   selectedPhoneTypes: string[]
 ): string {
-  const bid = accessoryBrandId(item);
   const poRaw = Array.isArray(item.pricedOptions) ? item.pricedOptions : [];
   const pricedOptions: PricedOptionCompare[] = poRaw
     .map((o) => ({
@@ -235,7 +253,7 @@ export function snapshotAccessoryAfterModelsResolved(
     buildAccessoryCreateComparePayload({
       name: item.name,
       selectedType: accessoryTypeId(item),
-      selectedBrand: bid,
+      selectedBrands: accessoryBrandIdsFromItem(item),
       selectedPhoneTypes,
       image: item.image || "",
       extraImagesText: (item.extraImages || []).join("\n"),

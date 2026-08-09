@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getPhoneTypeIdsFromAccessory } from "@/lib/accessoryVisibility";
 import { API_URL, getAuthHeaders, getToken } from "@/lib/adminAuth";
 import {
@@ -37,6 +37,7 @@ import {
   AdminTableCellImage,
   AdminPagination,
   AdminProductColorsPicker,
+  AdminSparePartBrandPicker,
   AdminSparePartModelPicker,
 } from "@/components/admin";
 
@@ -49,7 +50,11 @@ const lbl = "mb-0.5 block text-[10px] font-medium text-slate-500";
 
 type AccessoryType = { _id: string; name: string };
 type Brand = { _id: string; name: string; slug?: string };
-type PhoneTypeRow = { _id: string; name: string };
+type PhoneTypeRow = {
+  _id: string;
+  name: string;
+  brand?: Brand | string;
+};
 type Accessory = {
   _id: string;
   name: string;
@@ -82,7 +87,7 @@ export default function AccessoriesPage() {
 
   const [name, setName] = useState("");
   const [selectedType, setSelectedType] = useState("");
-  const [selectedBrand, setSelectedBrand] = useState("");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedPhoneTypes, setSelectedPhoneTypes] = useState<string[]>([]);
   const [image, setImage] = useState("");
   const [extraImagesText, setExtraImagesText] = useState("");
@@ -140,21 +145,114 @@ export default function AccessoriesPage() {
     }
   }, []);
 
-  /** يجلب موديلات الماركة ويُرجعها — للاستخدام في onChange وفي التعديل */
-  const loadPhoneTypes = useCallback(async (brandId: string): Promise<PhoneTypeRow[]> => {
-    if (!brandId) return [];
+  /**
+   * يجلب هواتف كل الماركات المختارة ويدمجها في قائمة واحدة (بدون تكرار).
+   */
+  const fetchPhoneTypesForBrands = useCallback(async (brandIds: string[]) => {
+    const uniq = [...new Set((brandIds || []).filter(Boolean))];
+    if (uniq.length === 0) {
+      setPhoneTypes([]);
+      return [];
+    }
     try {
-      const res = await fetch(
-        `${API_URL}/api/phone-types?brand=${encodeURIComponent(brandId)}`,
-        { credentials: "include" }
+      const results = await Promise.all(
+        uniq.map(async (bid) => {
+          const res = await fetch(
+            `${API_URL}/api/phone-types?brand=${encodeURIComponent(bid)}`,
+            { credentials: "include" }
+          );
+          if (!res.ok) return [] as PhoneTypeRow[];
+          const data = await res.json();
+          return (Array.isArray(data) ? data : []) as PhoneTypeRow[];
+        })
       );
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
+      const merged: PhoneTypeRow[] = [];
+      const seen = new Set<string>();
+      for (const arr of results) {
+        for (const p of arr) {
+          if (!p?._id || seen.has(p._id)) continue;
+          seen.add(p._id);
+          merged.push(p);
+        }
+      }
+      setPhoneTypes(merged);
+      return merged;
     } catch {
+      setPhoneTypes([]);
       return [];
     }
   }, []);
+
+  useEffect(() => {
+    if (selectedBrands.length > 0) {
+      fetchPhoneTypesForBrands(selectedBrands);
+    } else {
+      setPhoneTypes([]);
+      setSelectedPhoneTypes([]);
+    }
+  }, [selectedBrands, fetchPhoneTypesForBrands]);
+
+  /** قائمة الموديلات — تُضاف تسمية الماركة عند اختيار أكثر من ماركة. */
+  const modelPickerPhoneTypes = useMemo(() => {
+    const showBrand = selectedBrands.length > 1;
+    return phoneTypes.map((p) => {
+      let brandName: string | undefined;
+      if (showBrand) {
+        if (p.brand && typeof p.brand === "object") brandName = p.brand.name;
+        else if (typeof p.brand === "string")
+          brandName = brands.find((b) => b._id === p.brand)?.name;
+      }
+      return { _id: p._id, name: p.name, brandName };
+    });
+  }, [phoneTypes, selectedBrands, brands]);
+
+  function accessoryBrandIds(item: Accessory): string[] {
+    const set = new Set<string>();
+    const primary =
+      typeof item.brand === "object" && item.brand && "_id" in item.brand
+        ? (item.brand as Brand)._id
+        : typeof item.brand === "string"
+          ? item.brand
+          : "";
+    if (primary) set.add(String(primary));
+    if (Array.isArray(item.phoneTypes)) {
+      for (const pt of item.phoneTypes) {
+        if (pt && typeof pt === "object") {
+          const b =
+            typeof pt.brand === "string"
+              ? pt.brand
+              : pt.brand && typeof pt.brand === "object"
+                ? pt.brand._id
+                : "";
+          if (b) set.add(String(b));
+        }
+      }
+    }
+    return [...set];
+  }
+
+  /** تغيير الماركات مع إزالة أي موديل تابع لماركة أُلغيت. */
+  function handleSelectedBrandsChange(nextBrandIds: string[]) {
+    const nextSet = new Set(nextBrandIds);
+    const removed = selectedBrands.filter((b) => !nextSet.has(b));
+    if (removed.length > 0) {
+      const removedSet = new Set(removed);
+      setSelectedPhoneTypes((prev) =>
+        prev.filter((id) => {
+          const pt = phoneTypes.find((p) => p._id === id);
+          if (!pt) return true;
+          const b =
+            typeof pt.brand === "string"
+              ? pt.brand
+              : pt.brand && typeof pt.brand === "object"
+                ? pt.brand._id
+                : "";
+          return !removedSet.has(String(b));
+        })
+      );
+    }
+    setSelectedBrands(nextBrandIds);
+  }
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -187,7 +285,7 @@ export default function AccessoriesPage() {
   function resetForm() {
     setName("");
     setSelectedType("");
-    setSelectedBrand("");
+    setSelectedBrands([]);
     setSelectedPhoneTypes([]);
     setPhoneTypes([]);
     setImage("");
@@ -260,10 +358,10 @@ export default function AccessoriesPage() {
       setAccessoryModalNotice({ type: "error", text: "اختر نوع الأكسسوار" });
       return;
     }
-    if (!selectedBrand || selectedPhoneTypes.length === 0) {
+    if (selectedBrands.length === 0 || selectedPhoneTypes.length === 0) {
       setAccessoryModalNotice({
         type: "error",
-        text: "اختر الماركة وموديل هاتف واحد على الأقل (يمكن اختيار عدة موديلات)",
+        text: "اختر ماركة واحدة على الأقل وموديل هاتف واحد على الأقل (يمكن اختيار عدة ماركات وموديلات)",
       });
       return;
     }
@@ -278,7 +376,8 @@ export default function AccessoriesPage() {
     const payload = {
       name: name.trim(),
       type: selectedType,
-      brand: String(selectedBrand).trim(),
+      brand: String(selectedBrands[0]).trim(),
+      brands: [...selectedBrands],
       phoneTypes: selectedPhoneTypes,
       image: image.trim(),
       extraImages: parseExtraImages(),
@@ -299,7 +398,7 @@ export default function AccessoriesPage() {
         buildAccessoryCreateComparePayload({
           name,
           selectedType,
-          selectedBrand,
+          selectedBrands,
           selectedPhoneTypes,
           image,
           extraImagesText,
@@ -357,20 +456,48 @@ export default function AccessoriesPage() {
     }
   }
 
+  async function hydrateBrandsAndModels(item: Accessory): Promise<string[]> {
+    const brandIds = accessoryBrandIds(item);
+    const storedIds = getPhoneTypeIdsFromAccessory(item);
+    setSelectedBrands(brandIds);
+
+    let list = brandIds.length > 0 ? await fetchPhoneTypesForBrands(brandIds) : [];
+
+    function displayNameForId(id: string): string {
+      if (Array.isArray(item.phoneTypes)) {
+        for (const pt of item.phoneTypes) {
+          if (typeof pt === "object" && pt !== null && "_id" in pt && (pt as PhoneTypeRow)._id === id) {
+            const n = (pt as PhoneTypeRow).name;
+            return `${n ?? id.slice(0, 8)} (محفوظ)`;
+          }
+        }
+      }
+      if (typeof item.phoneType === "object" && item.phoneType && "_id" in item.phoneType) {
+        const row = item.phoneType as PhoneTypeRow;
+        if (row._id === id) return `${row.name ?? id.slice(0, 8)} (محفوظ)`;
+      }
+      return `${id.slice(0, 8)}… (محفوظ)`;
+    }
+
+    const missing = storedIds.filter((id) => !list.some((p) => p._id === id));
+    if (missing.length > 0) {
+      for (const id of [...missing].reverse()) {
+        list = [{ _id: id, name: displayNameForId(id) }, ...list];
+      }
+      setPhoneTypes(list);
+    }
+
+    const selected = storedIds.filter((id) => list.some((p) => p._id === id));
+    setSelectedPhoneTypes(selected);
+    return selected;
+  }
+
   async function startCopyFrom(item: Accessory) {
     setEditing(null);
     setCopySnapshot(null);
     setMessage(null);
     setName(item.name);
     setSelectedType(typeof item.type === "object" ? (item.type as AccessoryType)._id : "");
-    const bid = String(
-      typeof item.brand === "object" && item.brand && "_id" in item.brand
-        ? (item.brand as Brand)._id
-        : typeof item.brand === "string"
-          ? item.brand
-          : ""
-    );
-    const storedIds = getPhoneTypeIdsFromAccessory(item);
 
     setImage(item.image || "");
     setExtraImagesText((item.extraImages || []).join("\n"));
@@ -392,41 +519,8 @@ export default function AccessoriesPage() {
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
     setHasVariants(Boolean(item.hasVariants));
 
-    if (bid) {
-      let list = await loadPhoneTypes(bid);
-
-      function displayNameForId(id: string): string {
-        if (Array.isArray(item.phoneTypes)) {
-          for (const pt of item.phoneTypes) {
-            if (typeof pt === "object" && pt !== null && "_id" in pt && (pt as PhoneTypeRow)._id === id) {
-              const n = (pt as PhoneTypeRow).name;
-              return `${n ?? id.slice(0, 8)} (محفوظ)`;
-            }
-          }
-        }
-        if (typeof item.phoneType === "object" && item.phoneType && "_id" in item.phoneType) {
-          const row = item.phoneType as PhoneTypeRow;
-          if (row._id === id) return `${row.name ?? id.slice(0, 8)} (محفوظ)`;
-        }
-        return `${id.slice(0, 8)}… (محفوظ)`;
-      }
-
-      const missing = storedIds.filter((id) => !list.some((p) => p._id === id));
-      for (const id of [...missing].reverse()) {
-        list = [{ _id: id, name: displayNameForId(id) }, ...list];
-      }
-
-      const selected = storedIds.filter((id) => list.some((p) => p._id === id));
-      setCopySnapshot(snapshotAccessoryAfterModelsResolved(item, selected));
-      setPhoneTypes(list);
-      setSelectedBrand(bid);
-      setSelectedPhoneTypes(selected);
-    } else {
-      setPhoneTypes([]);
-      setSelectedBrand("");
-      setSelectedPhoneTypes([]);
-      setCopySnapshot(snapshotAccessoryAfterModelsResolved(item, []));
-    }
+    const selected = await hydrateBrandsAndModels(item);
+    setCopySnapshot(snapshotAccessoryAfterModelsResolved(item, selected));
   }
 
   async function startEdit(item: Accessory) {
@@ -434,14 +528,6 @@ export default function AccessoriesPage() {
     setEditing(item);
     setName(item.name);
     setSelectedType(typeof item.type === "object" ? (item.type as AccessoryType)._id : "");
-    const bid = String(
-      typeof item.brand === "object" && item.brand && "_id" in item.brand
-        ? (item.brand as Brand)._id
-        : typeof item.brand === "string"
-          ? item.brand
-          : ""
-    );
-    const storedIds = getPhoneTypeIdsFromAccessory(item);
 
     setImage(item.image || "");
     setExtraImagesText((item.extraImages || []).join("\n"));
@@ -463,38 +549,7 @@ export default function AccessoriesPage() {
     setPricedOptionRows(pricedRowsFromApi(item.pricedOptions));
     setHasVariants(Boolean(item.hasVariants));
 
-    if (bid) {
-      let list = await loadPhoneTypes(bid);
-
-      function displayNameForId(id: string): string {
-        if (Array.isArray(item.phoneTypes)) {
-          for (const pt of item.phoneTypes) {
-            if (typeof pt === "object" && pt !== null && "_id" in pt && (pt as PhoneTypeRow)._id === id) {
-              const n = (pt as PhoneTypeRow).name;
-              return `${n ?? id.slice(0, 8)} (محفوظ)`;
-            }
-          }
-        }
-        if (typeof item.phoneType === "object" && item.phoneType && "_id" in item.phoneType) {
-          const row = item.phoneType as PhoneTypeRow;
-          if (row._id === id) return `${row.name ?? id.slice(0, 8)} (محفوظ)`;
-        }
-        return `${id.slice(0, 8)}… (محفوظ)`;
-      }
-
-      const missing = storedIds.filter((id) => !list.some((p) => p._id === id));
-      for (const id of [...missing].reverse()) {
-        list = [{ _id: id, name: displayNameForId(id) }, ...list];
-      }
-
-      setPhoneTypes(list);
-      setSelectedBrand(bid);
-      setSelectedPhoneTypes(storedIds.filter((id) => list.some((p) => p._id === id)));
-    } else {
-      setPhoneTypes([]);
-      setSelectedBrand("");
-      setSelectedPhoneTypes([]);
-    }
+    await hydrateBrandsAndModels(item);
   }
 
   async function handleDelete(id: string) {
@@ -584,6 +639,16 @@ export default function AccessoriesPage() {
     typeof a.type === "object" && a.type ? (a.type as AccessoryType).name : "—";
 
   const brandName = (a: Accessory) => {
+    const ids = accessoryBrandIds(a);
+    if (ids.length > 1) {
+      const names = ids
+        .map((id) => brands.find((b) => b._id === id)?.name)
+        .filter(Boolean) as string[];
+      if (names.length > 1) {
+        return `${names.slice(0, 2).join("، ")}${names.length > 2 ? ` +${names.length - 2}` : ""}`;
+      }
+      if (names.length === 1) return names[0]!;
+    }
     if (typeof a.brand === "object" && a.brand) return (a.brand as Brand).name;
     return a.brand ? String(a.brand) : "—";
   };
@@ -641,7 +706,7 @@ export default function AccessoriesPage() {
       <AdminPageHeader
         className="mb-0 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
         title="منتجات الأكسسوارات"
-        description="إنشاء وتعديل الأكسسوار من نافذة منبثقة وبنفس تدفّق قطع الغيار؛ الربط بماركة وعدة موديلات لهاتفك."
+        description="إنشاء وتعديل الأكسسوار من نافذة منبثقة وبنفس تدفّق قطع الغيار؛ الربط بعدة ماركات وموديلات."
         icon={<Package className="h-5 w-5" />}
         actions={
           <AdminButton
@@ -692,7 +757,9 @@ export default function AccessoriesPage() {
               : "إنشاء أكسسوار"
         }
         description={
-          copySnapshot && !editing ? "عدّل حقلًا ثم احفظ." : "الماركة + موديل واحد على الأقل."
+          copySnapshot && !editing
+            ? "عدّل حقلًا ثم احفظ."
+            : "ماركة واحدة أو أكثر + موديل واحد على الأقل."
         }
         contentClassName="!px-3 !py-2 sm:!px-3.5 sm:!py-2.5"
       >
@@ -766,30 +833,19 @@ export default function AccessoriesPage() {
 
             <div className="grid gap-2 sm:grid-cols-2 sm:items-start">
               <div className="min-w-0 space-y-1">
-                <label className={lbl}>الماركة (الهاتف)</label>
-                <select
-                  value={selectedBrand}
-                  onChange={async (e) => {
-                    const v = e.target.value;
-                    setSelectedPhoneTypes([]);
-                    setSelectedBrand(v);
-                    setPhoneTypes(v ? await loadPhoneTypes(v) : []);
-                  }}
-                  className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
-                >
-                  <option value="">اختر الماركة</option>
-                  {brands.map((b) => (
-                    <option key={b._id} value={b._id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
+                <label className={lbl}>الماركات (الهاتف)</label>
+                <AdminSparePartBrandPicker
+                  brands={brands}
+                  selectedIds={selectedBrands}
+                  onChangeIds={handleSelectedBrandsChange}
+                  placeholder="اختر ماركة أو أكثر"
+                />
               </div>
               <div className="min-w-0">
                 <label className={lbl}>الموديلات</label>
                 <AdminSparePartModelPicker
-                  brandSelected={!!selectedBrand}
-                  phoneTypes={phoneTypes}
+                  brandSelected={selectedBrands.length > 0}
+                  phoneTypes={modelPickerPhoneTypes}
                   selectedIds={selectedPhoneTypes}
                   onChangeIds={setSelectedPhoneTypes}
                   newModelName=""
@@ -1079,7 +1135,7 @@ export default function AccessoriesPage() {
             <p className="font-semibold">تنبيه: ماركة أو ربط موديل غير مكتمل</p>
             <p className="mt-1 text-amber-900/90">
               الصفوف التي تظهر «—» في الماركة أو الموديل (قد تكون أُنشئت قديماً) لا تظهر في الموقع تحت
-              أي موديل. اضغط «تعديل» واختر <strong>الماركة</strong> ثم واحدًا أو أكثر من{" "}
+              أي موديل.               اضغط «تعديل» واختر <strong>ماركة أو أكثر</strong> ثم واحدًا أو أكثر من{" "}
               <strong>موديلات الهاتف</strong> ثم احفظ — يظهر نفس الأكسسوار في كل صفحة موديل مرتبط.
             </p>
           </div>
