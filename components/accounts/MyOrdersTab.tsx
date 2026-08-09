@@ -65,9 +65,17 @@ function statusLabel(status: string) {
       return "مكتمل";
     case "cancelled":
       return "ملغى";
+    case "call_1":
+      return "اتصال 1";
+    case "call_2":
+      return "اتصال 2";
+    case "no_answer":
+      return "لم يتم الرد";
+    case "contacted":
+      return "تم التواصل";
     case "pending":
     default:
-      return "قيد المعالجة";
+      return "قيد الانتظار";
   }
 }
 
@@ -222,7 +230,16 @@ export function MyOrdersTab() {
   );
 
   const stats = useMemo(() => {
-    const pending = orders.filter((o) => o.status === "pending").length;
+    const pending = orders.filter((o) => {
+      const s = o.status || "pending";
+      return (
+        s === "pending" ||
+        s === "call_1" ||
+        s === "call_2" ||
+        s === "no_answer" ||
+        s === "contacted"
+      );
+    }).length;
     const completed = orders.filter((o) => o.status === "completed").length;
     const totalSpent = orders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
     return { pending, completed, totalSpent, count: orders.length };
@@ -404,7 +421,7 @@ export function MyOrdersTab() {
                             {o.status === "cancelled" && (
                               <XCircle className="h-3.5 w-3.5" aria-hidden />
                             )}
-                            {o.status === "pending" && (
+                            {o.status !== "completed" && o.status !== "cancelled" && (
                               <Clock className="h-3.5 w-3.5" aria-hidden />
                             )}
                             {statusLabel(o.status)}

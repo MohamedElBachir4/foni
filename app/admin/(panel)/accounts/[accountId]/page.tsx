@@ -48,13 +48,21 @@ type OrderRow = {
 };
 
 const statusLabels: Record<string, string> = {
-  pending: "قيد المعالجة",
+  pending: "قيد الانتظار",
+  call_1: "اتصال 1",
+  call_2: "اتصال 2",
+  no_answer: "لم يتم الرد",
+  contacted: "تم التواصل",
   completed: "مكتمل",
   cancelled: "ملغى",
 };
 
 const statusBadge: Record<string, string> = {
   pending: "bg-amber-100 text-amber-900 ring-amber-200",
+  call_1: "bg-sky-100 text-sky-900 ring-sky-200",
+  call_2: "bg-blue-100 text-blue-900 ring-blue-200",
+  no_answer: "bg-orange-100 text-orange-900 ring-orange-200",
+  contacted: "bg-violet-100 text-violet-900 ring-violet-200",
   completed: "bg-emerald-100 text-emerald-900 ring-emerald-200",
   cancelled: "bg-rose-100 text-rose-900 ring-rose-200",
 };
@@ -106,7 +114,10 @@ export default function AdminAccountOrdersPage() {
   }, [load]);
 
   const completedCount = orders.filter((o) => o.status === "completed").length;
-  const pendingCount = orders.filter((o) => o.status === "pending").length;
+  const pendingCount = orders.filter((o) => {
+    const s = o.status || "pending";
+    return s !== "completed" && s !== "cancelled";
+  }).length;
   const cancelledCount = orders.filter((o) => o.status === "cancelled").length;
 
   function approvalLabel(s?: string) {
@@ -352,7 +363,7 @@ export default function AdminAccountOrdersPage() {
                       }`}
                     >
                       {st === "completed" && <CheckCircle2 className="h-3.5 w-3.5" />}
-                      {st === "pending" && <Clock className="h-3.5 w-3.5" />}
+                      {st !== "completed" && st !== "cancelled" && <Clock className="h-3.5 w-3.5" />}
                       {st === "cancelled" && <XCircle className="h-3.5 w-3.5" />}
                       {statusLabels[st] || st}
                     </span>

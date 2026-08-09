@@ -31,14 +31,32 @@ type Order = {
   createdAt: string;
 };
 
+const ORDER_STATUSES = [
+  "pending",
+  "call_1",
+  "call_2",
+  "no_answer",
+  "contacted",
+  "completed",
+  "cancelled",
+] as const;
+
 const statusLabels: Record<string, string> = {
   pending: "قيد الانتظار",
+  call_1: "اتصال 1",
+  call_2: "اتصال 2",
+  no_answer: "لم يتم الرد",
+  contacted: "تم التواصل",
   completed: "مكتمل",
   cancelled: "ملغى",
 };
 
 const statusClasses: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
+  call_1: "bg-sky-100 text-sky-800",
+  call_2: "bg-blue-100 text-blue-800",
+  no_answer: "bg-orange-100 text-orange-800",
+  contacted: "bg-violet-100 text-violet-800",
   completed: "bg-emerald-100 text-emerald-800",
   cancelled: "bg-rose-100 text-rose-800",
 };
@@ -609,7 +627,7 @@ export default function AdminOrdersPage() {
                       className={`min-h-[44px] w-full rounded-xl px-3 py-2 text-sm font-medium sm:w-auto sm:rounded-full sm:py-1 ${statusClasses[order.status || "pending"] || "bg-slate-100 text-slate-700"
                         } border-0 focus:ring-2 focus:ring-sky-500`}
                     >
-                      {(["pending", "completed", "cancelled"] as const).map((s) => (
+                      {ORDER_STATUSES.map((s) => (
                         <option key={s} value={s}>
                           {statusLabels[s]}
                         </option>

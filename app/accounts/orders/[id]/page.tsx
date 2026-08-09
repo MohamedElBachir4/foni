@@ -20,16 +20,30 @@ function statusLabel(status: string) {
       return "مكتمل";
     case "cancelled":
       return "ملغى";
+    case "call_1":
+      return "اتصال 1";
+    case "call_2":
+      return "اتصال 2";
+    case "no_answer":
+      return "لم يتم الرد";
+    case "contacted":
+      return "تم التواصل";
     case "pending":
     default:
-      return "قيد المعالجة";
+      return "قيد الانتظار";
   }
 }
 
 function OrderTimeline({ status }: { status: string }) {
   const isCancelled = status === "cancelled";
   const isCompleted = status === "completed";
-  const isPending = status === "pending";
+  const isInProgress =
+    status === "pending" ||
+    status === "call_1" ||
+    status === "call_2" ||
+    status === "no_answer" ||
+    status === "contacted" ||
+    !status;
 
   const steps = [
     {
@@ -45,7 +59,7 @@ function OrderTimeline({ status }: { status: string }) {
       title: "قيد المعالجة",
       desc: "يتم تجهيز الطلب لدى المتجر",
       done: isCompleted || isCancelled,
-      current: isPending,
+      current: isInProgress && !isCompleted && !isCancelled,
       danger: false,
     },
     {

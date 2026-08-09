@@ -65,6 +65,10 @@ function formatDate(iso: string) {
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  call_1: "bg-sky-500/10 text-sky-600 border-sky-500/20",
+  call_2: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  no_answer: "bg-orange-500/10 text-orange-600 border-orange-500/20",
+  contacted: "bg-violet-500/10 text-violet-600 border-violet-500/20",
   completed: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
   cancelled: "bg-rose-500/10 text-rose-600 border-rose-500/20",
 };
@@ -74,6 +78,10 @@ function StatusBadge({ status }: { status?: string }) {
   const cls = statusColors[s] || "bg-slate-500/10 text-slate-600 border-slate-500/20";
   const labels: Record<string, string> = {
     pending: "قيد الانتظار",
+    call_1: "اتصال 1",
+    call_2: "اتصال 2",
+    no_answer: "لم يتم الرد",
+    contacted: "تم التواصل",
     completed: "مكتمل",
     cancelled: "ملغى",
   };
