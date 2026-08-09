@@ -46,6 +46,7 @@ function ProductGridSection({
   initialCount = GRID_PAGE_SIZE,
   expandAllOnMore = false,
   moreLabel = "عرض المزيد",
+  showAll = false,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -58,12 +59,14 @@ function ProductGridSection({
   /** عند الضغط: إظهار الباقي دفعة واحدة بدل زيادة تدريجية */
   expandAllOnMore?: boolean;
   moreLabel?: string;
+  /** عرض كل العناصر مباشرة بدون زر المزيد */
+  showAll?: boolean;
 }) {
   const { account } = useAccount();
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
   const [visibleCount, setVisibleCount] = useState(initialCount);
-  const shownItems = items.slice(0, visibleCount);
-  const hasMore = items.length > visibleCount;
+  const shownItems = showAll ? items : items.slice(0, visibleCount);
+  const hasMore = !showAll && items.length > visibleCount;
   const remaining = items.length - visibleCount;
 
   useEffect(() => {
@@ -227,6 +230,7 @@ export function ModelHubProductGrids({
         category="هواتف"
         items={phones}
         loading={loading}
+        showAll
       />
       <ProductGridSection
         title="قطع الغيار"
