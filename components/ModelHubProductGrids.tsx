@@ -8,10 +8,6 @@ import { useAccount } from "@/context/AccountContext";
 import { formatDzd, getEffectivePrice, getPricingAccount } from "@/lib/pricing";
 import { publicFetch } from "@/lib/publicFetch";
 
-const GRID_PAGE_SIZE = 24;
-/** قطع الغيار في صفحة الموديل: آخر 4 مرفوعة أولاً */
-const SPARE_PARTS_INITIAL_COUNT = 4;
-
 type HubProduct = {
   _id: string;
   name: string;
@@ -43,10 +39,6 @@ function ProductGridSection({
   category,
   items,
   loading,
-  initialCount = GRID_PAGE_SIZE,
-  expandAllOnMore = false,
-  moreLabel = "عرض المزيد",
-  showAll = false,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -54,24 +46,9 @@ function ProductGridSection({
   category: string;
   items: HubProduct[];
   loading: boolean;
-  /** عدد العناصر الظاهرة أولاً */
-  initialCount?: number;
-  /** عند الضغط: إظهار الباقي دفعة واحدة بدل زيادة تدريجية */
-  expandAllOnMore?: boolean;
-  moreLabel?: string;
-  /** عرض كل العناصر مباشرة بدون زر المزيد */
-  showAll?: boolean;
 }) {
   const { account } = useAccount();
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
-  const [visibleCount, setVisibleCount] = useState(initialCount);
-  const shownItems = showAll ? items : items.slice(0, visibleCount);
-  const hasMore = !showAll && items.length > visibleCount;
-  const remaining = items.length - visibleCount;
-
-  useEffect(() => {
-    setVisibleCount(initialCount);
-  }, [items, initialCount]);
 
   return (
     <div>
@@ -88,9 +65,8 @@ function ProductGridSection({
           لا توجد منتجات لهذا الموديل حالياً.
         </div>
       ) : (
-        <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
-          {shownItems.map((item) => {
+          {items.map((item) => {
             const effectivePrice = getEffectivePrice(
               {
                 price: item.price,
@@ -148,23 +124,6 @@ function ProductGridSection({
             );
           })}
         </div>
-        {hasMore ? (
-          <div className="mt-4 flex justify-center">
-            <button
-              type="button"
-              onClick={() =>
-                setVisibleCount((n) =>
-                  expandAllOnMore ? items.length : n + initialCount
-                )
-              }
-              className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-100"
-            >
-              {moreLabel}
-              {remaining > 0 ? ` (${remaining})` : ""}
-            </button>
-          </div>
-        ) : null}
-        </>
       )}
     </div>
   );
@@ -199,7 +158,7 @@ export function ModelHubProductGrids({
         .then(async (res) => (res.ok ? ((await res.json()) as HubProduct[]) : []))
         .catch(() => []),
       publicFetch(
-        `/api/spare-parts?brand=${encodeURIComponent(brandMongoId)}&phoneType=${encodeURIComponent(phoneTypeId)}&limit=200&sort=newest`,
+        `/api/spare-parts?brand=${encodeURIComponent(brandMongoId)}&phoneType=${encodeURIComponent(phoneTypeId)}&limit=1000&sort=newest`,
         { cache: "no-store" }
       )
         .then(async (res) => {
@@ -230,7 +189,6 @@ export function ModelHubProductGrids({
         category="هواتف"
         items={phones}
         loading={loading}
-        showAll
       />
       <ProductGridSection
         title="قطع الغيار"
@@ -239,9 +197,6 @@ export function ModelHubProductGrids({
         category="قطع غيار"
         items={spareParts}
         loading={loading}
-        initialCount={SPARE_PARTS_INITIAL_COUNT}
-        expandAllOnMore
-        moreLabel="اعرض المزيد"
       />
       <ProductGridSection
         title="الإكسسوارات"

@@ -61,11 +61,8 @@ export default async function AccessoriesByTypePage({
   const { type } = await params;
   const accessories = await fetchAccessoriesByType(type);
 
-  const first = accessories[0];
-  const typeNameFromProduct =
-    first && typeof first.type === "object" && first.type ? (first.type as AccessoryType).name : null;
   const typeNameResolved =
-    typeNameFromProduct || (await fetchAccessoryTypeName(type)) || "الأكسسوارات";
+    (await fetchAccessoryTypeName(type)) || "الأكسسوارات";
 
   return (
     <div className="min-h-screen w-full antialiased bg-slate-50">

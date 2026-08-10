@@ -131,7 +131,9 @@ export function snapshotFromPhoneForCopy(phone: {
 
 export function buildAccessoryCreateComparePayload(args: {
   name: string;
-  selectedType: string;
+  /** @deprecated استخدم selectedTypes */
+  selectedType?: string;
+  selectedTypes?: string[];
   /** @deprecated استخدم selectedBrands */
   selectedBrand?: string;
   selectedBrands?: string[];
@@ -157,9 +159,16 @@ export function buildAccessoryCreateComparePayload(args: {
       : args.selectedBrand
         ? [String(args.selectedBrand).trim()]
         : [];
+  const types =
+    Array.isArray(args.selectedTypes) && args.selectedTypes.length > 0
+      ? [...args.selectedTypes]
+      : args.selectedType
+        ? [String(args.selectedType).trim()]
+        : [];
   return {
     name: args.name.trim(),
-    type: args.selectedType,
+    type: types[0] || "",
+    types,
     brand: brands[0] || "",
     brands,
     phoneTypes: [...args.selectedPhoneTypes],
@@ -180,6 +189,7 @@ export function buildAccessoryCreateComparePayload(args: {
 type AccessoryLike = {
   name: string;
   type: { _id: string } | string;
+  types?: Array<{ _id: string } | string>;
   brand?: { _id: string } | string;
   phoneTypes?: unknown;
   phoneType?: unknown;
@@ -218,10 +228,30 @@ function accessoryBrandIdsFromItem(item: AccessoryLike): string[] {
   return [...set];
 }
 
-function accessoryTypeId(item: AccessoryLike): string {
-  const t = item.type;
-  if (typeof t === "object" && t !== null && "_id" in t) return String((t as { _id: string })._id);
-  return String(t ?? "");
+function accessoryTypeIds(item: AccessoryLike): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string) => {
+    const s = String(raw || "").trim();
+    if (!/^[a-f0-9]{24}$/i.test(s)) return;
+    const n = s.toLowerCase();
+    if (seen.has(n)) return;
+    seen.add(n);
+    out.push(s);
+  };
+  if (Array.isArray(item.types)) {
+    for (const t of item.types) {
+      if (typeof t === "object" && t !== null && "_id" in t) push(String((t as { _id: string })._id));
+      else if (typeof t === "string") push(t);
+    }
+  }
+  const legacy = item.type;
+  if (typeof legacy === "object" && legacy !== null && "_id" in legacy) {
+    push(String((legacy as { _id: string })._id));
+  } else if (typeof legacy === "string") {
+    push(legacy);
+  }
+  return out;
 }
 
 /**
@@ -252,7 +282,7 @@ export function snapshotAccessoryAfterModelsResolved(
   return snapshotCreatePayload(
     buildAccessoryCreateComparePayload({
       name: item.name,
-      selectedType: accessoryTypeId(item),
+      selectedTypes: accessoryTypeIds(item),
       selectedBrands: accessoryBrandIdsFromItem(item),
       selectedPhoneTypes,
       image: item.image || "",

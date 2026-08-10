@@ -59,6 +59,7 @@ type Accessory = {
   _id: string;
   name: string;
   type: AccessoryType | string;
+  types?: AccessoryType[] | string[];
   brand?: Brand | string;
   phoneType?: PhoneTypeRow | string;
   phoneTypes?: PhoneTypeRow[] | string[];
@@ -86,7 +87,7 @@ export default function AccessoriesPage() {
   const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
-  const [selectedType, setSelectedType] = useState("");
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedPhoneTypes, setSelectedPhoneTypes] = useState<string[]>([]);
   const [image, setImage] = useState("");
@@ -284,7 +285,7 @@ export default function AccessoriesPage() {
 
   function resetForm() {
     setName("");
-    setSelectedType("");
+    setSelectedTypes([]);
     setSelectedBrands([]);
     setSelectedPhoneTypes([]);
     setPhoneTypes([]);
@@ -354,8 +355,8 @@ export default function AccessoriesPage() {
       setAccessoryModalNotice({ type: "error", text: "اسم الأكسسوار مطلوب" });
       return;
     }
-    if (!selectedType) {
-      setAccessoryModalNotice({ type: "error", text: "اختر نوع الأكسسوار" });
+    if (!selectedTypes.length) {
+      setAccessoryModalNotice({ type: "error", text: "اختر نوع أكسسوار واحد على الأقل" });
       return;
     }
     if (selectedBrands.length === 0 || selectedPhoneTypes.length === 0) {
@@ -375,7 +376,8 @@ export default function AccessoriesPage() {
 
     const payload = {
       name: name.trim(),
-      type: selectedType,
+      type: selectedTypes[0],
+      types: [...selectedTypes],
       brand: String(selectedBrands[0]).trim(),
       brands: [...selectedBrands],
       phoneTypes: selectedPhoneTypes,
@@ -397,7 +399,7 @@ export default function AccessoriesPage() {
       const current = snapshotCreatePayload(
         buildAccessoryCreateComparePayload({
           name,
-          selectedType,
+          selectedTypes,
           selectedBrands,
           selectedPhoneTypes,
           image,
@@ -492,12 +494,37 @@ export default function AccessoriesPage() {
     return selected;
   }
 
+  function getAccessoryTypeIds(item: Accessory): string[] {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const push = (raw: string) => {
+      const s = String(raw || "").trim();
+      if (!/^[a-f0-9]{24}$/i.test(s)) return;
+      const n = s.toLowerCase();
+      if (seen.has(n)) return;
+      seen.add(n);
+      out.push(s);
+    };
+    if (Array.isArray(item.types)) {
+      for (const t of item.types) {
+        if (typeof t === "object" && t !== null && "_id" in t) push((t as AccessoryType)._id);
+        else if (typeof t === "string") push(t);
+      }
+    }
+    if (typeof item.type === "object" && item.type && "_id" in item.type) {
+      push((item.type as AccessoryType)._id);
+    } else if (typeof item.type === "string") {
+      push(item.type);
+    }
+    return out;
+  }
+
   async function startCopyFrom(item: Accessory) {
     setEditing(null);
     setCopySnapshot(null);
     setMessage(null);
     setName(item.name);
-    setSelectedType(typeof item.type === "object" ? (item.type as AccessoryType)._id : "");
+    setSelectedTypes(getAccessoryTypeIds(item));
 
     setImage(item.image || "");
     setExtraImagesText((item.extraImages || []).join("\n"));
@@ -527,7 +554,7 @@ export default function AccessoriesPage() {
     setCopySnapshot(null);
     setEditing(item);
     setName(item.name);
-    setSelectedType(typeof item.type === "object" ? (item.type as AccessoryType)._id : "");
+    setSelectedTypes(getAccessoryTypeIds(item));
 
     setImage(item.image || "");
     setExtraImagesText((item.extraImages || []).join("\n"));
@@ -635,8 +662,30 @@ export default function AccessoriesPage() {
     }
   }
 
-  const typeName = (a: Accessory) =>
-    typeof a.type === "object" && a.type ? (a.type as AccessoryType).name : "—";
+  const typeName = (a: Accessory) => {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    const push = (n: string) => {
+      const s = n.trim();
+      if (!s) return;
+      const key = s.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      names.push(s);
+    };
+    if (Array.isArray(a.types)) {
+      for (const t of a.types) {
+        if (typeof t === "object" && t && "name" in t) push((t as AccessoryType).name);
+      }
+    }
+    if (typeof a.type === "object" && a.type && "name" in a.type) {
+      push((a.type as AccessoryType).name);
+    }
+    if (names.length > 1) {
+      return `${names.slice(0, 2).join("، ")}${names.length > 2 ? ` +${names.length - 2}` : ""}`;
+    }
+    return names[0] || "—";
+  };
 
   const brandName = (a: Accessory) => {
     const ids = accessoryBrandIds(a);
@@ -798,22 +847,15 @@ export default function AccessoriesPage() {
                 />
               </div>
               <div className="min-w-0">
-                <label className={lbl} htmlFor="accessory-type-select">
+                <label className={lbl}>
                   نوع الأكسسوار <span className="text-rose-600">*</span>
                 </label>
-                <select
-                  id="accessory-type-select"
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
-                >
-                  <option value="">اختر النوع</option>
-                  {types.map((t) => (
-                    <option key={t._id} value={t._id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                <AdminSparePartBrandPicker
+                  brands={types}
+                  selectedIds={selectedTypes}
+                  onChangeIds={setSelectedTypes}
+                  placeholder="اختر نوعاً أو أكثر"
+                />
               </div>
             </div>
 
