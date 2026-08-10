@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Smartphone } from "lucide-react";
@@ -9,6 +9,7 @@ import { highlightTokensInText } from "@/lib/highlightSearch";
 import { useSearchSuggestions, type SearchResultItem } from "@/lib/useSearch";
 
 const LIMIT = 24;
+const FALLBACK_WHATSAPP = "213542458175";
 
 export type SearchSuggestion = SearchResultItem;
 
@@ -21,16 +22,57 @@ function collapseForCompare(s: string) {
     .replace(/\s+/g, " ");
 }
 
+function buildPartRequestWhatsAppHref(number: string, searchQuery: string) {
+  const n = String(number || "").replace(/\D/g, "") || FALLBACK_WHATSAPP;
+  const q = String(searchQuery || "").trim();
+  const text = q
+    ? `مرحبا، لم أجد القطعة التي أبحث عنها: ${q}`
+    : "مرحبا، لم أجد القطعة التي أبحث عنها وأريد المساعدة";
+  return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
+}
+
 export function SearchBar() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
+  const [whatsappNumber, setWhatsappNumber] = useState(FALLBACK_WHATSAPP);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { grouped, interpretedQuery, matchedTokens, debouncedQuery, loading } =
     useSearchSuggestions(query, { limit: LIMIT });
+
+  const partRequestWhatsAppHref = useMemo(
+    () => buildPartRequestWhatsAppHref(whatsappNumber, query),
+    [whatsappNumber, query]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/contact-settings/public", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        const wa = items.find(
+          (i: { id?: string; href?: string }) =>
+            String(i.id || "").startsWith("whatsapp") && i.href
+        );
+        const digits =
+          String(wa?.href || "").match(/wa\.me\/(\d+)/)?.[1] || FALLBACK_WHATSAPP;
+        if (!cancelled) setWhatsappNumber(digits);
+      } catch {
+        /* keep fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const highlightTokens =
     matchedTokens.length > 0
@@ -86,9 +128,19 @@ export function SearchBar() {
     setOpen(false);
   }, [grouped, query, router]);
 
+  const openPartRequestWhatsApp = useCallback(() => {
+    setOpen(false);
+    setQuery("");
+    window.open(partRequestWhatsAppHref, "_blank", "noopener,noreferrer");
+  }, [partRequestWhatsAppHref]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && query.trim()) {
       e.preventDefault();
+      if (highlightIndex === 0) {
+        openPartRequestWhatsApp();
+        return;
+      }
       if (highlightIndex > 0) {
         const cur = list[highlightIndex - 1];
         if (cur) {
@@ -188,11 +240,16 @@ export function SearchBar() {
           ) : (
             <ul className="py-1.5" role="listbox" id="search-suggestions-ul">
               <li role="option" aria-selected={highlightIndex === 0}>
-                <Link
-                  href="/request-part"
-                  onClick={() => {
+                <a
+                  href={partRequestWhatsAppHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const href = partRequestWhatsAppHref;
                     setOpen(false);
                     setQuery("");
+                    window.open(href, "_blank", "noopener,noreferrer");
                   }}
                   className={`mx-2 mb-1 flex items-center justify-between rounded-xl px-4 py-3 text-right transition-colors ${
                     highlightIndex === 0
@@ -201,8 +258,8 @@ export function SearchBar() {
                   }`}
                 >
                   <span className="text-sm font-bold text-amber-900">لم تجد قطعتك؟</span>
-                  <span className="text-xs font-semibold text-amber-700">طلب قطعة</span>
-                </Link>
+                  <span className="text-xs font-semibold text-amber-700">تواصل واتساب</span>
+                </a>
               </li>
               {!loading && !hasSearchResults ? (
                 <li className="px-4 py-3 text-center text-sm text-slate-500">

@@ -134,38 +134,68 @@ export default function AdminOrdersPage() {
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  function isActiveOrder(order: Order) {
+    const status = String(order.status || "");
+    return status !== "cancelled" && status !== "completed";
+  }
+
+  async function reloadOrders() {
+    const res = await fetch(`${API_URL}/api/orders`, {
+      headers: getAuthHeaders(),
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      if (res.status === 401) setError("يجب تسجيل الدخول");
+      else setError("فشل في جلب الطلبات");
+      return;
+    }
+    const data = await res.json();
+    const list = (data.orders ?? (Array.isArray(data) ? data : [])) as Order[];
+    setOrders(list.filter(isActiveOrder));
+    setError("");
+  }
+
   async function updateOrderStatus(orderId: string, status: string) {
-    // التحقق من أن المعرف موجود وصحيح
     const cleanId = String(orderId || "").trim();
     if (!cleanId) {
-      console.error("Order ID is missing or empty");
       alert("خطأ: معرف الطلب غير صحيح");
       return;
     }
 
-    console.log("Updating order status:", { orderId: cleanId, status });
+    if (status === "cancelled") {
+      const ok = window.confirm(
+        "سيتم حذف هذا الطلب نهائياً ولا يمكن استرجاعه. هل تريد المتابعة؟"
+      );
+      if (!ok) {
+        setOrders((prev) => [...prev]);
+        return;
+      }
+      // إزالة فورية من الواجهة ثم حذف من السيرفر
+      setOrders((prev) => prev.filter((o) => String(o._id) !== cleanId));
+    }
 
     setUpdatingId(cleanId);
     try {
-      const url = `${API_URL}/api/orders/${cleanId}/status`;
-      console.log("PATCH URL:", url);
-
-      const res = await fetch(url, {
+      const res = await fetch(`${API_URL}/api/orders/${cleanId}/status`, {
         method: "PATCH",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         credentials: "include",
+        cache: "no-store",
         body: JSON.stringify({ status }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        // عند تحديث الحالة إلى "completed"، حذف الطلب من الصفحة ونقله إلى الأرشيف
-        if (status === "completed") {
-          console.log("Order completed, removing from list");
-          setOrders((prev) => prev.filter((o) => o._id !== cleanId));
+        if (status === "completed" || status === "cancelled" || data?.deleted) {
+          setOrders((prev) => prev.filter((o) => String(o._id) !== cleanId));
+          // مزامنة مع السيرفر لضمان اختفاء الملغى/المكتمل
+          await reloadOrders().catch(() => undefined);
         } else {
           setOrders((prev) =>
-            prev.map((o) => (o._id === cleanId ? { ...o, ...data } : o))
+            prev.map((o) =>
+              String(o._id) === cleanId ? { ...o, ...data } : o
+            )
           );
         }
         window.dispatchEvent(new CustomEvent("admin-orders-updated"));
@@ -177,12 +207,13 @@ export default function AdminOrdersPage() {
         } catch {
           errorMsg += "فشل التحديث";
         }
-        console.error("Update failed:", errorMsg);
         alert(errorMsg);
+        await reloadOrders().catch(() => undefined);
       }
     } catch (err) {
       console.error("Update error:", err);
       alert(`خطأ في الاتصال بالخادم: ${err}`);
+      await reloadOrders().catch(() => undefined);
     } finally {
       setUpdatingId(null);
     }
@@ -191,22 +222,7 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${API_URL}/api/orders`, {
-          headers: getAuthHeaders(),
-          credentials: "include",
-        });
-        if (!res.ok) {
-          if (res.status === 401) setError("يجب تسجيل الدخول");
-          else setError("فشل في جلب الطلبات");
-          return;
-        }
-        const data = await res.json();
-        const list = data.orders ?? (Array.isArray(data) ? data : []);
-        console.log("Loaded orders:", list);
-        if (list.length > 0) {
-          console.log("First order structure:", list[0]);
-        }
-        setOrders(list);
+        await reloadOrders();
       } catch (err) {
         console.error("Load error:", err);
         setError("خطأ في الاتصال");
@@ -281,8 +297,9 @@ export default function AdminOrdersPage() {
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const searchDigits = normalizedSearch.replace(/\D/g, "");
   const filteredOrders = useMemo(() => {
-    if (!normalizedSearch) return orders;
-    return orders.filter((order) => {
+    const active = orders.filter(isActiveOrder);
+    if (!normalizedSearch) return active;
+    return active.filter((order) => {
       const fullName = String(order.fullName || "").toLowerCase();
       const phone = String(order.phone || "").toLowerCase();
       const phoneDigits = phone.replace(/\D/g, "");
