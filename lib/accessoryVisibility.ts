@@ -39,17 +39,28 @@ export function getPhoneTypeIdString(a: { phoneTypes?: unknown; phoneType?: unkn
   return ids[0] ?? "";
 }
 
-export function accessoryIsModelSpecific(a: {
+export function accessoryIsUniversal(a: {
+  assignAllPhones?: boolean;
   phoneTypes?: unknown;
   phoneType?: unknown;
 }): boolean {
+  return a.assignAllPhones === true;
+}
+
+export function accessoryIsModelSpecific(a: {
+  assignAllPhones?: boolean;
+  phoneTypes?: unknown;
+  phoneType?: unknown;
+}): boolean {
+  if (accessoryIsUniversal(a)) return false;
   return getPhoneTypeIdsFromAccessory(a).length > 0;
 }
 
 export function accessoryMatchesPhoneModel(
-  a: { phoneTypes?: unknown; phoneType?: unknown },
+  a: { assignAllPhones?: boolean; phoneTypes?: unknown; phoneType?: unknown },
   phoneTypeId: string | null | undefined
 ): boolean {
+  if (accessoryIsUniversal(a)) return true;
   if (!phoneTypeId || !/^[a-f0-9]{24}$/i.test(phoneTypeId)) return false;
   const n = phoneTypeId.toLowerCase();
   return getPhoneTypeIdsFromAccessory(a).some((id) => id.toLowerCase() === n);

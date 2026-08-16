@@ -152,7 +152,7 @@ export function ModelHubProductGrids({
         .then(async (res) => (res.ok ? ((await res.json()) as HubProduct[]) : []))
         .catch(() => []),
       publicFetch(
-        `/api/accessories?brand=${encodeURIComponent(brandMongoId)}&phoneType=${encodeURIComponent(phoneTypeId)}`,
+        `/api/accessories?phoneType=${encodeURIComponent(phoneTypeId)}`,
         { cache: "no-store" }
       )
         .then(async (res) => (res.ok ? ((await res.json()) as HubProduct[]) : []))

@@ -27,6 +27,7 @@ import {
   Search,
   Copy,
   Pencil,
+  Smartphone,
 } from "lucide-react";
 import {
   AdminButton,
@@ -90,6 +91,7 @@ export default function AccessoriesPage() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedPhoneTypes, setSelectedPhoneTypes] = useState<string[]>([]);
+  const [assignAllPhonesOnCreate, setAssignAllPhonesOnCreate] = useState(false);
   const [image, setImage] = useState("");
   const [extraImagesText, setExtraImagesText] = useState("");
   const [video, setVideo] = useState("");
@@ -119,6 +121,7 @@ export default function AccessoriesPage() {
   const [selectedAccessoryIds, setSelectedAccessoryIds] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [addAllPhonesLoadingId, setAddAllPhonesLoadingId] = useState<string | null>(null);
 
   const fetchTypes = useCallback(async () => {
     try {
@@ -288,6 +291,7 @@ export default function AccessoriesPage() {
     setSelectedTypes([]);
     setSelectedBrands([]);
     setSelectedPhoneTypes([]);
+    setAssignAllPhonesOnCreate(false);
     setPhoneTypes([]);
     setImage("");
     setExtraImagesText("");
@@ -359,7 +363,8 @@ export default function AccessoriesPage() {
       setAccessoryModalNotice({ type: "error", text: "اختر نوع أكسسوار واحد على الأقل" });
       return;
     }
-    if (selectedBrands.length === 0 || selectedPhoneTypes.length === 0) {
+    const useAllPhones = !editing && assignAllPhonesOnCreate;
+    if (!useAllPhones && (selectedBrands.length === 0 || selectedPhoneTypes.length === 0)) {
       setAccessoryModalNotice({
         type: "error",
         text: "اختر ماركة واحدة على الأقل وموديل هاتف واحد على الأقل (يمكن اختيار عدة ماركات وموديلات)",
@@ -378,9 +383,10 @@ export default function AccessoriesPage() {
       name: name.trim(),
       type: selectedTypes[0],
       types: [...selectedTypes],
-      brand: String(selectedBrands[0]).trim(),
+      brand: selectedBrands[0] ? String(selectedBrands[0]).trim() : "",
       brands: [...selectedBrands],
       phoneTypes: selectedPhoneTypes,
+      assignAllPhones: useAllPhones,
       image: image.trim(),
       extraImages: parseExtraImages(),
       video: video.trim(),
@@ -523,6 +529,7 @@ export default function AccessoriesPage() {
     setEditing(null);
     setCopySnapshot(null);
     setMessage(null);
+    setAssignAllPhonesOnCreate(false);
     setName(item.name);
     setSelectedTypes(getAccessoryTypeIds(item));
 
@@ -553,6 +560,7 @@ export default function AccessoriesPage() {
   async function startEdit(item: Accessory) {
     setCopySnapshot(null);
     setEditing(item);
+    setAssignAllPhonesOnCreate(false);
     setName(item.name);
     setSelectedTypes(getAccessoryTypeIds(item));
 
@@ -595,6 +603,40 @@ export default function AccessoriesPage() {
       }
     } catch {
       setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
+    }
+  }
+
+  async function handleAddToAllPhones(id: string) {
+    if (
+      !confirm(
+        "سيتم ربط هذا الأكسسوار بكل موديلات الهواتف من جميع الماركات الموجودة في النظام. متابعة؟"
+      )
+    )
+      return;
+    setAddAllPhonesLoadingId(id);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_URL}/api/accessories/${id}/add-all-phones`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "فشل ربط الأكسسوار بكل الهواتف" });
+        return;
+      }
+      setMessage({
+        type: "success",
+        text: `تم ربط الأكسسوار بكل موديلات الهواتف (الإجمالي: ${
+          data.totalPhoneModels ?? "-"
+        }، الجديد: ${data.addedCount ?? 0}).`,
+      });
+      await fetchItems();
+    } catch {
+      setMessage({ type: "error", text: "تعذر الاتصال بالخادم" });
+    } finally {
+      setAddAllPhonesLoadingId(null);
     }
   }
 
@@ -873,30 +915,52 @@ export default function AccessoriesPage() {
               />
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2 sm:items-start">
-              <div className="min-w-0 space-y-1">
-                <label className={lbl}>الماركات (الهاتف)</label>
-                <AdminSparePartBrandPicker
-                  brands={brands}
-                  selectedIds={selectedBrands}
-                  onChangeIds={handleSelectedBrandsChange}
-                  placeholder="اختر ماركة أو أكثر"
-                />
+            {!editing && (
+              <div className="space-y-1">
+                <label className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs font-medium text-emerald-900">
+                  <input
+                    type="checkbox"
+                    checked={assignAllPhonesOnCreate}
+                    onChange={(e) => setAssignAllPhonesOnCreate(e.target.checked)}
+                    className="h-4 w-4 rounded border-emerald-300"
+                  />
+                  ربط هذا الأكسسوار تلقائياً بكل موديلات الهواتف من جميع الماركات
+                </label>
+                {assignAllPhonesOnCreate && (
+                  <p className="text-[11px] leading-snug text-emerald-800/90 px-1">
+                    سيظهر في صفحات أنواع الأكسسوارات، وصفحات الماركات، وصفحات كل موديل — دون
+                    الحاجة لربط يدوي بكل هاتف.
+                  </p>
+                )}
               </div>
-              <div className="min-w-0">
-                <label className={lbl}>الموديلات</label>
-                <AdminSparePartModelPicker
-                  brandSelected={selectedBrands.length > 0}
-                  phoneTypes={modelPickerPhoneTypes}
-                  selectedIds={selectedPhoneTypes}
-                  onChangeIds={setSelectedPhoneTypes}
-                  newModelName=""
-                  onNewModelNameChange={() => {}}
-                  blockedNewBecauseSelection={false}
-                  showNewModelRow={false}
-                />
+            )}
+
+            {!assignAllPhonesOnCreate && (
+              <div className="grid gap-2 sm:grid-cols-2 sm:items-start">
+                <div className="min-w-0 space-y-1">
+                  <label className={lbl}>الماركات (الهاتف)</label>
+                  <AdminSparePartBrandPicker
+                    brands={brands}
+                    selectedIds={selectedBrands}
+                    onChangeIds={handleSelectedBrandsChange}
+                    placeholder="اختر ماركة أو أكثر"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className={lbl}>الموديلات</label>
+                  <AdminSparePartModelPicker
+                    brandSelected={selectedBrands.length > 0}
+                    phoneTypes={modelPickerPhoneTypes}
+                    selectedIds={selectedPhoneTypes}
+                    onChangeIds={setSelectedPhoneTypes}
+                    newModelName=""
+                    onNewModelNameChange={() => {}}
+                    blockedNewBecauseSelection={false}
+                    showNewModelRow={false}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-3 gap-1.5">
               <div className="min-w-0">
@@ -1316,6 +1380,16 @@ export default function AccessoriesPage() {
                     void openEditAccessory(a);
                   }}
                   title="تعديل"
+                />
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
+                  icon={<Smartphone className="h-4 w-4" />}
+                  onClick={() => handleAddToAllPhones(a._id)}
+                  loading={addAllPhonesLoadingId === a._id}
+                  disabled={addAllPhonesLoadingId === a._id}
+                  className="hover:bg-emerald-50 hover:text-emerald-600"
+                  title="إضافة لكل الهواتف (كل الماركات)"
                 />
                 <AdminButton
                   variant="ghost"
