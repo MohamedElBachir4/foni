@@ -37,6 +37,7 @@ export function snapshotCreatePayload(payload: Record<string, unknown>): string 
 export function buildPhoneCreateComparePayload(args: {
   phoneName: string;
   selectedBrand: string;
+  selectedPhoneType?: string;
   image: string;
   extraImagesText: string;
   price: string;
@@ -55,6 +56,7 @@ export function buildPhoneCreateComparePayload(args: {
   return {
     name: args.phoneName.trim(),
     brand: args.selectedBrand,
+    phoneType: args.selectedPhoneType || "",
     image: args.image.trim(),
     extraImages: parseExtraImagesLines(args.extraImagesText),
     price: args.price.trim() ? Number(args.price) : 0,
@@ -72,6 +74,7 @@ export function buildPhoneCreateComparePayload(args: {
 export function snapshotFromPhoneForCopy(phone: {
   name: string;
   brand: { _id?: string } | string;
+  phoneType?: { _id?: string } | string;
   image?: string;
   extraImages?: string[];
   price?: number;
@@ -92,6 +95,10 @@ export function snapshotFromPhoneForCopy(phone: {
 }): string {
   const brandId =
     typeof phone.brand === "string" ? phone.brand : String(phone.brand?._id || "");
+  const phoneTypeId =
+    typeof phone.phoneType === "string"
+      ? phone.phoneType
+      : String(phone.phoneType?._id || "");
   const poRaw = Array.isArray(phone.pricedOptions) ? phone.pricedOptions : [];
   const pricedOptions: PricedOptionCompare[] = poRaw
     .map((o) => ({
@@ -114,6 +121,7 @@ export function snapshotFromPhoneForCopy(phone: {
     buildPhoneCreateComparePayload({
       phoneName: phone.name,
       selectedBrand: brandId,
+      selectedPhoneType: phoneTypeId,
       image: phone.image || "",
       extraImagesText: (phone.extraImages || []).join("\n"),
       price: phone.price != null ? String(phone.price) : "",

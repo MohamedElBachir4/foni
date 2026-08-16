@@ -67,6 +67,31 @@ export default function AdminAccountsPage() {
     load();
   }, [approvalFilter]);
 
+  async function updateRole(accountId: string, role: "customer" | "merchant") {
+    setActionLoadingId(accountId);
+    setError("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch(`${API_URL}/api/accounts/${accountId}/role`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ role }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "فشل تحديث نوع الحساب");
+      const next = data.account as Account | undefined;
+      if (next) {
+        setAccounts((prev) => prev.map((a) => (a._id === accountId ? { ...a, ...next } : a)));
+      }
+      setSuccessMsg(data.message || "تم تحديث نوع الحساب");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل تحديث نوع الحساب");
+    } finally {
+      setActionLoadingId(null);
+    }
+  }
+
   async function updateStatus(accountId: string, status: "approved" | "rejected") {
     setActionLoadingId(accountId);
     setError("");
@@ -419,6 +444,27 @@ export default function AdminAccountsPage() {
                         </button>
                       </div>
                     ) : null}
+                    <div className="mt-2">
+                      {isMerchantRole(acc.role) ? (
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === acc._id || bulkLoading}
+                          onClick={() => updateRole(acc._id, "customer")}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          تحويل إلى زبون
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === acc._id || bulkLoading}
+                          onClick={() => updateRole(acc._id, "merchant")}
+                          className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-800 hover:bg-violet-100 disabled:opacity-60"
+                        >
+                          تحويل إلى تاجر
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

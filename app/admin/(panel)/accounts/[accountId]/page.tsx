@@ -132,6 +132,27 @@ export default function AdminAccountOrdersPage() {
     return "bg-amber-100 text-amber-950 ring-amber-200";
   }
 
+  async function setAccountRole(role: "customer" | "merchant") {
+    if (!account?._id) return;
+    setActionLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/accounts/${account._id}/role`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ role }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "فشل تحديث نوع الحساب");
+      if (data.account) setAccount(data.account);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فشل تحديث نوع الحساب");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function setApprovalStatus(status: "approved" | "rejected") {
     if (!account?._id) return;
     setActionLoading(true);
@@ -279,6 +300,27 @@ export default function AdminAccountOrdersPage() {
             </button>
           </div>
         )}
+        <div className="mt-4">
+          {isMerchantRole(account.role) ? (
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => setAccountRole("customer")}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              تحويل إلى زبون
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => setAccountRole("merchant")}
+              className="rounded-lg border border-violet-300 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-800 hover:bg-violet-100 disabled:opacity-60"
+            >
+              تحويل إلى تاجر
+            </button>
+          )}
+        </div>
       </AdminCard>
 
       <div className="grid gap-3 sm:grid-cols-3">

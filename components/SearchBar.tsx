@@ -112,45 +112,19 @@ export function SearchBar() {
     collapseForCompare(interpretedQuery || "") !== collapseForCompare(debouncedQuery);
 
   /**
-   * Enter أو تأكيد البحث: الانتقال لأول نتيجة إن وُجدت، وإلا صفحة البحث.
+   * Enter: الانتقال إلى صفحة نتائج البحث (بطاقات الموديلات المشابهة).
    */
-  const goToFirstResult = useCallback(() => {
+  const goToSearchResults = useCallback(() => {
     const q = query.trim();
     if (!q) return;
-    const items = flatList(grouped);
-    if (items.length > 0) {
-      router.push(items[0].item.href);
-      setOpen(false);
-      setQuery("");
-      return;
-    }
     router.push(`/search?q=${encodeURIComponent(q)}`);
     setOpen(false);
-  }, [grouped, query, router]);
-
-  const openPartRequestWhatsApp = useCallback(() => {
-    setOpen(false);
-    setQuery("");
-    window.open(partRequestWhatsAppHref, "_blank", "noopener,noreferrer");
-  }, [partRequestWhatsAppHref]);
+  }, [query, router]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && query.trim()) {
       e.preventDefault();
-      if (highlightIndex === 0) {
-        openPartRequestWhatsApp();
-        return;
-      }
-      if (highlightIndex > 0) {
-        const cur = list[highlightIndex - 1];
-        if (cur) {
-          router.push(cur.item.href);
-          setOpen(false);
-          setQuery("");
-          return;
-        }
-      }
-      goToFirstResult();
+      goToSearchResults();
       return;
     }
     if (!open || total === 0) {
@@ -179,6 +153,12 @@ export function SearchBar() {
           strokeWidth={2}
           aria-hidden
         />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            goToSearchResults();
+          }}
+        >
         <input
           ref={inputRef}
           type="search"
@@ -193,6 +173,7 @@ export function SearchBar() {
           aria-expanded={open && Boolean(query.trim())}
           className="w-full rounded-full border border-gray-200 bg-white/90 py-2.5 pl-10 pr-10 text-left text-[15px] text-gray-900 placeholder:text-gray-500 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 sm:py-3"
         />
+        </form>
         {loading && (
           <span
             className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"

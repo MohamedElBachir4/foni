@@ -40,10 +40,12 @@ import {
 } from "lucide-react";
 
 type Brand = { _id: string; name: string; slug?: string };
+type PhoneType = { _id: string; name: string };
 type Phone = {
   _id: string;
   name: string;
   brand: Brand | string;
+  phoneType?: PhoneType | string;
   image?: string;
   extraImages?: string[];
   video?: string;
@@ -66,10 +68,12 @@ const lbl = "mb-0.5 block text-[10px] font-medium text-slate-500";
 
 export default function CreatePhonePage() {
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [phoneTypes, setPhoneTypes] = useState<PhoneType[]>([]);
   const [phones, setPhones] = useState<Phone[]>([]);
   const [loading, setLoading] = useState(false);
   const [phoneName, setPhoneName] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
+  const [selectedPhoneType, setSelectedPhoneType] = useState("");
   const [image, setImage] = useState("");
   const [extraImagesText, setExtraImagesText] = useState("");
   const [video, setVideo] = useState("");
@@ -126,9 +130,32 @@ export default function CreatePhonePage() {
     fetchPhones();
   }, [fetchBrands, fetchPhones]);
 
+  useEffect(() => {
+    if (!selectedBrand) {
+      setPhoneTypes([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(`${API_URL}/api/phone-types?brand=${encodeURIComponent(selectedBrand)}`, {
+      credentials: "include",
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (cancelled) return;
+        setPhoneTypes(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setPhoneTypes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBrand]);
+
   function resetForm() {
     setPhoneName("");
     setSelectedBrand("");
+    setSelectedPhoneType("");
     setImage("");
     setExtraImagesText("");
     setVideo("");
@@ -193,6 +220,10 @@ export default function CreatePhonePage() {
       setPhoneModalNotice({ type: "error", text: "اختر الماركة" });
       return;
     }
+    if (!selectedPhoneType) {
+      setPhoneModalNotice({ type: "error", text: "اختر موديل الهاتف" });
+      return;
+    }
 
     const effectivePrice =
       price.trim().length > 0
@@ -206,6 +237,7 @@ export default function CreatePhonePage() {
         buildPhoneCreateComparePayload({
           phoneName,
           selectedBrand,
+          selectedPhoneType,
           image,
           extraImagesText,
           price,
@@ -228,6 +260,7 @@ export default function CreatePhonePage() {
     const payload = {
       name: phoneName.trim(),
       brand: selectedBrand,
+      phoneType: selectedPhoneType,
       image: image.trim(),
       extraImages: parseExtraImages(),
       video: video.trim(),
@@ -276,6 +309,11 @@ export default function CreatePhonePage() {
     }
   }
 
+  function phoneTypeIdOf(phone: Phone): string {
+    if (!phone.phoneType) return "";
+    return typeof phone.phoneType === "string" ? phone.phoneType : phone.phoneType._id || "";
+  }
+
   function startCopyFrom(phone: Phone) {
     setEditing(null);
     setCopySnapshot(snapshotFromPhoneForCopy(phone));
@@ -284,6 +322,7 @@ export default function CreatePhonePage() {
     setSelectedBrand(
       typeof phone.brand === "string" ? phone.brand : phone.brand?._id || ""
     );
+    setSelectedPhoneType(phoneTypeIdOf(phone));
     setImage(phone.image || "");
     setExtraImagesText((phone.extraImages || []).join("\n"));
     setVideo(phone.video || "");
@@ -305,6 +344,7 @@ export default function CreatePhonePage() {
     setSelectedBrand(
       typeof phone.brand === "string" ? phone.brand : phone.brand?._id || ""
     );
+    setSelectedPhoneType(phoneTypeIdOf(phone));
     setImage(phone.image || "");
     setExtraImagesText((phone.extraImages || []).join("\n"));
     setVideo(phone.video || "");
@@ -340,6 +380,8 @@ export default function CreatePhonePage() {
   }
 
   const brandName = (p: Phone) => (typeof p.brand === "object" && p.brand ? p.brand.name : "—");
+  const phoneTypeName = (p: Phone) =>
+    typeof p.phoneType === "object" && p.phoneType ? p.phoneType.name : "—";
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-4 pb-8">
@@ -397,7 +439,9 @@ export default function CreatePhonePage() {
               : "إنشاء هاتف"
         }
         description={
-          copySnapshot && !editing ? "عدّل حقلًا ثم احفظ." : "إلزامي: الاسم والماركة."
+          copySnapshot && !editing
+            ? "عدّل حقلًا ثم احفظ."
+            : "إلزامي: الاسم والماركة وموديل الهاتف."
         }
         contentClassName="!px-3 !py-2 sm:!px-3.5 sm:!py-2.5"
       >
@@ -435,14 +479,17 @@ export default function CreatePhonePage() {
                   autoComplete="off"
                 />
               </div>
-              <div className="min-w-0 sm:col-span-2">
+              <div className="min-w-0">
                 <label className={lbl} htmlFor="phone-brand-select">
                   الماركة <span className="text-rose-600">*</span>
                 </label>
                 <select
                   id="phone-brand-select"
                   value={selectedBrand}
-                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedBrand(e.target.value);
+                    setSelectedPhoneType("");
+                  }}
                   className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px]"
                 >
                   <option value="">اختر الماركة</option>
@@ -452,6 +499,36 @@ export default function CreatePhonePage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="min-w-0">
+                <label className={lbl} htmlFor="phone-type-select">
+                  موديل الهاتف <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  id="phone-type-select"
+                  value={selectedPhoneType}
+                  onChange={(e) => setSelectedPhoneType(e.target.value)}
+                  disabled={!selectedBrand}
+                  className="admin-select !h-7 !py-0.5 w-full rounded-md px-2 text-[11px] disabled:bg-slate-50 disabled:text-slate-400"
+                >
+                  <option value="">
+                    {selectedBrand ? "اختر الموديل" : "اختر الماركة أولاً"}
+                  </option>
+                  {phoneTypes.map((pt) => (
+                    <option key={pt._id} value={pt._id}>
+                      {pt.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedBrand && phoneTypes.length === 0 ? (
+                  <p className="mt-1 text-[10px] text-amber-700">
+                    لا توجد موديلات لهذه الماركة. أضفها من{" "}
+                    <Link href="/admin/spare-models" className="font-semibold underline">
+                      هواتف قطع الغيار
+                    </Link>
+                    .
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -743,6 +820,7 @@ export default function CreatePhonePage() {
             { key: "image", label: "الصورة" },
             { key: "name", label: "الاسم" },
             { key: "brand", label: "الماركة" },
+            { key: "phoneType", label: "الموديل" },
             { key: "colors", label: "الألوان" },
             { key: "price", label: "السعر" },
             { key: "details", label: "التفاصيل" },
@@ -754,6 +832,7 @@ export default function CreatePhonePage() {
             image: <AdminTableCellImage src={p.image} alt={p.name} />,
             name: <span className="font-medium text-slate-800">{p.name}</span>,
             brand: <span className="text-slate-600">{brandName(p)}</span>,
+            phoneType: <span className="text-slate-600">{phoneTypeName(p)}</span>,
             colors: (
               <div className="flex flex-wrap gap-1">
                 {(Array.isArray(p.colors) ? p.colors : []).map((c) => (
