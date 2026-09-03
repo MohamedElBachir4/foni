@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BRAND_OFFICIAL_LOGOS } from "@/lib/brandLogos";
 import { getProductImageUrl } from "@/lib/productImage";
-import { Award, TrendingUp } from "lucide-react";
 import { publicFetch } from "@/lib/publicFetch";
 
 const STATIC_BRANDS = [
@@ -90,60 +89,66 @@ export function BrandGrid({
   };
 
   return (
-    <section className="mb-20">
-      <div className="mb-10 text-center">
-        <h2 className="mb-3 flex items-center justify-center gap-3 text-4xl font-bold text-gray-800">
-          <Award className="h-8 w-8 text-yellow-500" />
-          <span>{sectionTitle ?? "الماركات العالمية"}</span>
-          <TrendingUp className="h-8 w-8 text-green-500" />
-        </h2>
-        <p className="text-gray-500">
-          {sectionSubtitle ?? "أشهر الماركات في مكان واحد بأسعار تنافسية"}
-        </p>
+    <section className="mb-10 sm:mb-16">
+      {/* عنوان القسم */}
+      <div className="mb-5 flex items-center justify-between px-1 sm:mb-8">
+        <div>
+          <h2 className="flex items-center gap-2 text-base font-bold text-slate-800 sm:text-2xl">
+            <span className="h-5 w-1 rounded-full bg-gradient-to-b from-amber-500 to-yellow-400 sm:h-7 sm:w-1.5" />
+            {sectionTitle ?? "الماركات العالمية"}
+          </h2>
+          <p className="mt-1 text-[11px] text-slate-400 sm:text-sm">
+            {sectionSubtitle ?? "أشهر الماركات في مكان واحد"}
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {brands.map((brand, index) => (
-          <button
-            key={brand.id}
-            type="button"
-            onClick={() => handleClick(brand.id)}
-            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-center transition-all duration-500 hover:shadow-2xl animate-fade-in-up cursor-pointer ${
-              selectedBrandId === brand.id
-                ? "border-blue-600 bg-gradient-to-br from-blue-600 to-purple-600 shadow-xl"
-                : "border-gray-100 bg-white hover:border-blue-400 hover:-translate-y-2"
-            }`}
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            {/* Shine Effect */}
-            <div className="absolute inset-0 -translate-x-full transform bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            
-            <div className="relative mx-auto mb-3 flex h-20 w-20 items-center justify-center transition-all duration-300 group-hover:scale-110">
-              <Image
-                src={brand.image}
-                alt={brand.name}
-                width={64}
-                height={64}
-                unoptimized
-                className={`object-contain transition-all duration-300 ${
-                  selectedBrandId === brand.id ? "brightness-0 invert" : ""
-                }`}
-              />
-            </div>
-            <span className={`font-bold transition-colors ${
-              selectedBrandId === brand.id ? "text-white" : "text-gray-800 group-hover:text-blue-600"
-            }`}>
-              {brand.name}
-            </span>
-            
-            {/* Popularity Badge */}
-            {brand.popularity && brand.popularity > 80 && (
-              <div className="absolute right-2 top-2 rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-bold text-white">
-                شائع
+      {/* شبكة الماركات — 3 أعمدة موبايل */}
+      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+        {brands.map((brand) => {
+          const isSelected = selectedBrandId === brand.id;
+          const isPopular = brand.popularity != null && brand.popularity > 80;
+          return (
+            <button
+              key={brand.id}
+              type="button"
+              onClick={() => handleClick(brand.id)}
+              className={`group relative flex flex-col items-center gap-2 rounded-2xl border px-2 py-4 text-center transition-all duration-300 sm:gap-2.5 sm:px-3 sm:py-5 ${
+                isSelected
+                  ? "border-blue-500 bg-blue-50 shadow-md shadow-blue-100"
+                  : "border-slate-100 bg-white shadow-sm hover:border-blue-200 hover:shadow-md"
+              }`}
+            >
+              {/* بادج شائع */}
+              {isPopular && (
+                <span className="absolute -top-1.5 end-1.5 rounded-full bg-amber-400 px-1.5 py-0.5 text-[7px] font-bold text-white shadow-sm sm:text-[8px]">
+                  🔥
+                </span>
+              )}
+
+              {/* لوجو الماركة */}
+              <div className={`relative flex h-12 w-12 items-center justify-center transition-transform duration-300 group-hover:scale-110 sm:h-14 sm:w-14 ${
+                isSelected ? "" : ""
+              }`}>
+                <Image
+                  src={brand.image}
+                  alt={brand.name}
+                  width={48}
+                  height={48}
+                  unoptimized
+                  className="h-full w-full object-contain"
+                />
               </div>
-            )}
-          </button>
-        ))}
+
+              {/* اسم الماركة */}
+              <span className={`text-[10px] font-semibold leading-tight sm:text-xs ${
+                isSelected ? "text-blue-600" : "text-slate-600 group-hover:text-blue-600"
+              }`}>
+                {brand.name}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </section>
   );

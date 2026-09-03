@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
-  ShoppingBag,
+  Menu,
   CircleUserRound,
   Search,
   X,
@@ -15,7 +15,6 @@ import {
   User,
 } from "lucide-react";
 import { SearchBar } from "@/components/SearchBar";
-import { useCart } from "@/context/CartContext";
 import { useAccount } from "@/context/AccountContext";
 import { getPricingAccount } from "@/lib/pricing";
 import { isMerchantRole, roleLabelAr } from "@/lib/accountRoles";
@@ -160,11 +159,11 @@ function AccountMenuDropdown({
 
 export function Navbar() {
   const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuDesktopRef = useRef<HTMLDivElement | null>(null);
   const accountMenuMobileRef = useRef<HTMLDivElement | null>(null);
-  const { totalItems } = useCart();
   const { account, logout, setUseWholesalePricing } = useAccount();
   const approvedB2B = useMemo(() => getPricingAccount(account), [account]);
 
@@ -212,7 +211,7 @@ export function Navbar() {
         </div>
       )}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Desktop: شعار + روابط | بحث | سلة + حساب */}
+        {/* Desktop: شعار + روابط | بحث | حساب */}
         <div className="hidden h-20 items-center gap-4 overflow-visible lg:grid lg:grid-cols-[1fr_minmax(240px,420px)_1fr]">
           <div className="flex min-w-0 items-center justify-start gap-5 xl:gap-8">
             <Link
@@ -267,18 +266,6 @@ export function Navbar() {
           <div
             className={`relative flex items-center justify-end gap-2 overflow-visible ${isAccountMenuOpen ? "z-[1400]" : ""}`}
           >
-            <Link
-              href="/cart"
-              className="group relative flex items-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-3 py-2 text-blue-600 shadow-md transition-all duration-300 hover:scale-105 hover:bg-blue-50 hover:shadow-lg"
-            >
-              <ShoppingBag className="h-5 w-5" strokeWidth={2.5} />
-              <span className="hidden font-semibold sm:inline">سلة الشراء</span>
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -left-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-bold text-white">
-                  {totalItems > 99 ? "99+" : totalItems}
-                </span>
-              )}
-            </Link>
             <div
               className="relative flex items-center gap-2 overflow-visible"
               ref={accountMenuDesktopRef}
@@ -347,20 +334,6 @@ export function Navbar() {
               <Search className="h-5 w-5" strokeWidth={2} />
             </button>
 
-            {/* سلة */}
-            <Link
-              href="/cart"
-              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-600"
-              aria-label="سلة الشراء"
-            >
-              <ShoppingBag className="h-5 w-5" strokeWidth={2} />
-              {totalItems > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-0.5 text-[9px] font-bold text-white">
-                  {totalItems > 99 ? "99+" : totalItems}
-                </span>
-              )}
-            </Link>
-
             {/* حساب */}
             <div
               className="relative flex items-center overflow-visible"
@@ -392,29 +365,57 @@ export function Navbar() {
                 />
               )}
             </div>
+
+            {/* زر القائمة (هامبرغر) */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-600"
+              aria-label="القائمة"
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" strokeWidth={2} /> : <Menu className="h-5 w-5" strokeWidth={2} />}
+            </button>
           </div>
         </div>
 
-        {/* شريط التنقل المباشر تحت الهيدر — موبايل فقط */}
-        <div className="flex items-center gap-1 overflow-x-auto border-t border-slate-100/60 px-3 pb-2 pt-1 scrollbar-hide lg:hidden">
-          {[
-            { href: "/", label: "الرئيسية" },
-            { href: "/phones", label: "الهواتف" },
-            { href: "/accessories", label: "اكسسوارات" },
-            { href: "/spare-parts", label: "قطع غيار" },
-            { href: "/services", label: "خدماتنا" },
-            { href: "/contact", label: "تواصل معنا" },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-blue-600 hover:text-white"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
       </div>
+      {/* قائمة الهامبرغر */}
+      {isMobileMenuOpen && (
+        <div className="absolute inset-x-0 top-full z-[1200] border-t border-slate-100 bg-white shadow-lg lg:hidden">
+          <div className="mx-auto max-w-7xl px-4 py-3">
+            <nav className="space-y-1 text-right">
+              {[
+                { href: "/", label: "الرئيسية" },
+                { href: "/products", label: "جميع المنتجات" },
+                { href: "/phones", label: "الهواتف" },
+                { href: "/accessories", label: "اكسسوارات" },
+                { href: "/spare-parts", label: "قطع غيار" },
+                { href: "/services", label: "خدماتنا" },
+                { href: "/contact", label: "تواصل معنا" },
+              ].map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="block rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-blue-50 hover:text-blue-600"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              {account && (
+                <Link
+                  href="/accounts?tab=orders"
+                  className="block rounded-xl px-3 py-2.5 text-sm font-bold text-blue-600 hover:bg-blue-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  طلباتي
+                </Link>
+              )}
+            </nav>
+          </div>
+        </div>
+      )}
+
       {isMobileSearchOpen && (
         <div
           className="fixed inset-0 z-[1300] bg-black/40 backdrop-blur-sm md:hidden"

@@ -109,7 +109,7 @@ export function ContactFab() {
         )}
       </AnimatePresence>
 
-      <div ref={rootRef} className="fixed bottom-5 right-5 z-[1400] sm:bottom-6 sm:right-6">
+      <div ref={rootRef} className="fixed bottom-[calc(3.5rem+0.75rem)] right-5 z-[1400] sm:right-6 lg:bottom-6">
         <AnimatePresence>
           {open && (
             <motion.div

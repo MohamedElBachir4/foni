@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Smartphone, Headphones, Wrench, Heart } from "lucide-react";
-import { ProductImage } from "@/components/ProductImage";
-import { ProductCardActions } from "@/components/ProductCardActions";
+import { Smartphone, Headphones, Wrench } from "lucide-react";
+import { ProductGridCard } from "@/components/ProductGridCard";
 import { useAccount } from "@/context/AccountContext";
-import { formatDzd, getEffectivePrice, getPricingAccount } from "@/lib/pricing";
+import { getEffectivePrice, getPricingAccount } from "@/lib/pricing";
 import { publicFetch } from "@/lib/publicFetch";
 
 type HubProduct = {
@@ -38,7 +37,6 @@ function sortByNewest(items: HubProduct[]): HubProduct[] {
 function ProductGridSection({
   title,
   icon,
-  badge,
   category,
   items,
   loading,
@@ -46,7 +44,6 @@ function ProductGridSection({
 }: {
   title: string;
   icon: React.ReactNode;
-  badge: string;
   category: string;
   items: HubProduct[];
   loading: boolean;
@@ -84,52 +81,23 @@ function ProductGridSection({
               pricingAccount
             );
             return (
-              <article
+              <ProductGridCard
                 key={item._id}
-                className="group flex h-full min-h-0 flex-col overflow-visible rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl sm:overflow-hidden sm:rounded-[1.25rem]"
-              >
-                <div className="relative flex h-[210px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-2 py-2 sm:h-[240px] sm:px-3 sm:py-4">
-                  <ProductImage
-                    src={item.image || "/LOGO.jpeg"}
-                    alt={item.name}
-                    size="card"
-                    quality={88}
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
-                    className="h-full w-full object-contain"
-                  />
-                  <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm sm:start-4 sm:top-4 sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-xs">
-                    {badge}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="إضافة للمفضلة"
-                    className="absolute end-3 top-3 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-red-500 sm:end-4 sm:top-4 sm:p-2"
-                  >
-                    <Heart className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5" strokeWidth={1.5} />
-                  </button>
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 p-3">
-                  <h3 className="mb-2 break-words text-center text-sm font-bold leading-snug text-slate-900 sm:line-clamp-2 sm:text-base">
-                    {item.name}
-                  </h3>
-                  <p className="mb-2 text-center">
-                    <span className="text-xl font-black text-slate-900 sm:text-2xl">
-                      {formatDzd(effectivePrice)}
-                    </span>
-                    <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
-                  </p>
-                  <ProductCardActions
-                    id={item._id}
-                    name={item.name}
-                    price={effectivePrice}
-                    priceRetail={item.priceRetail ?? item.price}
-                    priceWholesale={item.priceWholesale}
-                    priceReparateur={item.priceReparateur}
-                    image={item.image || ""}
-                    category={category}
-                  />
-                </div>
-              </article>
+                product={{
+                  id: item._id,
+                  name: item.name,
+                  image: item.image || "/LOGO.jpeg",
+                  price: item.price ?? 0,
+                  priceRetail: item.priceRetail ?? item.price,
+                  priceWholesale: item.priceWholesale,
+                  priceReparateur: item.priceReparateur,
+                  brand: "",
+                  category,
+                }}
+                effectivePrice={effectivePrice}
+                imageSizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
+                className="hover:-translate-y-1"
+              />
             );
           })}
         </div>
@@ -209,7 +177,6 @@ export function ModelHubProductGrids({
         <ProductGridSection
           title="الهواتف"
           icon={<Smartphone className="h-5 w-5 text-blue-600" />}
-          badge="هواتف"
           category="هواتف"
           items={phones}
           loading={loading}
@@ -220,7 +187,6 @@ export function ModelHubProductGrids({
         <ProductGridSection
           title="قطع الغيار"
           icon={<Wrench className="h-5 w-5 text-emerald-600" />}
-          badge="قطعة غيار"
           category="قطع غيار"
           items={spareParts}
           loading={loading}
@@ -231,7 +197,6 @@ export function ModelHubProductGrids({
         <ProductGridSection
           title="الإكسسوارات"
           icon={<Headphones className="h-5 w-5 text-fuchsia-600" />}
-          badge="أكسسوارات"
           category="أكسسوارات"
           items={accessories}
           loading={loading}
