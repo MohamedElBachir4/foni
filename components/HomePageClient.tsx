@@ -29,8 +29,13 @@ export function HomePageClient() {
           {/* التصنيفات — فوق المنتجات على الموبايل */}
           <CategorySlider className="mb-8 sm:mb-10" />
 
-          {/* شبكة المنتجات */}
+          {/* أحدث المنتجات */}
           <ProductGrid selectedBrandId={selectedBrandId} mixedLatest />
+
+          {/* الأكثر مبيعاً */}
+          <div className="-mt-10 sm:-mt-8">
+            <ProductGrid selectedBrandId={null} bestSelling />
+          </div>
 
           {/* الماركات */}
           <BrandGrid

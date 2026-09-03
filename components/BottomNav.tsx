@@ -8,15 +8,21 @@ import { useCart } from "@/context/CartContext";
 
 const NAV_ITEMS = [
   { href: "/", label: "الرئيسية", icon: Home },
-  { href: "/phones", label: "المنتجات", icon: Grid2x2 },
+  { href: "/products", label: "المنتجات", icon: Grid2x2 },
   { href: "/cart", label: "السلة", icon: ShoppingCart },
   { href: "/accounts", label: "حسابي", icon: CircleUserRound },
 ];
 
+const PRODUCT_PATHS = ["/products", "/phones", "/accessories", "/spare-parts", "/brand"];
+
 const spring = { type: "spring" as const, stiffness: 420, damping: 32, mass: 0.85 };
 
 function isNavActive(pathname: string, href: string) {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  if (href === "/") return pathname === "/";
+  if (href === "/products") {
+    return PRODUCT_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  }
+  return pathname.startsWith(href);
 }
 
 export function BottomNav() {

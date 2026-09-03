@@ -62,7 +62,7 @@ export function ModelChoiceGrid({
 }
 
 const cardClassName =
-  "group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-right shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:ring-1 hover:ring-slate-300/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:rounded-[1.25rem]";
+  "group flex h-full w-full flex-col overflow-hidden rounded-2xl bg-white text-right transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
 
 function PlainGrid({
   models,
@@ -78,21 +78,21 @@ function PlainGrid({
   className?: string;
 }) {
   return (
-    <div className={`grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 ${className}`.trim()}>
+    <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 ${className}`.trim()}>
       {models.map((m) => {
         const inner = (
           <>
-            <div className="relative flex min-h-[140px] items-center justify-center bg-gradient-to-b from-slate-50/95 to-white px-4 py-8 sm:min-h-[160px]">
+            <div className="relative flex h-[150px] items-center justify-center bg-slate-50 sm:h-[180px]">
               {m.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={getProductImageUrl(m.image)}
-                  alt=""
-                  className="max-h-[120px] w-full max-w-[120px] object-contain transition-transform duration-300 group-hover:scale-105 sm:max-h-[140px] sm:max-w-[140px]"
+                  src={getProductImageUrl(m.image, { size: "medium" })}
+                  alt={m.name}
+                  className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-[1.04]"
                 />
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                  <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm">
+                  <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -102,17 +102,17 @@ function PlainGrid({
                   </svg>
                 </div>
               )}
-              <span className="absolute start-3 top-3 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-                موديل
-              </span>
             </div>
-            <div className="flex flex-1 flex-col border-t border-slate-100 p-4">
-              <h3 className="mb-3 line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-slate-800 group-hover:text-blue-700" dir="auto">
+            <div className="flex flex-1 flex-col gap-2.5 px-3 pb-3 pt-2.5">
+              <h3
+                className="line-clamp-2 text-xs font-bold leading-snug text-slate-800 group-hover:text-blue-600 sm:text-sm"
+                dir="auto"
+              >
                 {m.name}
               </h3>
-              <span className="mt-auto inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white shadow-sm transition-colors group-hover:bg-blue-700">
+              <span className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2 text-[11px] font-bold text-white transition-colors group-hover:bg-blue-700 sm:py-2.5 sm:text-xs">
                 {ctaLabel}
-                <svg className="h-4 w-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <svg className="h-3.5 w-3.5 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </span>
@@ -126,13 +126,19 @@ function PlainGrid({
               type="button"
               onClick={() => onModelNavigate(m)}
               className={cardClassName + " cursor-pointer text-inherit"}
+              style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.08)" }}
             >
               {inner}
             </button>
           );
         }
         return (
-          <Link key={m._id} href={getHref ? getHref(m) : "#"} className={cardClassName}>
+          <Link
+            key={m._id}
+            href={getHref ? getHref(m) : "#"}
+            className={cardClassName}
+            style={{ boxShadow: "0 1px 8px rgba(0,0,0,0.08)" }}
+          >
             {inner}
           </Link>
         );
