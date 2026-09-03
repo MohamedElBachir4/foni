@@ -294,3 +294,12 @@ select {
 .hero-slide-in {
   animation: heroSlideInFromSide 0.5s ease-in-out forwards;
 }
+
+/* إخفاء شريط التمرير مع الإبقاء على وظيفته */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

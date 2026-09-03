@@ -23,7 +23,9 @@ export function resolveUseWholesalePricing(account: {
   if (!account || !isMerchantRole(account.role)) return false;
   const legacy = String(account.role || "").trim().toLowerCase();
   if (LEGACY_WHOLESALE.has(legacy)) return true;
-  return account.useWholesalePricing === true;
+  // نقبل true أو "true" أو 1 لتفادي مشاكل تحويل النوع من قاعدة البيانات
+  const val = account.useWholesalePricing as unknown;
+  return val === true || val === 1 || val === "true";
 }
 
 export function roleLabelAr(role: string | undefined | null): string {

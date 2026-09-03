@@ -353,10 +353,10 @@ export function ProductGrid({
   return (
     <section className="mb-20">
       {!isBrandPage && (
-        <div className="mb-10">
-          <h2 className="flex items-center gap-3 text-3xl font-bold text-gray-800">
+        <div className="mb-5 flex items-center justify-between px-1 sm:mb-8">
+          <h2 className="flex items-center gap-2 text-base font-bold text-slate-800 sm:text-2xl">
             <span
-              className={`h-8 w-1.5 rounded-full bg-gradient-to-b ${
+              className={`h-5 w-1 rounded-full bg-gradient-to-b sm:h-7 sm:w-1.5 ${
                 bestSelling ? "from-amber-500 to-orange-400" : "from-blue-600 to-blue-400"
               }`}
             />

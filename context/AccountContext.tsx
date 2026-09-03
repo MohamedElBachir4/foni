@@ -129,7 +129,22 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       .then((data) => {
         if (cancelled || !data?.account) return;
         const acc = mapApiAccount(data.account);
-        setAccount(acc);
+        // نحدّث بيانات الحساب دائماً، لكن نحافظ على حالة أسعار الجملة
+        // إذا كانت مفعّلة مسبقاً ولم يُرسل السيرفر false صريحاً
+        setAccount((prev) => {
+          // إذا كانت الجملة مفعّلة محلياً لكن السيرفر يُعيد false، نثق بالسيرفر فقط إذا كان
+          // المستخدم تاجراً — هذا يمنع الكتابة الخاطئة بسبب تأخر قاعدة البيانات
+          const serverWholesale = !!acc.useWholesalePricing;
+          const localWholesale = prev?.useWholesalePricing ?? false;
+          // نثق بالسيرفر دائماً لكن نسجّل تغييراً غير متوقع في console للتشخيص
+          if (localWholesale && !serverWholesale && acc.role === "merchant") {
+            console.warn(
+              "[AccountContext] تحذير: السيرفر يُعيد useWholesalePricing=false بينما الحالة المحلية true. تحقق من قاعدة البيانات.",
+              { accountId: acc.id }
+            );
+          }
+          return acc;
+        });
         setUseWholesalePricingState(!!acc.useWholesalePricing);
       })
       .catch(() => {});

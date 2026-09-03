@@ -30,23 +30,22 @@ export function ProductGridCard({
   effectivePrice,
   index = 0,
   priority = false,
-  imageSizes = "(max-width: 640px) 78vw, 25vw",
+  imageSizes = "(max-width: 640px) 48vw, 25vw",
   className = "",
   compact = false,
 }: ProductGridCardProps) {
   return (
     <div
-      className={`group flex h-full flex-col overflow-hidden border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-all duration-500 ${
-        compact
-          ? "min-h-[318px] rounded-2xl"
-          : "min-h-[372px] rounded-3xl sm:min-h-[402px]"
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:shadow-md ${
+        compact ? "min-h-[260px]" : "min-h-[300px] sm:min-h-[360px]"
       } ${className}`}
     >
+      {/* صورة المنتج */}
       <div
-        className={`relative flex shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 via-white to-blue-50/40 ${
+        className={`relative flex shrink-0 items-center justify-center bg-slate-50 ${
           compact
-            ? "h-[136px] px-3 pb-2 pt-4"
-            : "h-[162px] px-4 pb-2.5 pt-5 sm:h-[190px] sm:px-5 sm:pb-3 sm:pt-5"
+            ? "h-[130px] px-3 pb-2 pt-3"
+            : "h-[150px] px-3 pb-2 pt-4 sm:h-[190px] sm:px-4 sm:pb-3 sm:pt-5"
         }`}
       >
         <ProductImage
@@ -54,66 +53,74 @@ export function ProductGridCard({
           alt={product.name}
           priority={priority || index === 0}
           sizes={imageSizes}
-          className={`h-full w-full object-contain drop-shadow-[0_12px_22px_rgba(15,23,42,0.24)] ${
-            compact ? "rounded-xl p-1.5" : "rounded-2xl p-2 sm:p-3"
-          }`}
+          className="h-full w-full object-contain"
         />
+        {/* بادج التصنيف */}
         <span
-          className={`absolute start-3 top-3 rounded-full bg-blue-600 font-bold text-white shadow ${
-            compact ? "px-2 py-0.5 text-[9px]" : "px-2.5 py-1 text-[10px] sm:start-4 sm:top-4 sm:px-3 sm:text-xs"
+          className={`absolute start-2 top-2 rounded-full bg-blue-600 font-semibold text-white ${
+            compact ? "px-1.5 py-0.5 text-[8px]" : "px-2 py-0.5 text-[9px] sm:text-[10px]"
           }`}
         >
           {product.category}
         </span>
+        {/* زر المفضلة */}
         <button
           type="button"
           aria-label="إضافة للمفضلة"
-          className={`absolute end-3 top-3 rounded-full border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-red-500 ${
-            compact ? "p-1" : "p-1.5 sm:end-4 sm:top-4 sm:p-2"
+          className={`absolute end-2 top-2 rounded-full bg-white/90 shadow-sm transition hover:text-red-500 ${
+            compact ? "p-1" : "p-1.5"
           }`}
         >
-          <Heart className={`text-slate-500 ${compact ? "h-3.5 w-3.5" : "h-4 w-4 sm:h-5 sm:w-5"}`} strokeWidth={1.5} />
+          <Heart className={`text-slate-400 ${compact ? "h-3 w-3" : "h-3.5 w-3.5 sm:h-4 sm:w-4"}`} strokeWidth={1.5} />
         </button>
       </div>
 
-      <div className={`flex min-h-0 flex-1 flex-col border-t border-slate-100 ${compact ? "p-3" : "p-4"}`}>
+      {/* تفاصيل المنتج */}
+      <div className={`flex flex-1 flex-col border-t border-slate-50 ${compact ? "p-2.5" : "p-3 sm:p-4"}`}>
+        {/* اسم المنتج */}
         <h3
-          className={`mb-1.5 break-words text-center font-extrabold leading-snug text-slate-900 ${
-            compact ? "text-xs line-clamp-2" : "mb-2 text-sm sm:line-clamp-2 sm:min-h-[2.75rem] sm:text-base"
+          className={`mb-1 line-clamp-2 text-center font-bold leading-snug text-slate-800 ${
+            compact ? "text-[11px]" : "text-xs sm:text-sm"
           }`}
         >
           {product.name}
         </h3>
 
+        {/* السعر */}
         {effectivePrice > 0 ? (
-          <p className={`text-center ${compact ? "mb-1.5" : "mb-2"}`}>
+          <p className={`text-center ${compact ? "mb-2" : "mb-2 sm:mb-3"}`}>
             <span
-              className={`font-black tracking-tight text-blue-700 ${
-                compact ? "text-xl" : "text-2xl sm:text-[1.75rem]"
+              className={`font-black text-blue-600 ${
+                compact ? "text-base" : "text-lg sm:text-xl"
               }`}
             >
               {formatDzd(effectivePrice)}
             </span>
-            <span className={`mr-1 font-semibold text-slate-500 ${compact ? "text-xs" : "text-sm"}`}>DA</span>
+            <span className={`ms-0.5 font-medium text-slate-400 ${compact ? "text-[9px]" : "text-[10px] sm:text-xs"}`}>
+              DA
+            </span>
           </p>
         ) : (
-          <p className={`text-center font-semibold text-slate-400 ${compact ? "mb-1.5 text-xs" : "mb-2 min-h-[1.5rem] text-sm"}`}>
+          <p className={`text-center font-medium text-slate-300 ${compact ? "mb-2 text-[10px]" : "mb-2 text-xs sm:mb-3"}`}>
             — DA
           </p>
         )}
 
-        <ProductCardActions
-          id={String(product.id)}
-          name={product.name}
-          price={effectivePrice}
-          priceRetail={product.priceRetail ?? product.price}
-          priceWholesale={product.priceWholesale}
-          priceReparateur={product.priceReparateur}
-          image={product.image}
-          colors={Array.isArray(product.colors) ? product.colors : undefined}
-          category={product.category}
-          detailHref={product.detailHref}
-        />
+        {/* أزرار الإجراء */}
+        <div className="mt-auto">
+          <ProductCardActions
+            id={String(product.id)}
+            name={product.name}
+            price={effectivePrice}
+            priceRetail={product.priceRetail ?? product.price}
+            priceWholesale={product.priceWholesale}
+            priceReparateur={product.priceReparateur}
+            image={product.image}
+            colors={Array.isArray(product.colors) ? product.colors : undefined}
+            category={product.category}
+            detailHref={product.detailHref}
+          />
+        </div>
       </div>
     </div>
   );

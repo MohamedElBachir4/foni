@@ -30,13 +30,14 @@ function normalizeBannerHref(url: string): string {
 }
 
 function getBannerCta(banner: Banner, slideIndex: number): { text: string; href: string } {
-  if (slideIndex === 0 || banner.isFirstSlide) {
-    return { text: "فتح حساب", href: "/accounts" };
+  // إذا كان للشريحة زر مخصص، نستخدمه
+  const customText = String(banner.buttonText || "").trim();
+  const customHref = normalizeBannerHref(banner.buttonUrl || "");
+  if (customText && customHref) {
+    return { text: customText, href: customHref };
   }
-  return {
-    text: String(banner.buttonText || "").trim(),
-    href: normalizeBannerHref(banner.buttonUrl || ""),
-  };
+  // fallback دائم: زر "فتح حساب" لكل الشرائح
+  return { text: "فتح حساب", href: "/accounts" };
 }
 
 function BannerCtaButton({ banner, slideIndex }: { banner: Banner; slideIndex: number }) {
@@ -137,8 +138,8 @@ export function HomeBannerSlider() {
 
   if (loading) {
     return (
-      <section className="relative mb-8 w-full overflow-hidden sm:mb-10">
-        <div className="flex h-48 w-full animate-pulse items-center justify-center bg-slate-100 sm:h-[26rem] lg:h-[32rem]">
+      <section className="relative mb-4 w-full overflow-hidden sm:mb-6">
+        <div className="flex h-[200px] w-full animate-pulse items-center justify-center rounded-2xl bg-slate-100 sm:h-[340px] lg:h-[420px]">
           <span className="text-sm text-slate-400">جاري التحميل...</span>
         </div>
       </section>
@@ -146,16 +147,38 @@ export function HomeBannerSlider() {
   }
 
   if (count === 0) {
-    return null;
+    // fallback: بنر افتراضي عند غياب البنرات أو فشل الجلب
+    return (
+      <section className="relative mb-4 w-full overflow-hidden rounded-2xl sm:mb-6 sm:rounded-3xl">
+        <div
+          className="flex h-[200px] w-full items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 sm:h-[340px] lg:h-[420px]"
+        >
+          <div className="flex flex-col items-center gap-4 px-6 text-center">
+            <p className="text-xl font-extrabold text-white sm:text-3xl">
+              🎉 عالم الهواتف النقالة
+            </p>
+            <p className="text-sm text-blue-100 sm:text-base">
+              أحدث الهواتف · اكسسوارات أصلية · قطع غيار
+            </p>
+            <Link
+              href="/accounts"
+              className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-blue-700 shadow-lg transition hover:bg-blue-50"
+            >
+              فتح حساب
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return (
     <section
-      className="relative mb-8 w-full overflow-hidden sm:mb-10"
+      className="relative mb-4 w-full overflow-hidden rounded-2xl sm:mb-6 sm:rounded-3xl"
       aria-label="سلايدر الصفحة الرئيسية"
     >
       <div
-        className="relative h-48 w-full sm:h-[26rem] lg:h-[32rem]"
+        className="relative h-[200px] w-full sm:h-[340px] lg:h-[420px]"
         onTouchStart={(e) => {
           touchStartX.current = e.touches[0]?.clientX ?? null;
         }}
@@ -188,7 +211,7 @@ export function HomeBannerSlider() {
                 decoding="async"
               />
             </div>
-            <div className="absolute inset-x-0 bottom-0 z-30 flex items-end justify-center px-4 pb-12 sm:pb-16">
+            <div className="absolute inset-x-0 bottom-0 z-30 flex items-end justify-center px-4 pb-4 sm:pb-8">
               <BannerCtaButton banner={banner} slideIndex={i} />
             </div>
           </div>
@@ -196,31 +219,33 @@ export function HomeBannerSlider() {
 
         {count > 1 && (
           <>
+            {/* أزرار السابق/التالي — مخفية على الموبايل الصغير */}
             <button
               type="button"
               onClick={goPrev}
-              className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 sm:right-5 sm:h-11 sm:w-11"
+              className="absolute right-2 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow backdrop-blur-sm transition hover:bg-white sm:flex sm:h-10 sm:w-10"
               aria-label="الصورة السابقة"
             >
-              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <button
               type="button"
               onClick={goNext}
-              className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 sm:left-5 sm:h-11 sm:w-11"
+              className="absolute left-2 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow backdrop-blur-sm transition hover:bg-white sm:flex sm:h-10 sm:w-10"
               aria-label="الصورة التالية"
             >
-              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+              <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
 
-            <div className="absolute inset-x-0 bottom-3 z-20 flex items-center justify-center gap-2 sm:bottom-5">
+            {/* نقاط المؤشر */}
+            <div className="absolute inset-x-0 bottom-2 z-20 flex items-center justify-center gap-1.5 sm:bottom-3">
               {banners.map((banner, i) => (
                 <button
                   key={banner._id}
                   type="button"
                   onClick={() => goTo(i)}
-                  className={`h-2 rounded-full shadow-sm transition-all ${
-                    i === index ? "w-7 bg-white" : "w-2 bg-white/80 hover:bg-white"
+                  className={`h-1.5 rounded-full shadow-sm transition-all ${
+                    i === index ? "w-5 bg-white" : "w-1.5 bg-white/60 hover:bg-white"
                   }`}
                   aria-label={`الانتقال إلى الشريحة ${i + 1}`}
                   aria-current={i === index ? "true" : undefined}

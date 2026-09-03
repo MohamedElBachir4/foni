@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
-  Menu,
   ShoppingBag,
   CircleUserRound,
   Search,
@@ -161,7 +160,6 @@ function AccountMenuDropdown({
 
 export function Navbar() {
   const router = useRouter();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuDesktopRef = useRef<HTMLDivElement | null>(null);
@@ -187,7 +185,7 @@ export function Navbar() {
   }, []);
 
   return (
-    <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible rounded-b-3xl border-y border-white/30 shadow-2xl">
+    <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible border-b border-white/20 shadow-md">
       {approvedB2B && isMerchantRole(approvedB2B.role) && !approvedB2B.useWholesalePricing && (
         <div className="border-b border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2.5 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)] sm:px-4">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
@@ -318,49 +316,54 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Tablet / mobile */}
-        <div className="flex h-20 items-center justify-between gap-3 overflow-visible lg:hidden">
+        {/* Mobile header — شريط علوي بسيط */}
+        <div className="flex h-14 items-center justify-between gap-2 overflow-visible lg:hidden">
+          {/* لوجو */}
           <Link
             href="/"
-            className="group flex h-14 shrink-0 items-center overflow-hidden rounded-xl border-2 border-white/40 shadow-md transition-all duration-300 hover:scale-105 hover:border-white/60 hover:shadow-lg"
+            className="flex h-10 shrink-0 items-center overflow-hidden"
           >
             <Image
               src="/LOGO.jpeg"
               alt="FONI"
-              width={140}
-              height={56}
+              width={90}
+              height={40}
               priority
-              className="block h-full w-auto max-h-14 max-w-[140px] object-contain"
+              className="block h-full w-auto max-h-10 object-contain"
             />
           </Link>
 
+          {/* أدوات اليمين */}
           <div
-            className={`relative flex flex-1 items-center justify-end gap-2 overflow-visible ${isAccountMenuOpen ? "z-[1400]" : ""}`}
+            className={`relative flex items-center gap-1.5 overflow-visible ${isAccountMenuOpen ? "z-[1400]" : ""}`}
           >
-            <div className="flex-1 md:hidden">
-              <button
-                type="button"
-                onClick={() => setIsMobileSearchOpen(true)}
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-l from-blue-600 to-blue-400 px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-md transition-all duration-300 hover:scale-105 hover:shadow-lg"
-              >
-                <span className="tracking-wider">بحث</span>
-                <Search className="h-4 w-4" strokeWidth={2.5} />
-              </button>
-            </div>
+            {/* بحث */}
+            <button
+              type="button"
+              onClick={() => setIsMobileSearchOpen(true)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-600"
+              aria-label="بحث"
+            >
+              <Search className="h-5 w-5" strokeWidth={2} />
+            </button>
+
+            {/* سلة */}
             <Link
               href="/cart"
-              className="group relative flex items-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-3 py-2 text-blue-600 shadow-md transition-all duration-300 hover:scale-105 hover:bg-blue-50 hover:shadow-lg"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-600"
+              aria-label="سلة الشراء"
             >
-              <ShoppingBag className="h-5 w-5" strokeWidth={2.5} />
-              <span className="hidden font-semibold sm:inline">سلة الشراء</span>
+              <ShoppingBag className="h-5 w-5" strokeWidth={2} />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -left-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-bold text-white">
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-0.5 text-[9px] font-bold text-white">
                   {totalItems > 99 ? "99+" : totalItems}
                 </span>
               )}
             </Link>
+
+            {/* حساب */}
             <div
-              className="relative flex items-center gap-2 overflow-visible"
+              className="relative flex items-center overflow-visible"
               ref={accountMenuMobileRef}
             >
               <button
@@ -368,20 +371,16 @@ export function Navbar() {
                 onClick={() => setIsAccountMenuOpen((v) => !v)}
                 aria-expanded={isAccountMenuOpen}
                 aria-haspopup="menu"
-                className="group flex items-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-2.5 py-2 text-gray-700 shadow-md transition-all duration-300 hover:scale-105 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-blue-50 hover:text-blue-600"
+                aria-label="حسابي"
               >
                 {account ? (
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-400 text-xs font-bold text-white shadow-sm sm:h-9 sm:w-9">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-400 text-xs font-bold text-white">
                     {`${(account.firstName || "").charAt(0)}${(account.lastName || "").charAt(0)}`.toUpperCase()}
                   </span>
                 ) : (
-                  <CircleUserRound className="h-5 w-5" strokeWidth={2.5} />
+                  <CircleUserRound className="h-5 w-5" strokeWidth={2} />
                 )}
-                <span className="hidden max-w-[140px] truncate text-xs font-semibold sm:inline sm:text-sm">
-                  {account
-                    ? `${account.firstName} ${account.lastName}`
-                    : "حسابي"}
-                </span>
               </button>
               {isAccountMenuOpen && (
                 <AccountMenuDropdown
@@ -393,64 +392,29 @@ export function Navbar() {
                 />
               )}
             </div>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-xl border-2 border-gray-200 bg-white p-2 text-gray-700 shadow-md transition-all duration-300 hover:scale-105 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 md:hidden"
-              aria-label="فتح القائمة"
-              onClick={() => setIsMobileMenuOpen((v) => !v)}
-            >
-              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
           </div>
+        </div>
+
+        {/* شريط التنقل المباشر تحت الهيدر — موبايل فقط */}
+        <div className="flex items-center gap-1 overflow-x-auto border-t border-slate-100/60 px-3 pb-2 pt-1 scrollbar-hide lg:hidden">
+          {[
+            { href: "/", label: "الرئيسية" },
+            { href: "/phones", label: "الهواتف" },
+            { href: "/accessories", label: "اكسسوارات" },
+            { href: "/spare-parts", label: "قطع غيار" },
+            { href: "/services", label: "خدماتنا" },
+            { href: "/contact", label: "تواصل معنا" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-blue-600 hover:text-white"
+            >
+              {item.label}
+            </Link>
+          ))}
         </div>
       </div>
-      {isMobileMenuOpen && (
-        <div className="md:hidden">
-          <div className="absolute inset-x-0 top-20 z-[1200] border-b border-slate-200 bg-white/95 backdrop-blur-sm shadow-lg">
-            <div className="mx-auto max-w-7xl px-4 py-3">
-              <nav className="space-y-1 text-right">
-                <Link
-                  href="/"
-                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50 hover:text-blue-600"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  الرئيسية
-                </Link>
-                <Link
-                  href="/products"
-                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50 hover:text-blue-600"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  المنتجات
-                </Link>
-                <Link
-                  href="/services"
-                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50 hover:text-blue-600"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  خدماتنا
-                </Link>
-                <Link
-                  href="/contact"
-                  className="block rounded-lg px-3 py-2 text-sm font-medium text-slate-800 hover:bg-blue-50 hover:text-blue-600"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  تواصل معنا
-                </Link>
-                {account && (
-                  <Link
-                    href="/accounts?tab=orders"
-                    className="block rounded-lg px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    طلباتي
-                  </Link>
-                )}
-              </nav>
-            </div>
-          </div>
-        </div>
-      )}
       {isMobileSearchOpen && (
         <div
           className="fixed inset-0 z-[1300] bg-black/40 backdrop-blur-sm md:hidden"

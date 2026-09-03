@@ -107,7 +107,7 @@ function getCardMotion(cardIndex: number, position: number): CardMotion {
   const zIndex = Math.round(40 - abs * 10);
 
   return {
-    transform: `translate3d(calc(-50% - ${adjusted * 52}%), 0, ${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
+    transform: `translate3d(calc(-50% - ${adjusted * 44}%), 0, ${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
     opacity,
     zIndex: clamp(zIndex, 0, 40),
     pointerEvents: abs < 0.55 ? "auto" : abs < 1.05 ? "auto" : "none",
@@ -327,7 +327,7 @@ export function ProductPeekCarousel({
           animateTo(activeIndex);
         }}
       >
-        <div className="relative h-[368px] w-full overflow-visible [transform-style:preserve-3d]">
+        <div className="relative h-[290px] w-full overflow-visible [transform-style:preserve-3d]">
           <div
             className="pointer-events-none absolute inset-y-4 start-0 z-50 w-12 bg-gradient-to-l from-transparent to-white/90"
             aria-hidden
@@ -349,7 +349,7 @@ export function ProductPeekCarousel({
                 aria-roledescription="slide"
                 aria-label={`${index + 1} من ${count}: ${product.name}`}
                 aria-hidden={!isNearActive}
-                className="absolute top-3 w-[68%] [backface-visibility:hidden] [transform-style:preserve-3d] will-change-transform"
+                className="absolute top-2 w-[56%] [backface-visibility:hidden] [transform-style:preserve-3d] will-change-transform"
                 style={{
                   left: "50%",
                   transform: motion.transform,
@@ -412,8 +412,9 @@ export function ProductPeekCarousel({
       </div>
 
       {count > 1 && (
-        <div className="relative mt-4 px-4">
-          <div className="mb-4 flex items-center justify-center gap-1.5">
+        <div className="relative mt-1 px-3">
+          {/* نقاط المؤشر */}
+          <div className="mb-1 flex items-center justify-center gap-1">
             {products.map((product, i) => (
               <button
                 key={product.id}
@@ -423,31 +424,29 @@ export function ProductPeekCarousel({
                 aria-current={i === displayIndex ? "true" : undefined}
                 className={`rounded-full transition-all duration-500 ease-out ${
                   i === displayIndex
-                    ? `h-2 w-8 bg-gradient-to-r ${theme.dotActive} ${theme.dotShadow}`
-                    : "h-2 w-2 bg-slate-300/80 hover:bg-slate-400"
+                    ? `h-1.5 w-5 bg-gradient-to-r ${theme.dotActive} ${theme.dotShadow}`
+                    : "h-1.5 w-1.5 bg-slate-300/80 hover:bg-slate-400"
                 }`}
               />
             ))}
           </div>
 
-          <div className="flex items-center justify-between gap-3">
+          {/* أزرار التنقل + اسم المنتج */}
+          <div className="flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={goPrev}
-              className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/90 text-slate-600 shadow-[0_4px_16px_rgba(15,23,42,0.08)] backdrop-blur-sm transition active:scale-95 ${theme.navHover}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200/80 bg-white/90 text-slate-600 shadow-sm transition active:scale-95 ${theme.navHover}`}
               aria-label="المنتج السابق"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
 
-            <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
-              <span className={`text-[11px] font-semibold uppercase tracking-widest ${theme.label}`}>
-                {sectionLabel}
-              </span>
-              <p className="truncate text-center text-sm font-bold text-slate-800 transition-opacity duration-300">
+            <div className="flex min-w-0 flex-1 flex-col items-center gap-0">
+              <p className="truncate text-center text-xs font-bold text-slate-800">
                 {products[displayIndex]?.name}
               </p>
-              <span className="text-xs font-medium text-slate-400">
+              <span className="text-[10px] font-medium text-slate-400">
                 {displayIndex + 1} / {count}
               </span>
             </div>
@@ -455,10 +454,10 @@ export function ProductPeekCarousel({
             <button
               type="button"
               onClick={goNext}
-              className={`flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/90 text-slate-600 shadow-[0_4px_16px_rgba(15,23,42,0.08)] backdrop-blur-sm transition active:scale-95 ${theme.navHover}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200/80 bg-white/90 text-slate-600 shadow-sm transition active:scale-95 ${theme.navHover}`}
               aria-label="المنتج التالي"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
           </div>
         </div>
