@@ -128,7 +128,7 @@ function AccountsPageContent() {
     phoneDisplay: FALLBACK_PHONE_DISPLAY,
   });
 
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginIdentifier, setLoginIdentifier] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -277,18 +277,24 @@ function AccountsPageContent() {
       if (!res.ok) {
         throw new Error(data.error || "فشل في إنشاء الحساب");
       }
-      setSuccess(
-        data.message ||
-          "تم استلام طلب إنشاء الحساب بنجاح. يرجى مراسلة فريق الدعم عبر واتساب أو الاتصال هاتفياً لتفعيل حسابك."
-      );
-      setSupportContact((prev) => ({
-        ...prev,
-        whatsappHref: buildActivationWhatsAppHref(
-          prev.whatsappHref.match(/wa\.me\/(\d+)/)?.[1] || FALLBACK_WHATSAPP,
-          role
-        ),
-      }));
-      setSuccessModalOpen(true);
+      if (data.pendingApproval) {
+        setSuccess(
+          data.message ||
+            "تم استلام طلب إنشاء الحساب بنجاح. يرجى مراسلة فريق الدعم عبر واتساب أو الاتصال هاتفياً لتفعيل حسابك."
+        );
+        setSupportContact((prev) => ({
+          ...prev,
+          whatsappHref: buildActivationWhatsAppHref(
+            prev.whatsappHref.match(/wa\.me\/(\d+)/)?.[1] || FALLBACK_WHATSAPP,
+            role
+          ),
+        }));
+        setSuccessModalOpen(true);
+      } else {
+        // حساب الزبون مفعّل فوراً — تسجيل الدخول مباشرة دون انتظار موافقة الإدارة.
+        setFromApi(data);
+        setSuccess(data.message || "تم إنشاء حسابك بنجاح.");
+      }
       setFirstName("");
       setLastName("");
       setPhone("");
@@ -309,8 +315,8 @@ function AccountsPageContent() {
     e.preventDefault();
     setLoginError("");
     setSuccess("");
-    if (!loginEmail.trim() || !loginPassword) {
-      setLoginError("البريد الإلكتروني وكلمة السر مطلوبان.");
+    if (!loginIdentifier.trim() || !loginPassword) {
+      setLoginError("البريد الإلكتروني أو رقم الهاتف وكلمة السر مطلوبان.");
       return;
     }
     setLoginLoading(true);
@@ -318,8 +324,9 @@ function AccountsPageContent() {
       const res = await publicFetch("/api/accounts/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
-          email: loginEmail,
+          identifier: loginIdentifier,
           password: loginPassword,
         }),
       });
@@ -447,8 +454,9 @@ function AccountsPageContent() {
                   تفعيل الشراء بالجملة
                 </h3>
                 <p className="mt-2 text-xs leading-relaxed text-amber-900/90 sm:text-sm">
-                  عند التفعيل تُعرض أسعار الجملة في المنتجات والسلة والدفع. عند الإلغاء تُعرض
-                  أسعار التاجر/صاحب المحل.
+                  تُطبَّق أسعار الجملة تلقائياً على حسابك بعد موافقة الإدارة. عند إلغاء
+                  التفعيل تُعرض أسعار التاجر/صاحب المحل بدلاً منها، ويمكنك إعادة التفعيل في
+                  أي وقت.
                 </p>
                 <button
                   type="button"
@@ -486,12 +494,13 @@ function AccountsPageContent() {
               >
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-slate-700">
-                    البريد الإلكتروني
+                    البريد الإلكتروني أو رقم الهاتف
                   </label>
                   <input
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
+                    type="text"
+                    autoComplete="username"
+                    value={loginIdentifier}
+                    onChange={(e) => setLoginIdentifier(e.target.value)}
                     className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-900 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100 sm:text-sm"
                   />
                 </div>
@@ -584,8 +593,8 @@ function AccountsPageContent() {
                     </span>
                   </div>
                   <p className="text-[12px] leading-relaxed text-slate-600 sm:text-sm">
-                    أسعار خاصة للتجار. بعد الموافقة يمكنك تفعيل{" "}
-                    <span className="font-semibold">الشراء بالجملة</span> من ملفك الشخصي.
+                    أسعار خاصة للتجار. بعد موافقة الإدارة تُطبَّق{" "}
+                    <span className="font-semibold">أسعار الجملة</span> تلقائياً على حسابك.
                   </p>
                 </div>
                 <button

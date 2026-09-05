@@ -69,13 +69,18 @@ function brandSlugFromBrand(
 function firstPhoneTypeFromDoc(doc: {
   phoneType?: RefLike;
   phoneTypes?: RefLike[];
+  /** استنتاج من الخادم بمطابقة الاسم عندما لا يوجد ربط صريح (انظر phoneController.getById) */
+  resolvedPhoneType?: RefLike;
 }): { id: string; name: string } {
   const pts = doc.phoneTypes;
   if (Array.isArray(pts) && pts.length > 0) {
     const first = pts[0];
     return { id: oidFromRef(first), name: nameFromRef(first) };
   }
-  return { id: oidFromRef(doc.phoneType), name: nameFromRef(doc.phoneType) };
+  if (doc.phoneType) {
+    return { id: oidFromRef(doc.phoneType), name: nameFromRef(doc.phoneType) };
+  }
+  return { id: oidFromRef(doc.resolvedPhoneType), name: nameFromRef(doc.resolvedPhoneType) };
 }
 
 function buildModelHubContext(
@@ -286,6 +291,7 @@ export default async function ProductDetailPage({
   let brandLabel = "";
   let sparePartContext: { brandId?: string; phoneTypeId?: string; brandSlug?: string } = {};
   let accessoryContext: { typeId?: string; typeLabel?: string } = {};
+  let phoneContext: { brandId?: string; phoneTypeId?: string } = {};
   let modelHubContext: { href: string; label: string } | null = null;
   /** فشل شبكة/5xx أثناء الجلب — لا يُعامل كـ notFound (سبب شائع لـ 404 متقطع) */
   let transientFetchFailure = false;
@@ -313,6 +319,7 @@ export default async function ProductDetailPage({
         const { id: phoneTypeId, name: phoneTypeName } = firstPhoneTypeFromDoc(phone);
         modelHubContext =
           buildModelHubContext(brandSlug, phoneTypeId, phoneTypeName) ?? modelHubContext;
+        phoneContext = { brandId: oidFromRef(brand), phoneTypeId };
 
         const priced = parsePricedVariantsFromApi(phone.pricedOptions);
         const phoneRetail = Number(phone.priceRetail ?? phone.price ?? 0);
@@ -570,6 +577,7 @@ export default async function ProductDetailPage({
   const description = pickFirstNonEmptyString(product.details, descriptionFallback);
 
   let relatedProducts: RelatedPhone[] = [];
+  let compatibleAccessories: RelatedPhone[] = [];
   const brandForApi =
     product.brand || String(brandLabel || "").toLowerCase().trim().replace(/\s+/g, "-");
   if (source !== "sparePart" && source !== "accessory" && brandForApi) {
@@ -586,6 +594,45 @@ export default async function ProductDetailPage({
         relatedProducts = list
           .filter((item: { _id?: string }) => item?._id && item._id !== product.id)
           .slice(0, 4)
+          .map(
+            (item: {
+              _id: string;
+              name: string;
+              price?: number;
+              priceRetail?: number;
+              priceWholesale?: number;
+              priceReparateur?: number;
+              image?: string;
+              colors?: string[];
+            }) => ({
+              _id: item._id,
+              name: item.name,
+              price: Number(item.priceRetail ?? item.price ?? 0),
+              priceRetail: item.priceRetail,
+              priceWholesale: item.priceWholesale,
+              priceReparateur: item.priceReparateur,
+              image: item.image,
+              colors: Array.isArray(item.colors) ? item.colors : [],
+            })
+          );
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (source === "phone" && phoneContext.phoneTypeId) {
+    try {
+      const query = phoneContext.brandId
+        ? `brand=${encodeURIComponent(phoneContext.brandId)}&phoneType=${encodeURIComponent(phoneContext.phoneTypeId)}`
+        : `phoneType=${encodeURIComponent(phoneContext.phoneTypeId)}`;
+      const res = await publicFetch(`/api/accessories?${query}`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        compatibleAccessories = list
+          .filter((item: { _id?: string }) => item?._id)
+          .slice(0, 8)
           .map(
             (item: {
               _id: string;
@@ -749,6 +796,7 @@ export default async function ProductDetailPage({
             manageStock: product.manageStock,
           }}
           relatedProducts={relatedProducts}
+          compatibleAccessories={compatibleAccessories}
         />
       </main>
       <Footer />

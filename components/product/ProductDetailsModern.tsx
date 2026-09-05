@@ -71,6 +71,8 @@ type ProductDetailsModernProps = {
     manageStock?: boolean;
   };
   relatedProducts: RelatedProduct[];
+  /** أكسسوارات متوافقة مع هذا الهاتف (مربوطة عبر phoneTypes) — تُعرض فقط لصفحات الهواتف */
+  compatibleAccessories?: RelatedProduct[];
 };
 
 function cartProductType(category: string): "phone" | "accessory" | "sparePart" {
@@ -101,6 +103,7 @@ export function ProductDetailsModern({
   modelHubLabel = "العودة إلى الموديل",
   product,
   relatedProducts,
+  compatibleAccessories = [],
 }: ProductDetailsModernProps) {
   const { account } = useAccount();
 
@@ -741,6 +744,80 @@ export function ProductDetailsModern({
           </div>
         </div>
       </section>
+
+      {compatibleAccessories.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-extrabold text-slate-900 sm:text-2xl">
+            الملحقات المتوافقة
+          </h2>
+          <div className="overflow-hidden">
+          <div className="grid grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4">
+            {compatibleAccessories.map((item) => {
+              const accessoryEffective = getEffectivePrice(
+                {
+                  price: item.price,
+                  priceRetail: item.priceRetail ?? item.price,
+                  priceWholesale: item.priceWholesale,
+                  priceReparateur: item.priceReparateur,
+                },
+                pricingAccount
+              );
+              return (
+              <article
+                key={item._id}
+                className="group min-w-0 flex h-full min-h-[340px] flex-col overflow-visible rounded-2xl border border-slate-200 bg-white shadow-lg transition-all duration-300 hover:border-slate-200 hover:shadow-xl sm:min-h-[360px] sm:overflow-hidden sm:rounded-[1.25rem]"
+              >
+                <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-3 py-3 sm:h-[130px]">
+                  <ProductImage
+                    src={item.image ?? ""}
+                    alt={item.name}
+                    size="card"
+                    sizes="(max-width: 640px) 50vw, 25vw"
+                    className="object-contain w-full max-w-[100px] sm:max-w-[130px]"
+                  />
+                  <span className="absolute start-2 top-2 rounded-lg bg-emerald-600 px-2 py-1 text-[9px] font-bold text-white shadow-sm sm:start-3 sm:top-3 sm:px-2.5 sm:text-[10px]">
+                    ملحق
+                  </span>
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col border-t border-slate-100 p-3">
+                  <h3 className="mb-1.5 break-words text-center text-sm font-bold leading-snug text-slate-900 sm:line-clamp-2 sm:min-h-[2.5rem] sm:text-base [word-break:break-word]">
+                    {item.name}
+                  </h3>
+
+                  <p className="mb-1.5 text-center">
+                    <span className="text-xl font-black text-slate-900 sm:text-2xl">
+                      {formatDzd(accessoryEffective)}
+                    </span>
+                    <span className="mr-1 text-sm font-semibold text-slate-500">DA</span>
+                  </p>
+
+                  <div className="mt-auto flex flex-col gap-2">
+                    <Link
+                      href={`/product/${item._id}/${slugifyProductName(item.name)}`}
+                      className="flex w-full items-center justify-center rounded-full border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 sm:py-3"
+                    >
+                      التفاصيل
+                    </Link>
+                    <AddToCartButton
+                      id={item._id}
+                      name={item.name}
+                      price={accessoryEffective}
+                      image={item.image ?? ""}
+                      colors={Array.isArray(item.colors) ? item.colors : []}
+                      productType="accessory"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    >
+                      أضف
+                    </AddToCartButton>
+                  </div>
+                </div>
+              </article>
+            );
+            })}
+          </div>
+          </div>
+        </section>
+      )}
 
       {relatedProducts.length > 0 && (
         <section className="space-y-4">

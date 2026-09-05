@@ -96,7 +96,7 @@ export function BottomNav() {
                   <motion.span
                     className="text-[10px] leading-none"
                     animate={{
-                      color: isActive ? "#2563eb" : "#94a3b8",
+                      color: isActive ? "var(--color-blue-600)" : "#94a3b8",
                       fontWeight: isActive ? 700 : 500,
                       opacity: isActive ? 1 : 0.85,
                     }}

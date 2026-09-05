@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { clearGuestCheckoutShippingPrefs } from "@/lib/guestCheckoutPrefs";
@@ -97,7 +98,7 @@ function saveToStorage(value: StoredAccount | null) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
     }
   } catch {
-    // ignore
+    // ignore quota / private mode
   }
 }
 
@@ -106,6 +107,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [useWholesalePricing, setUseWholesalePricingState] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  /** يمنع مسح التخزين أثناء الإقلاع؛ يُمسح فقط عند logout صريح */
+  const allowClearRef = useRef(false);
 
   useEffect(() => {
     const stored = loadFromStorage();
@@ -114,6 +117,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       setAccount(acc);
       setToken(stored.token ?? null);
       setUseWholesalePricingState(!!acc.useWholesalePricing);
+      // إعادة كتابة الجلسة لضمان بقائها بعد العودة للموقع
+      saveToStorage({
+        account: acc,
+        token: stored.token ?? null,
+        useWholesalePricing: !!acc.useWholesalePricing,
+      });
     }
     setHydrated(true);
   }, []);
@@ -124,30 +133,24 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     publicFetch("/api/accounts/me", {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
+      credentials: "include",
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data?.account) return;
         const acc = mapApiAccount(data.account);
-        // نحدّث بيانات الحساب دائماً، لكن نحافظ على حالة أسعار الجملة
-        // إذا كانت مفعّلة مسبقاً ولم يُرسل السيرفر false صريحاً
-        setAccount((prev) => {
-          // إذا كانت الجملة مفعّلة محلياً لكن السيرفر يُعيد false، نثق بالسيرفر فقط إذا كان
-          // المستخدم تاجراً — هذا يمنع الكتابة الخاطئة بسبب تأخر قاعدة البيانات
-          const serverWholesale = !!acc.useWholesalePricing;
-          const localWholesale = prev?.useWholesalePricing ?? false;
-          // نثق بالسيرفر دائماً لكن نسجّل تغييراً غير متوقع في console للتشخيص
-          if (localWholesale && !serverWholesale && acc.role === "merchant") {
-            console.warn(
-              "[AccountContext] تحذير: السيرفر يُعيد useWholesalePricing=false بينما الحالة المحلية true. تحقق من قاعدة البيانات.",
-              { accountId: acc.id }
-            );
-          }
-          return acc;
-        });
+        setAccount(acc);
         setUseWholesalePricingState(!!acc.useWholesalePricing);
+        // حدّث التخزين فوراً بعد مزامنة السيرفر
+        saveToStorage({
+          account: acc,
+          token,
+          useWholesalePricing: !!acc.useWholesalePricing,
+        });
       })
-      .catch(() => {});
+      .catch(() => {
+        // عند فشل الشبكة نبقي الجلسة المحلية — لا نُسجّل خروجاً تلقائياً
+      });
     return () => {
       cancelled = true;
     };
@@ -156,25 +159,44 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     if (!account) {
-      saveToStorage(null);
-    } else {
-      saveToStorage({ account, token, useWholesalePricing });
+      // لا تمسح localStorage إلا بعد logout صريح
+      if (allowClearRef.current) {
+        saveToStorage(null);
+        allowClearRef.current = false;
+      }
+      return;
     }
+    saveToStorage({ account, token, useWholesalePricing });
   }, [hydrated, account, token, useWholesalePricing]);
 
   const setFromApi = useCallback((payload: { account: any; token?: string }) => {
     if (!payload?.account) return;
     const acc = mapApiAccount(payload.account);
+    const nextToken = payload.token ?? null;
     setAccount(acc);
-    setToken(payload.token ?? null);
+    setToken(nextToken);
     setUseWholesalePricingState(!!acc.useWholesalePricing);
+    // حفظ فوري عند تسجيل الدخول حتى لا تُفقد الجلسة عند إغلاق التبويب مباشرة
+    saveToStorage({
+      account: acc,
+      token: nextToken,
+      useWholesalePricing: !!acc.useWholesalePricing,
+    });
     clearGuestCheckoutShippingPrefs();
   }, []);
 
   const logout = useCallback(() => {
+    allowClearRef.current = true;
+    saveToStorage(null);
     setAccount(null);
     setToken(null);
     setUseWholesalePricingState(false);
+    // امسح كوكي الجلسة على السيرفر (لا ننتظر النتيجة)
+    publicFetch("/api/accounts/logout", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    }).catch(() => {});
   }, []);
 
   const setUseWholesalePricing = useCallback(
@@ -186,6 +208,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({ enabled }),
       });
       const data = await res.json().catch(() => ({}));
@@ -195,6 +218,11 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       const acc = mapApiAccount(data.account);
       setAccount(acc);
       setUseWholesalePricingState(!!acc.useWholesalePricing);
+      saveToStorage({
+        account: acc,
+        token,
+        useWholesalePricing: !!acc.useWholesalePricing,
+      });
     },
     [token]
   );

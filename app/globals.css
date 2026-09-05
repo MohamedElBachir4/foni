@@ -9,6 +9,75 @@
   --color-luxury-blue-light: #0ea5e9;
   --color-luxury-slate: #0f172a;
   --color-luxury-muted: #64748b;
+
+  /* خلفية الصفحة حسب الدور */
+  --page-bg-top: #f0f9ff;
+  --accent-focus: #0ea5e9;
+  --accent-selection: rgba(14, 165, 233, 0.2);
+}
+
+/* تاجر — اللون الثانوي برتقالي بدل الأزرق */
+html[data-accent="merchant"] {
+  --color-blue-50: #fff7ed;
+  --color-blue-100: #ffedd5;
+  --color-blue-200: #fed7aa;
+  --color-blue-300: #fdba74;
+  --color-blue-400: #fb923c;
+  --color-blue-500: #f97316;
+  --color-blue-600: #ea580c;
+  --color-blue-700: #c2410c;
+  --color-blue-800: #9a3412;
+  --color-blue-900: #7c2d12;
+  --color-blue-950: #431407;
+
+  --color-indigo-50: #fff7ed;
+  --color-indigo-100: #ffedd5;
+  --color-indigo-400: #fb923c;
+  --color-indigo-500: #f97316;
+  --color-indigo-600: #ea580c;
+  --color-indigo-700: #c2410c;
+
+  --color-sky-400: #fb923c;
+  --color-sky-500: #f97316;
+  --color-sky-600: #ea580c;
+
+  --color-luxury-blue: #9a3412;
+  --color-luxury-blue-light: #f97316;
+  --page-bg-top: #fff7ed;
+  --accent-focus: #f97316;
+  --accent-selection: rgba(249, 115, 22, 0.22);
+}
+
+/* تاجر + أسعار الجملة — اللون الثانوي أحمر */
+html[data-accent="wholesale"] {
+  --color-blue-50: #fef2f2;
+  --color-blue-100: #fee2e2;
+  --color-blue-200: #fecaca;
+  --color-blue-300: #fca5a5;
+  --color-blue-400: #f87171;
+  --color-blue-500: #ef4444;
+  --color-blue-600: #dc2626;
+  --color-blue-700: #b91c1c;
+  --color-blue-800: #991b1b;
+  --color-blue-900: #7f1d1d;
+  --color-blue-950: #450a0a;
+
+  --color-indigo-50: #fef2f2;
+  --color-indigo-100: #fee2e2;
+  --color-indigo-400: #f87171;
+  --color-indigo-500: #ef4444;
+  --color-indigo-600: #dc2626;
+  --color-indigo-700: #b91c1c;
+
+  --color-sky-400: #f87171;
+  --color-sky-500: #ef4444;
+  --color-sky-600: #dc2626;
+
+  --color-luxury-blue: #991b1b;
+  --color-luxury-blue-light: #ef4444;
+  --page-bg-top: #fef2f2;
+  --accent-focus: #ef4444;
+  --accent-selection: rgba(239, 68, 68, 0.22);
 }
 
 *,
@@ -27,7 +96,7 @@ body {
   min-height: 100vh;
   font-family: var(--font-cairo), system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
-  background: linear-gradient(180deg, #f0f9ff 0%, #f8fafc 35%, #ffffff 100%);
+  background: linear-gradient(180deg, var(--page-bg-top) 0%, #f8fafc 35%, #ffffff 100%);
   color: #0f172a;
   direction: rtl;
   overflow-x: hidden;
@@ -65,12 +134,12 @@ select {
 
 /* توهج خفيف عند التركيز للوصولية */
 :focus-visible {
-  outline: 2px solid #0ea5e9;
+  outline: 2px solid var(--accent-focus);
   outline-offset: 2px;
 }
 
 ::selection {
-  background-color: rgba(14, 165, 233, 0.2);
+  background-color: var(--accent-selection);
   color: #0f172a;
 }
 
@@ -99,7 +168,7 @@ select {
   border-radius: 20px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #3b82f6;
+  background: var(--color-blue-500, #3b82f6);
   border-radius: 20px;
 }
 
@@ -121,7 +190,12 @@ select {
 
 /* Luxury gradient animations */
 .luxury-gradient {
-  background: linear-gradient(145deg, #1e3a8a, #3b82f6, #60a5fa);
+  background: linear-gradient(
+    145deg,
+    var(--color-blue-900, #1e3a8a),
+    var(--color-blue-500, #3b82f6),
+    var(--color-blue-400, #60a5fa)
+  );
   background-size: 200% 200%;
   animation: gradientShift 8s ease infinite;
 }
@@ -135,20 +209,28 @@ select {
 /* Active states */
 .brand-chip.active,
 .brand-card.active {
-  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  background: linear-gradient(
+    135deg,
+    var(--color-blue-900, #1e3a8a),
+    var(--color-blue-500, #3b82f6)
+  );
   color: white;
   border: none;
-  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--color-blue-600, #2563eb) 30%, transparent);
 }
 
 .category-chip.active {
-  background: #1e3a8a;
+  background: var(--color-blue-900, #1e3a8a);
   color: white;
-  border-color: #1e3a8a;
+  border-color: var(--color-blue-900, #1e3a8a);
 }
 
 .price-filter.active {
-  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  background: linear-gradient(
+    90deg,
+    var(--color-blue-600, #2563eb),
+    var(--color-blue-500, #3b82f6)
+  );
   color: white;
   border-color: transparent;
 }

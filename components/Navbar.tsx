@@ -185,27 +185,49 @@ export function Navbar() {
 
   return (
     <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible border-b border-white/20 shadow-md">
-      {approvedB2B && isMerchantRole(approvedB2B.role) && !approvedB2B.useWholesalePricing && (
-        <div className="border-b border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2.5 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)] sm:px-4">
+      {approvedB2B && isMerchantRole(approvedB2B.role) && (
+        <div
+          className={`border-b px-3 py-2.5 sm:px-4 ${
+            approvedB2B.useWholesalePricing
+              ? "border-emerald-200/80 bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 shadow-[inset_0_-1px_0_rgba(16,185,129,0.2)]"
+              : "border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)]"
+          }`}
+        >
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-[11px] text-amber-950 sm:text-sm">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 ring-1 ring-amber-200">
+            <div
+              className={`flex items-center gap-2 text-[11px] sm:text-sm ${
+                approvedB2B.useWholesalePricing ? "text-emerald-950" : "text-amber-950"
+              }`}
+            >
+              <span
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full ring-1 ${
+                  approvedB2B.useWholesalePricing
+                    ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
+                    : "bg-amber-100 text-amber-700 ring-amber-200"
+                }`}
+              >
                 <Sparkles className="h-4 w-4" />
               </span>
               <p className="font-medium leading-relaxed">
                 <span className="font-extrabold">عرض خاص للتاجر أو صاحب المحل:</span>{" "}
-                فعّل الشراء بالجملة للحصول على نفس أسعار حساب الجملة داخل الموقع.
+                {approvedB2B.useWholesalePricing
+                  ? "أسعار الجملة مفعّلة حالياً. يمكنك إيقافها للعودة إلى أسعار التجزئة."
+                  : "فعّل الشراء بالجملة للحصول على نفس أسعار حساب الجملة داخل الموقع."}
               </p>
             </div>
             <button
               type="button"
               onClick={() => {
-                setUseWholesalePricing(true).catch(() => {});
+                setUseWholesalePricing(!approvedB2B.useWholesalePricing).catch(() => {});
               }}
-              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-600 to-orange-500 px-3 py-1.5 text-[11px] font-bold text-white shadow-md shadow-amber-500/30 transition hover:from-amber-500 hover:to-orange-500 hover:shadow-lg sm:px-4 sm:text-xs"
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-white shadow-md transition hover:shadow-lg sm:px-4 sm:text-xs ${
+                approvedB2B.useWholesalePricing
+                  ? "bg-gradient-to-r from-slate-700 to-slate-600 shadow-slate-500/20 hover:from-slate-600 hover:to-slate-500"
+                  : "bg-gradient-to-r from-amber-600 to-orange-500 shadow-amber-500/30 hover:from-amber-500 hover:to-orange-500"
+              }`}
             >
               <ShieldCheck className="h-3.5 w-3.5" />
-              تفعيل أسعار الجملة
+              {approvedB2B.useWholesalePricing ? "إيقاف أسعار الجملة" : "تفعيل أسعار الجملة"}
             </button>
           </div>
         </div>

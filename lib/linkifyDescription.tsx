@@ -37,7 +37,7 @@ export function linkifyPlainText(text: string): ReactNode[] {
         target="_blank"
         rel="noopener noreferrer"
         className="inline break-all font-bold text-blue-600 underline decoration-2 underline-offset-4 hover:text-blue-500"
-        style={{ color: "#2563eb", textDecoration: "underline" }}
+        style={{ color: "var(--color-blue-600, #2563eb)", textDecoration: "underline" }}
       >
         {url}
       </a>
@@ -80,7 +80,7 @@ function ensureSafeAnchorAttrs(attrs: string): string {
     });
   }
   if (!/\bstyle\s*=/i.test(next)) {
-    next += ' style="color:#2563eb;text-decoration:underline"';
+    next += ' style="color:var(--color-blue-600,#2563eb);text-decoration:underline"';
   }
   return next;
 }

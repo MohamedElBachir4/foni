@@ -32,7 +32,7 @@ type ProductGridProps = {
   sectionTitle?: string;
 };
 
-const HOME_BEST_SELLING_LIMIT = 15;
+const HOME_BEST_SELLING_LIMIT = 30;
 
 type LatestModelRow = IphoneModelItem & { href: string; createdAt?: string };
 

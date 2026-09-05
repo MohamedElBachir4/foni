@@ -82,13 +82,13 @@ function PlainGrid({
       {models.map((m) => {
         const inner = (
           <>
-            <div className="relative flex h-[150px] items-center justify-center bg-slate-50 sm:h-[180px]">
+            <div className="relative flex h-[150px] shrink-0 items-center justify-center overflow-hidden bg-slate-50 px-3 py-3 sm:h-[190px] sm:px-4 sm:py-4">
               {m.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={getProductImageUrl(m.image, { size: "medium" })}
                   alt={m.name}
-                  className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-[1.04]"
+                  className="mx-auto block max-h-full max-w-full object-contain object-center transition-transform duration-300 group-hover:scale-[1.04]"
                 />
               ) : (
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm">
@@ -103,9 +103,9 @@ function PlainGrid({
                 </div>
               )}
             </div>
-            <div className="flex flex-1 flex-col gap-2.5 px-3 pb-3 pt-2.5">
+            <div className="flex min-h-0 flex-1 flex-col gap-2 border-t border-slate-100 px-3 pb-3 pt-2.5">
               <h3
-                className="line-clamp-2 text-xs font-bold leading-snug text-slate-800 group-hover:text-blue-600 sm:text-sm"
+                className="line-clamp-2 text-center text-xs font-bold leading-snug text-slate-800 group-hover:text-blue-600 sm:text-sm"
                 dir="auto"
               >
                 {m.name}

@@ -465,26 +465,33 @@ export function MyOrdersTab() {
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-50 pt-4">
-                        <div className="flex min-w-0 items-center gap-2 text-xs text-slate-600">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                            <Truck className="h-4 w-4" aria-hidden />
-                          </span>
-                          <span className="min-w-0">
-                            {o.yalidineTracking ? (
-                              <span dir="ltr" className="font-mono font-medium text-slate-800">
-                                {o.yalidineTracking}
-                              </span>
-                            ) : (
-                              <span className="text-slate-500">بانتظار رقم التتبع</span>
-                            )}
-                          </span>
+                        <div className="flex min-w-0 flex-col gap-1 text-xs text-slate-600">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                              <Truck className="h-4 w-4" aria-hidden />
+                            </span>
+                            <span className="min-w-0">
+                              {o.yalidineTracking ? (
+                                <span dir="ltr" className="font-mono font-medium text-slate-800">
+                                  {o.yalidineTracking}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">بانتظار رقم التتبع</span>
+                              )}
+                            </span>
+                          </div>
+                          {o.yalidineStatus ? (
+                            <p className="me-10 text-[11px] font-semibold text-blue-700">
+                              ياليدين: {o.yalidineStatus}
+                            </p>
+                          ) : null}
                         </div>
                         <span className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 transition group-hover:gap-2">
                           عرض التفاصيل
                           <ChevronLeft className="h-4 w-4 rotate-180 transition" aria-hidden />
                         </span>
                       </div>
-                      <div className="mt-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -495,7 +502,7 @@ export function MyOrdersTab() {
                           className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-100"
                         >
                           <Truck className="h-3.5 w-3.5" />
-                          تتبع الطلب
+                          تتبع عبر ياليدين
                         </button>
                       </div>
                     </div>
