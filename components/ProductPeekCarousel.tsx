@@ -37,8 +37,9 @@ type ProductPeekCarouselProps = {
 };
 
 const AUTOPLAY_MS = 5500;
-const SWIPE_THRESHOLD = 42;
-const SNAP_DURATION_MS = 720;
+const SWIPE_THRESHOLD = 28;
+const VELOCITY_THRESHOLD = 0.45; // px/ms
+const SNAP_DURATION_MS = 480;
 
 const RANK_STYLES = [
   "from-amber-400 via-yellow-300 to-amber-500 text-amber-950 shadow-amber-400/40",
@@ -83,8 +84,8 @@ function smoothstep(t: number) {
   return x * x * (3 - 2 * x);
 }
 
-function easeOutCubic(t: number) {
-  return 1 - Math.pow(1 - t, 3);
+function easeOutQuint(t: number) {
+  return 1 - Math.pow(1 - t, 5);
 }
 
 type CardMotion = {
@@ -99,15 +100,15 @@ function getCardMotion(cardIndex: number, position: number): CardMotion {
   const abs = Math.abs(adjusted);
   const proximity = smoothstep(Math.min(1, abs));
 
-  const scale = 1 - 0.22 * proximity;
+  const scale = 1 - 0.18 * proximity;
   const opacity =
-    abs > 2.1 ? 0 : clamp(1 - 0.5 * smoothstep(Math.min(1, abs * 0.92)), 0.12, 1);
-  const translateZ = 56 - 138 * proximity;
-  const rotateY = adjusted * 13;
+    abs > 2.1 ? 0 : clamp(1 - 0.45 * smoothstep(Math.min(1, abs * 0.88)), 0.18, 1);
+  const translateZ = 48 - 120 * proximity;
+  const rotateY = adjusted * 9;
   const zIndex = Math.round(40 - abs * 10);
 
   return {
-    transform: `translate3d(calc(-50% - ${adjusted * 44}%), 0, ${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
+    transform: `translate3d(calc(-50% - ${adjusted * 38}%), 0, ${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
     opacity,
     zIndex: clamp(zIndex, 0, 40),
     pointerEvents: abs < 0.55 ? "auto" : abs < 1.05 ? "auto" : "none",
@@ -153,6 +154,11 @@ export function ProductPeekCarousel({
   const containerRef = useRef<HTMLDivElement>(null);
   const positionRef = useRef(0);
   const animFrameRef = useRef<number | null>(null);
+  const dragRafRef = useRef<number | null>(null);
+  const pendingDragPos = useRef<number | null>(null);
+  const lastTouchX = useRef(0);
+  const lastTouchTime = useRef(0);
+  const velocityRef = useRef(0);
   const pausedUntil = useRef(0);
   const count = products.length;
 
@@ -160,6 +166,20 @@ export function ProductPeekCarousel({
     positionRef.current = value;
     setPosition(value);
   }, []);
+
+  const scheduleDragPosition = useCallback(
+    (value: number) => {
+      pendingDragPos.current = value;
+      if (dragRafRef.current != null) return;
+      dragRafRef.current = requestAnimationFrame(() => {
+        dragRafRef.current = null;
+        if (pendingDragPos.current != null) {
+          syncPosition(pendingDragPos.current);
+        }
+      });
+    },
+    [syncPosition]
+  );
 
   const measureSlideWidth = useCallback(() => {
     const width = containerRef.current?.clientWidth ?? 0;
@@ -172,28 +192,73 @@ export function ProductPeekCarousel({
     return () => window.removeEventListener("resize", measureSlideWidth);
   }, [measureSlideWidth]);
 
+  // مستمع غير سلبي للسحب الأفقي السلس دون تعطيل تمرير الصفحة العمودي
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onMove = (e: TouchEvent) => {
+      const start = touchStartX.current;
+      const current = e.touches[0]?.clientX;
+      if (start == null || current == null || products.length <= 1) return;
+
+      const now = performance.now();
+      const dt = Math.max(now - lastTouchTime.current, 1);
+      velocityRef.current = (current - lastTouchX.current) / dt;
+      lastTouchX.current = current;
+      lastTouchTime.current = now;
+
+      const delta = current - start;
+      if (Math.abs(delta) > 8) {
+        e.preventDefault();
+      }
+
+      const slideWidth = Math.max(slideWidthRef.current, 220);
+      let next = dragStartPosition.current - delta / slideWidth;
+      const last = products.length - 1;
+
+      if (next < 0) next *= 0.28;
+      else if (next > last) next = last + (next - last) * 0.28;
+
+      scheduleDragPosition(next);
+    };
+
+    el.addEventListener("touchmove", onMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onMove);
+  }, [products.length, scheduleDragPosition]);
+
   const cancelAnimation = useCallback(() => {
     if (animFrameRef.current != null) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
     }
+    if (dragRafRef.current != null) {
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = null;
+    }
     setIsAnimating(false);
   }, []);
 
   const animateTo = useCallback(
-    (targetIndex: number) => {
+    (targetIndex: number, durationMs = SNAP_DURATION_MS) => {
       if (count <= 0) return;
       const target = clamp(targetIndex, 0, count - 1);
       cancelAnimation();
 
       const start = positionRef.current;
+      if (Math.abs(start - target) < 0.001) {
+        setActiveIndex(target);
+        syncPosition(target);
+        return;
+      }
+
       const startTime = performance.now();
       setIsAnimating(true);
 
       const tick = (now: number) => {
         const elapsed = now - startTime;
-        const progress = clamp(elapsed / SNAP_DURATION_MS, 0, 1);
-        const eased = easeOutCubic(progress);
+        const progress = clamp(elapsed / durationMs, 0, 1);
+        const eased = easeOutQuint(progress);
         const current = start + (target - start) * eased;
 
         syncPosition(current);
@@ -264,14 +329,25 @@ export function ProductPeekCarousel({
         return;
       }
 
+      const velocity = velocityRef.current;
       let target = Math.round(positionRef.current);
-      if (Math.abs(delta) >= SWIPE_THRESHOLD) {
-        target = delta > 0 ? target - 1 : target + 1;
+
+      if (Math.abs(velocity) >= VELOCITY_THRESHOLD) {
+        // سرعة السحب تحدد الاتجاه (يمين → السابق، يسار → التالي)
+        target = velocity > 0 ? Math.floor(positionRef.current) : Math.ceil(positionRef.current);
+        if (Math.abs(velocity) > 0.9) {
+          target = velocity > 0 ? target - 1 : target + 1;
+        }
+      } else if (Math.abs(delta) >= SWIPE_THRESHOLD) {
+        target = delta > 0 ? Math.floor(positionRef.current) : Math.ceil(positionRef.current);
       }
 
       target = clamp(target, 0, count - 1);
+      const distance = Math.abs(positionRef.current - target);
+      const duration = clamp(280 + distance * 180, 280, 520);
       pausedUntil.current = Date.now() + 8000;
-      animateTo(target);
+      velocityRef.current = 0;
+      animateTo(target, duration);
     },
     [activeIndex, animateTo, count]
   );
@@ -290,26 +366,28 @@ export function ProductPeekCarousel({
 
       <div
         ref={containerRef}
-        className="relative mx-auto touch-pan-y px-2"
+        className="relative mx-auto px-2"
         aria-label={ariaLabel}
-        style={{ perspective: "1200px", perspectiveOrigin: "50% 44%" }}
+        style={{
+          perspective: "1200px",
+          perspectiveOrigin: "50% 44%",
+          touchAction: "pan-y",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+        }}
         onTouchStart={(e) => {
           cancelAnimation();
           measureSlideWidth();
-          touchStartX.current = e.touches[0]?.clientX ?? null;
+          const x = e.touches[0]?.clientX ?? null;
+          touchStartX.current = x;
+          if (x != null) {
+            lastTouchX.current = x;
+            lastTouchTime.current = performance.now();
+          }
+          velocityRef.current = 0;
           dragStartPosition.current = positionRef.current;
           setIsDragging(true);
           pausedUntil.current = Date.now() + 10000;
-        }}
-        onTouchMove={(e) => {
-          const start = touchStartX.current;
-          const current = e.touches[0]?.clientX;
-          if (start == null || current == null || count <= 1) return;
-
-          const delta = current - start;
-          const slideWidth = Math.max(slideWidthRef.current, 220);
-          const next = dragStartPosition.current - delta / slideWidth;
-          syncPosition(clamp(next, -0.35, count - 1 + 0.35));
         }}
         onTouchEnd={(e) => {
           const start = touchStartX.current;
@@ -324,19 +402,11 @@ export function ProductPeekCarousel({
         onTouchCancel={() => {
           setIsDragging(false);
           touchStartX.current = null;
+          velocityRef.current = 0;
           animateTo(activeIndex);
         }}
       >
         <div className="relative h-[290px] w-full overflow-visible [transform-style:preserve-3d]">
-          <div
-            className="pointer-events-none absolute inset-y-4 start-0 z-50 w-12 bg-gradient-to-l from-transparent to-white/90"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute inset-y-4 end-0 z-50 w-12 bg-gradient-to-r from-transparent to-white/90"
-            aria-hidden
-          />
-
           {products.map((product, index) => {
             const motion = getCardMotion(index, position);
             const isActive = isCardActive(index);
@@ -359,7 +429,7 @@ export function ProductPeekCarousel({
                   transition:
                     isDragging || isAnimating
                       ? "none"
-                      : "transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.55s ease",
+                      : "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease",
                 }}
                 onClick={() => {
                   if (!isNearActive) goTo(index);
