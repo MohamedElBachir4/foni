@@ -9,8 +9,6 @@ import {
   CircleUserRound,
   Search,
   X,
-  Sparkles,
-  ShieldCheck,
   ListOrdered,
   User,
 } from "lucide-react";
@@ -187,47 +185,37 @@ export function Navbar() {
     <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible border-b border-white/20 shadow-md">
       {approvedB2B && isMerchantRole(approvedB2B.role) && (
         <div
-          className={`border-b px-3 py-2.5 sm:px-4 ${
+          className={`border-b px-3 py-2 sm:px-4 ${
             approvedB2B.useWholesalePricing
-              ? "border-emerald-200/80 bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 shadow-[inset_0_-1px_0_rgba(16,185,129,0.2)]"
-              : "border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 shadow-[inset_0_-1px_0_rgba(251,191,36,0.25)]"
+              ? "border-red-200/80 bg-red-50"
+              : "border-amber-200/80 bg-amber-50"
           }`}
         >
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
-            <div
-              className={`flex items-center gap-2 text-[11px] sm:text-sm ${
-                approvedB2B.useWholesalePricing ? "text-emerald-950" : "text-amber-950"
-              }`}
-            >
-              <span
-                className={`inline-flex h-7 w-7 items-center justify-center rounded-full ring-1 ${
-                  approvedB2B.useWholesalePricing
-                    ? "bg-emerald-100 text-emerald-700 ring-emerald-200"
-                    : "bg-amber-100 text-amber-700 ring-amber-200"
-                }`}
-              >
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <p className="font-medium leading-relaxed">
-                <span className="font-extrabold">عرض خاص للتاجر أو صاحب المحل:</span>{" "}
-                {approvedB2B.useWholesalePricing
-                  ? "أسعار الجملة مفعّلة حالياً. يمكنك إيقافها للعودة إلى أسعار التجزئة."
-                  : "فعّل الشراء بالجملة للحصول على نفس أسعار حساب الجملة داخل الموقع."}
-              </p>
-            </div>
+          <div className="mx-auto flex max-w-7xl items-center justify-center">
             <button
               type="button"
+              role="switch"
+              aria-checked={!!approvedB2B.useWholesalePricing}
+              aria-label={
+                approvedB2B.useWholesalePricing
+                  ? "إيقاف أسعار الجملة"
+                  : "تفعيل أسعار الجملة"
+              }
               onClick={() => {
                 setUseWholesalePricing(!approvedB2B.useWholesalePricing).catch(() => {});
               }}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold text-white shadow-md transition hover:shadow-lg sm:px-4 sm:text-xs ${
+              className={`relative h-8 w-14 shrink-0 rounded-full transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
                 approvedB2B.useWholesalePricing
-                  ? "bg-gradient-to-r from-slate-700 to-slate-600 shadow-slate-500/20 hover:from-slate-600 hover:to-slate-500"
-                  : "bg-gradient-to-r from-amber-600 to-orange-500 shadow-amber-500/30 hover:from-amber-500 hover:to-orange-500"
+                  ? "bg-red-600 focus-visible:outline-red-600"
+                  : "bg-slate-300 focus-visible:outline-amber-500"
               }`}
             >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {approvedB2B.useWholesalePricing ? "إيقاف أسعار الجملة" : "تفعيل أسعار الجملة"}
+              <span
+                className={`absolute top-0.5 h-7 w-7 rounded-full bg-white shadow-md transition-[left] duration-200 ${
+                  approvedB2B.useWholesalePricing ? "left-[calc(100%-1.875rem)]" : "left-0.5"
+                }`}
+                aria-hidden
+              />
             </button>
           </div>
         </div>
