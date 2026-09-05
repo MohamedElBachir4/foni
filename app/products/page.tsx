@@ -68,27 +68,24 @@ export default function ProductsHubPage() {
           </p>
         </header>
 
-        <div className="flex flex-wrap justify-center gap-4 sm:hidden">
+        <div className="flex flex-nowrap items-start justify-between gap-1.5 sm:hidden">
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             return (
               <Link
                 key={cat.href}
                 href={cat.href}
-                className="flex w-[42%] max-w-[9rem] flex-col items-center gap-2.5"
+                className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
               >
-                <div className="relative h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full shadow-md ring-2 ring-offset-2 ring-blue-200 transition-transform active:scale-95">
-                  <Image src={cat.image} alt={cat.label} fill sizes="88px" className="object-cover" />
+                <div className="relative h-14 w-14 overflow-hidden rounded-full shadow-md ring-2 ring-offset-1 ring-blue-200 transition-transform active:scale-95">
+                  <Image src={cat.image} alt={cat.label} fill sizes="56px" className="object-cover" />
                   <div className={`absolute inset-0 bg-gradient-to-b ${cat.color} opacity-55`} />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Icon className="h-9 w-9 text-white drop-shadow-md" strokeWidth={2.2} />
+                    <Icon className="h-6 w-6 text-white drop-shadow-md" strokeWidth={2.2} />
                   </div>
                 </div>
-                <span className="text-center text-sm font-bold leading-tight text-slate-800">
+                <span className="w-full text-center text-[10px] font-bold leading-tight text-slate-800">
                   {cat.label}
-                </span>
-                <span className="text-center text-[10px] font-medium leading-snug text-slate-500">
-                  {cat.description}
                 </span>
               </Link>
             );

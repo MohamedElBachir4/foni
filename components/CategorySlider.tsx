@@ -60,8 +60,8 @@ export function CategorySlider({
         <h2 className="text-base font-bold text-slate-800 sm:text-xl">{heading}</h2>
       </div>
 
-      {/* موبايل: دوائر في المنتصف */}
-      <div className="flex flex-wrap justify-center gap-5 sm:hidden">
+      {/* موبايل: التصنيفات الأربعة في سطر واحد */}
+      <div className="flex flex-nowrap items-start justify-between gap-1.5 px-0.5 sm:hidden">
         {CATEGORIES.map((cat) => {
           const Icon = cat.icon;
           return (
@@ -69,23 +69,22 @@ export function CategorySlider({
               key={cat.id}
               type="button"
               onClick={() => router.push(routes[cat.id] || "/")}
-              className="flex w-[22%] min-w-[4.5rem] max-w-[5.5rem] flex-col items-center gap-2"
+              className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
             >
-              {/* دائرة */}
-              <div className="relative h-[4.5rem] w-[4.5rem] overflow-hidden rounded-full ring-2 ring-offset-2 ring-blue-100 transition-transform active:scale-95">
+              <div className="relative h-14 w-14 overflow-hidden rounded-full ring-2 ring-offset-1 ring-blue-100 transition-transform active:scale-95">
                 <Image
                   src={cat.image}
                   alt={cat.label}
                   fill
-                  sizes="72px"
+                  sizes="64px"
                   className="object-cover"
                 />
                 <div className={`absolute inset-0 bg-gradient-to-b ${cat.color} opacity-60`} />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Icon className="h-7 w-7 text-white drop-shadow" strokeWidth={2} />
+                  <Icon className="h-6 w-6 text-white drop-shadow" strokeWidth={2} />
                 </div>
               </div>
-              <span className="text-center text-[11px] font-semibold leading-tight text-slate-700">
+              <span className="w-full text-center text-[10px] font-semibold leading-tight text-slate-700">
                 {cat.label}
               </span>
             </button>
