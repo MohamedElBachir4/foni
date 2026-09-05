@@ -194,28 +194,18 @@ export function Navbar() {
           <div className="mx-auto flex max-w-7xl items-center justify-center">
             <button
               type="button"
-              role="switch"
-              aria-checked={!!approvedB2B.useWholesalePricing}
-              aria-label={
-                approvedB2B.useWholesalePricing
-                  ? "إيقاف أسعار الجملة"
-                  : "تفعيل أسعار الجملة"
-              }
               onClick={() => {
                 setUseWholesalePricing(!approvedB2B.useWholesalePricing).catch(() => {});
               }}
-              className={`relative h-8 w-14 shrink-0 rounded-full transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+              className={`inline-flex items-center justify-center rounded-full px-4 py-1.5 text-xs font-bold text-white shadow-sm transition active:scale-[0.98] sm:px-5 sm:text-sm ${
                 approvedB2B.useWholesalePricing
-                  ? "bg-red-600 focus-visible:outline-red-600"
-                  : "bg-slate-300 focus-visible:outline-amber-500"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "bg-amber-600 hover:bg-amber-700"
               }`}
             >
-              <span
-                className={`absolute top-0.5 h-7 w-7 rounded-full bg-white shadow-md transition-[left] duration-200 ${
-                  approvedB2B.useWholesalePricing ? "left-[calc(100%-1.875rem)]" : "left-0.5"
-                }`}
-                aria-hidden
-              />
+              {approvedB2B.useWholesalePricing
+                ? "إيقاف أسعار الجملة"
+                : "تفعيل أسعار الجملة"}
             </button>
           </div>
         </div>
