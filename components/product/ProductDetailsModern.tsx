@@ -75,9 +75,12 @@ type ProductDetailsModernProps = {
   compatibleAccessories?: RelatedProduct[];
 };
 
-function cartProductType(category: string): "phone" | "accessory" | "sparePart" {
+function cartProductType(
+  category: string
+): "phone" | "accessory" | "sparePart" | "maintenanceTool" {
   if (category === "قطع غيار") return "sparePart";
   if (category === "أكسسوارات" || category === "اكسسوارات") return "accessory";
+  if (category === "أدوات الصيانة") return "maintenanceTool";
   return "phone";
 }
 
@@ -147,7 +150,9 @@ export function ProductDetailsModern({
         ? `/api/spare-parts/${product.id}`
         : cat === "أكسسوارات" || cat === "اكسسوارات"
           ? `/api/accessories/${product.id}`
-          : `/api/phones/${product.id}`;
+          : cat === "أدوات الصيانة"
+            ? `/api/maintenance-tools/${product.id}`
+            : `/api/phones/${product.id}`;
 
     publicFetch(path, { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))

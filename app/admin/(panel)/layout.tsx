@@ -21,6 +21,7 @@ import {
   ImageIcon,
   Share2,
   Megaphone,
+  Hammer,
 } from "lucide-react";
 
 const LG_BREAKPOINT = 1024;
@@ -316,6 +317,13 @@ export default function AdminPanelLayout({
               "منتجات الأكسسوارات",
               undefined,
               "text-purple-500 group-hover:text-purple-600"
+            )}
+            {navLink(
+              "/admin/maintenance-tools",
+              <Hammer className="h-5 w-5 shrink-0" />,
+              "أدوات الصيانة",
+              undefined,
+              "text-amber-500 group-hover:text-amber-600"
             )}
           </div>
 

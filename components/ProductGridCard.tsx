@@ -25,11 +25,17 @@ type ProductGridCardProps = {
   imageSizes?: string;
   className?: string;
   compact?: boolean;
+  /** كتالوج بدون سعر/سلة (مثل أدوات الصيانة حالياً) — نفس شكل البطاقة */
+  catalogOnly?: boolean;
+  subtitle?: string;
 };
 
-function inferProductType(category?: string): "phone" | "accessory" | "sparePart" {
+function inferProductType(
+  category?: string
+): "phone" | "accessory" | "sparePart" | "maintenanceTool" {
   if (category === "قطع غيار") return "sparePart";
   if (category === "أكسسوارات" || category === "اكسسوارات") return "accessory";
+  if (category === "أدوات الصيانة") return "maintenanceTool";
   return "phone";
 }
 
@@ -41,6 +47,8 @@ export function ProductGridCard({
   imageSizes = "(max-width: 640px) 48vw, 25vw",
   className = "",
   compact = false,
+  catalogOnly = false,
+  subtitle,
 }: ProductGridCardProps) {
   const detailUrl =
     product.detailHref ||
@@ -116,76 +124,102 @@ export function ProductGridCard({
           </h3>
         </Link>
 
-        {/* السعر */}
-        <p>
-          {effectivePrice > 0 ? (
-            <span className={`font-extrabold text-blue-600 ${compact ? "text-sm" : "text-base sm:text-lg"}`}>
-              {formatDzd(effectivePrice)}{" "}
-              <span className="text-[10px] font-medium text-slate-400">DZD</span>
-            </span>
-          ) : (
-            <span className="text-xs text-slate-300">— DZD</span>
-          )}
-        </p>
-
-        {/* شريط الكمية + سلة */}
-        <div className="mt-auto flex items-center gap-1.5 pt-1">
-          {/* أزرار الكمية */}
-          <div className="flex flex-1 items-center justify-between rounded-xl border border-slate-200 bg-slate-50">
-            <button
-              type="button"
-              onClick={() => setQty((q) => Math.max(1, q - 1))}
-              className={`flex items-center justify-center text-blue-600 transition hover:bg-blue-50 active:bg-blue-100 ${
-                compact
-                  ? "h-8 w-8 rounded-r-xl"
-                  : "h-9 w-9 rounded-r-xl sm:h-10 sm:w-10"
-              }`}
-              aria-label="تقليل الكمية"
-            >
-              <Minus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            </button>
-            <span
-              className={`min-w-[1.5rem] text-center font-bold text-slate-800 select-none ${
-                compact ? "text-xs" : "text-sm"
-              }`}
-            >
-              {qty}
-            </span>
-            <button
-              type="button"
-              onClick={() => setQty((q) => q + 1)}
-              className={`flex items-center justify-center text-blue-600 transition hover:bg-blue-50 active:bg-blue-100 ${
-                compact
-                  ? "h-8 w-8 rounded-l-xl"
-                  : "h-9 w-9 rounded-l-xl sm:h-10 sm:w-10"
-              }`}
-              aria-label="زيادة الكمية"
-            >
-              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            </button>
-          </div>
-
-          {/* زر السلة */}
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={added || effectivePrice <= 0}
-            className={`flex shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
-              compact ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10"
-            } ${
-              added
-                ? "bg-emerald-500 text-white"
-                : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
-            } disabled:opacity-50`}
-            aria-label="إضافة للسلة"
-          >
-            {added ? (
-              <Check className="h-4 w-4" strokeWidth={2.5} />
+        {catalogOnly ? (
+          <>
+            {subtitle ? (
+              <p
+                className={`line-clamp-2 text-slate-500 ${
+                  compact ? "text-[9px]" : "text-[10px] sm:text-xs"
+                }`}
+              >
+                {subtitle}
+              </p>
             ) : (
-              <ShoppingCart className="h-4 w-4" strokeWidth={2} />
+              <p className="text-xs text-slate-300">—</p>
             )}
-          </button>
-        </div>
+            <Link
+              href={detailUrl}
+              className={`mt-auto flex items-center justify-center rounded-xl bg-blue-600 font-bold text-white transition hover:bg-blue-700 active:scale-[0.98] ${
+                compact ? "h-8 text-[10px]" : "h-9 text-xs sm:h-10 sm:text-sm"
+              }`}
+            >
+              عرض التفاصيل
+            </Link>
+          </>
+        ) : (
+          <>
+            {/* السعر */}
+            <p>
+              {effectivePrice > 0 ? (
+                <span className={`font-extrabold text-blue-600 ${compact ? "text-sm" : "text-base sm:text-lg"}`}>
+                  {formatDzd(effectivePrice)}{" "}
+                  <span className="text-[10px] font-medium text-slate-400">DZD</span>
+                </span>
+              ) : (
+                <span className="text-xs text-slate-300">— DZD</span>
+              )}
+            </p>
+
+            {/* شريط الكمية + سلة */}
+            <div className="mt-auto flex items-center gap-1.5 pt-1">
+              {/* أزرار الكمية */}
+              <div className="flex flex-1 items-center justify-between rounded-xl border border-slate-200 bg-slate-50">
+                <button
+                  type="button"
+                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  className={`flex items-center justify-center text-blue-600 transition hover:bg-blue-50 active:bg-blue-100 ${
+                    compact
+                      ? "h-8 w-8 rounded-r-xl"
+                      : "h-9 w-9 rounded-r-xl sm:h-10 sm:w-10"
+                  }`}
+                  aria-label="تقليل الكمية"
+                >
+                  <Minus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                </button>
+                <span
+                  className={`min-w-[1.5rem] text-center font-bold text-slate-800 select-none ${
+                    compact ? "text-xs" : "text-sm"
+                  }`}
+                >
+                  {qty}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQty((q) => q + 1)}
+                  className={`flex items-center justify-center text-blue-600 transition hover:bg-blue-50 active:bg-blue-100 ${
+                    compact
+                      ? "h-8 w-8 rounded-l-xl"
+                      : "h-9 w-9 rounded-l-xl sm:h-10 sm:w-10"
+                  }`}
+                  aria-label="زيادة الكمية"
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                </button>
+              </div>
+
+              {/* زر السلة */}
+              <button
+                type="button"
+                onClick={handleAdd}
+                disabled={added || effectivePrice <= 0}
+                className={`flex shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+                  compact ? "h-8 w-8" : "h-9 w-9 sm:h-10 sm:w-10"
+                } ${
+                  added
+                    ? "bg-emerald-500 text-white"
+                    : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
+                } disabled:opacity-50`}
+                aria-label="إضافة للسلة"
+              >
+                {added ? (
+                  <Check className="h-4 w-4" strokeWidth={2.5} />
+                ) : (
+                  <ShoppingCart className="h-4 w-4" strokeWidth={2} />
+                )}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

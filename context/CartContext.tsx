@@ -41,7 +41,7 @@ export type CartItem = {
   availableColors?: string[];
   option?: string;
   availableOptions?: string[];
-  productType?: "phone" | "accessory" | "sparePart";
+  productType?: "phone" | "accessory" | "sparePart" | "maintenanceTool";
   /** عدة خيارات بأسعار وكميات (قطع غيار / أكسسوارات) */
   hasVariants?: boolean;
   variantSelections?: CartVariantSelection[];

@@ -412,6 +412,7 @@ export function Navbar() {
                 { href: "/phones", label: "الهواتف" },
                 { href: "/accessories", label: "اكسسوارات" },
                 { href: "/spare-parts", label: "قطع غيار" },
+                { href: "/maintenance-tools", label: "أدوات الصيانة" },
                 { href: "/services", label: "خدماتنا" },
                 { href: "/contact", label: "تواصل معنا" },
               ].map((item) => (

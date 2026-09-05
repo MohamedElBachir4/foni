@@ -41,7 +41,7 @@ export type QuickOrderLineItem = {
   quantity: number;
   color?: string;
   option?: string;
-  productType: "phone" | "accessory" | "sparePart";
+  productType: "phone" | "accessory" | "sparePart" | "maintenanceTool";
   image?: string;
   variantSelections?: Array<{ label: string; price: number; quantity: number }>;
 };

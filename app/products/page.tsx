@@ -1,15 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { Smartphone, Headphones, Wrench } from "lucide-react";
+import { Smartphone, Headphones, Wrench, Hammer } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "المنتجات | هواتف واكسسوارات وقطع غيار في الجزائر",
+  title: "المنتجات | هواتف واكسسوارات وقطع غيار وأدوات صيانة في الجزائر",
   description:
-    "استعرض جميع أقسام المنتجات في متجر Foni: الهواتف النقالة، الاكسسوارات، وقطع الغيار في الجزائر.",
+    "استعرض جميع أقسام المنتجات في متجر Foni: الهواتف النقالة، الاكسسوارات، قطع الغيار، وأدوات الصيانة في الجزائر.",
   path: "/products",
 });
 
@@ -38,6 +38,15 @@ const CATEGORIES = [
     icon: Wrench,
     color: "from-emerald-500 to-green-700",
   },
+  {
+    href: "/maintenance-tools",
+    label: "أدوات الصيانة",
+    description: "أدوات ومعدات الصيانة",
+    image:
+      "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=800&q=80",
+    icon: Hammer,
+    color: "from-amber-500 to-orange-700",
+  },
 ] as const;
 
 export default function ProductsHubPage() {
@@ -54,17 +63,19 @@ export default function ProductsHubPage() {
             <span className="font-medium text-slate-700">المنتجات</span>
           </nav>
           <h1 className="text-xl font-extrabold text-slate-900 sm:text-2xl">اختر القسم</h1>
-          <p className="mt-1 text-sm text-slate-500">هواتف، اكسسوارات، أو قطع غيار</p>
+          <p className="mt-1 text-sm text-slate-500">
+            هواتف، اكسسوارات، قطع غيار، أو أدوات صيانة
+          </p>
         </header>
 
-        <div className="flex justify-center gap-5 sm:hidden">
+        <div className="flex flex-wrap justify-center gap-4 sm:hidden">
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             return (
               <Link
                 key={cat.href}
                 href={cat.href}
-                className="flex w-[30%] max-w-[7.5rem] flex-col items-center gap-2.5"
+                className="flex w-[42%] max-w-[9rem] flex-col items-center gap-2.5"
               >
                 <div className="relative h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full shadow-md ring-2 ring-offset-2 ring-blue-200 transition-transform active:scale-95">
                   <Image src={cat.image} alt={cat.label} fill sizes="88px" className="object-cover" />
@@ -84,7 +95,7 @@ export default function ProductsHubPage() {
           })}
         </div>
 
-        <div className="hidden grid-cols-3 gap-4 sm:grid lg:gap-6">
+        <div className="hidden grid-cols-2 gap-4 sm:grid lg:grid-cols-4 lg:gap-6">
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             return (
@@ -98,7 +109,7 @@ export default function ProductsHubPage() {
                     src={cat.image}
                     alt={cat.label}
                     fill
-                    sizes="(max-width: 1024px) 33vw, 25vw"
+                    sizes="(max-width: 1024px) 50vw, 25vw"
                     className="object-cover transition-transform duration-500 group-hover:scale-110"
                   />
                   <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} opacity-70`} />

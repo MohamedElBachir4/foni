@@ -223,6 +223,27 @@ async function getProductSeoData(id: string) {
     } catch {
       // ignore
     }
+
+    try {
+      const toolRes = await publicFetch(`/api/maintenance-tools/${id}`, { cache: "no-store" });
+      if (toolRes.ok) {
+        const tool = await toolRes.json();
+        const name = String(tool.name || "أداة صيانة");
+        const desc =
+          String(tool.description || "").trim() ||
+          `أداة صيانة ${name} متوفرة في متجر Foni بالجزائر.`;
+        return {
+          id: String(tool._id),
+          name,
+          image: pickFirstNonEmptyString(tool.image, "/LOGO.jpeg"),
+          price: Number(tool.priceRetail ?? tool.price ?? 0),
+          brandLabel: "أدوات الصيانة",
+          description: desc,
+        };
+      }
+    } catch {
+      // ignore
+    }
   }
 
   return null;
@@ -287,7 +308,7 @@ export default async function ProductDetailPage({
     stock?: number;
     manageStock?: boolean;
   } | null = null;
-  let source: "static" | "phone" | "sparePart" | "accessory" = "static";
+  let source: "static" | "phone" | "sparePart" | "accessory" | "maintenanceTool" = "static";
   let brandLabel = "";
   let sparePartContext: { brandId?: string; phoneTypeId?: string; brandSlug?: string } = {};
   let accessoryContext: { typeId?: string; typeLabel?: string } = {};
@@ -556,6 +577,48 @@ export default async function ProductDetailPage({
     }
   }
 
+  if (!product && /^[a-f0-9A-F]{24}$/.test(id)) {
+    try {
+      const toolRes = await publicFetch(`/api/maintenance-tools/${id}`, { cache: "no-store" });
+      if (toolRes.ok) {
+        const tool = await toolRes.json();
+        brandLabel = "أدوات الصيانة";
+        const retail = Number(tool.priceRetail ?? tool.price ?? 0);
+        product = {
+          id: String(tool._id),
+          name: String(tool.name || ""),
+          price: retail,
+          priceRetail:
+            typeof tool.priceRetail === "number" && !Number.isNaN(tool.priceRetail)
+              ? tool.priceRetail
+              : typeof tool.price === "number"
+                ? tool.price
+                : undefined,
+          priceWholesale:
+            typeof tool.priceWholesale === "number" && !Number.isNaN(tool.priceWholesale)
+              ? tool.priceWholesale
+              : undefined,
+          priceReparateur:
+            typeof tool.priceReparateur === "number" && !Number.isNaN(tool.priceReparateur)
+              ? tool.priceReparateur
+              : undefined,
+          brand: "maintenance-tools",
+          category: "أدوات الصيانة",
+          image: pickFirstNonEmptyString(tool.image),
+          extraImages: normalizeExtraImages(tool.extraImages),
+          details: pickFirstNonEmptyString(tool.description, tool.details),
+          colors: [],
+          options: [],
+        };
+        source = "maintenanceTool";
+      } else if (toolRes.status !== 404) {
+        transientFetchFailure = true;
+      }
+    } catch {
+      transientFetchFailure = true;
+    }
+  }
+
   if (!product) {
     if (transientFetchFailure) {
       logServerError(new Error("transient fetch failure resolving product/spare-part/accessory"), {
@@ -573,7 +636,9 @@ export default async function ProductDetailPage({
       ? `قطعة غيار عالية الجودة من ${brandLabel || "الماركة المطلوبة"}، مصممة لأداء ثابت واعتمادية طويلة.`
       : source === "accessory"
         ? `اكسسوار ${product.name}${brandLabel ? ` من ${brandLabel}` : ""}، متوفر للطلب مع توصيل في الجزائر.`
-        : `منتج عالي الجودة من ${brandLabel || "الماركة"}، متوفر الآن مع تجربة شراء سلسة وتوصيل سريع.`;
+        : source === "maintenanceTool"
+          ? `أداة صيانة ${product.name} متوفرة للطلب مع توصيل في الجزائر.`
+          : `منتج عالي الجودة من ${brandLabel || "الماركة"}، متوفر الآن مع تجربة شراء سلسة وتوصيل سريع.`;
   const description = pickFirstNonEmptyString(product.details, descriptionFallback);
 
   let relatedProducts: RelatedPhone[] = [];
@@ -743,6 +808,41 @@ export default async function ProductDetailPage({
     }
   }
 
+  if (source === "maintenanceTool") {
+    try {
+      const res = await publicFetch(`/api/maintenance-tools`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        relatedProducts = list
+          .filter((item: { _id?: string }) => item?._id && item._id !== product.id)
+          .slice(0, 4)
+          .map(
+            (item: {
+              _id: string;
+              name: string;
+              price?: number;
+              priceRetail?: number;
+              priceWholesale?: number;
+              priceReparateur?: number;
+              image?: string;
+            }) => ({
+              _id: item._id,
+              name: item.name,
+              price: Number(item.priceRetail ?? item.price ?? 0),
+              priceRetail: item.priceRetail,
+              priceWholesale: item.priceWholesale,
+              priceReparateur: item.priceReparateur,
+              image: item.image,
+              colors: [],
+            })
+          );
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div className="min-h-screen w-full bg-slate-50 antialiased">
       <Navbar />
@@ -771,8 +871,8 @@ export default async function ProductDetailPage({
           }}
         />
         <ProductDetailsModern
-          homeHref="/"
-          homeLabel="الرئيسية"
+          homeHref={source === "maintenanceTool" ? "/maintenance-tools" : "/"}
+          homeLabel={source === "maintenanceTool" ? "أدوات الصيانة" : "الرئيسية"}
           modelHubHref={modelHubContext?.href}
           modelHubLabel={modelHubContext?.label}
           product={{

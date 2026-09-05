@@ -13,7 +13,14 @@ const NAV_ITEMS = [
   { href: "/accounts", label: "حسابي", icon: CircleUserRound },
 ];
 
-const PRODUCT_PATHS = ["/products", "/phones", "/accessories", "/spare-parts", "/brand"];
+const PRODUCT_PATHS = [
+  "/products",
+  "/phones",
+  "/accessories",
+  "/spare-parts",
+  "/maintenance-tools",
+  "/brand",
+];
 
 const spring = { type: "spring" as const, stiffness: 420, damping: 32, mass: 0.85 };
 

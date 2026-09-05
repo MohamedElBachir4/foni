@@ -32,7 +32,7 @@ type AddToCartButtonProps = {
   /** عند true: إضافة مباشرة بخيار نصي محدّد من الأب */
   lockOptionToSelection?: boolean;
   lockedOption?: string;
-  productType?: "phone" | "accessory" | "sparePart";
+  productType?: "phone" | "accessory" | "sparePart" | "maintenanceTool";
   className?: string;
   children?: React.ReactNode;
   disabled?: boolean;

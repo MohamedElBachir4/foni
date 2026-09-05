@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Smartphone, Headphones, Wrench } from "lucide-react";
+import { Smartphone, Headphones, Wrench, Hammer } from "lucide-react";
 
 const CATEGORIES = [
   {
@@ -26,6 +26,13 @@ const CATEGORIES = [
     icon: Wrench,
     color: "from-emerald-500 to-green-700",
   },
+  {
+    id: "maintenance",
+    label: "أدوات الصيانة",
+    image: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=800&q=80",
+    icon: Hammer,
+    color: "from-amber-500 to-orange-700",
+  },
 ];
 
 type CategorySliderProps = {
@@ -43,6 +50,7 @@ export function CategorySlider({
     phones: "/phones",
     accessories: "/accessories",
     parts: "/spare-parts",
+    maintenance: "/maintenance-tools",
   };
 
   return (
@@ -53,7 +61,7 @@ export function CategorySlider({
       </div>
 
       {/* موبايل: دوائر في المنتصف */}
-      <div className="flex justify-center gap-6 sm:hidden">
+      <div className="flex flex-wrap justify-center gap-5 sm:hidden">
         {CATEGORIES.map((cat) => {
           const Icon = cat.icon;
           return (
@@ -61,30 +69,32 @@ export function CategorySlider({
               key={cat.id}
               type="button"
               onClick={() => router.push(routes[cat.id] || "/")}
-              className="flex flex-col items-center gap-2"
+              className="flex w-[22%] min-w-[4.5rem] max-w-[5.5rem] flex-col items-center gap-2"
             >
               {/* دائرة */}
-              <div className="relative h-20 w-20 overflow-hidden rounded-full ring-2 ring-offset-2 ring-blue-100 transition-transform active:scale-95">
+              <div className="relative h-[4.5rem] w-[4.5rem] overflow-hidden rounded-full ring-2 ring-offset-2 ring-blue-100 transition-transform active:scale-95">
                 <Image
                   src={cat.image}
                   alt={cat.label}
                   fill
-                  sizes="80px"
+                  sizes="72px"
                   className="object-cover"
                 />
                 <div className={`absolute inset-0 bg-gradient-to-b ${cat.color} opacity-60`} />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Icon className="h-8 w-8 text-white drop-shadow" strokeWidth={2} />
+                  <Icon className="h-7 w-7 text-white drop-shadow" strokeWidth={2} />
                 </div>
               </div>
-              <span className="text-xs font-semibold text-slate-700">{cat.label}</span>
+              <span className="text-center text-[11px] font-semibold leading-tight text-slate-700">
+                {cat.label}
+              </span>
             </button>
           );
         })}
       </div>
 
       {/* ديسكتوب: بطاقات أفقية كبيرة */}
-      <div className="hidden grid-cols-3 gap-4 sm:grid lg:gap-6">
+      <div className="hidden grid-cols-2 gap-4 sm:grid lg:grid-cols-4 lg:gap-6">
         {CATEGORIES.map((cat) => {
           const Icon = cat.icon;
           return (

@@ -13,6 +13,7 @@ const shopLinks = [
   { href: "/phones", label: "الهواتف" },
   { href: "/accessories", label: "الإكسسوارات" },
   { href: "/spare-parts", label: "قطع الغيار" },
+  { href: "/maintenance-tools", label: "أدوات الصيانة" },
 ];
 
 const serviceLinks = [

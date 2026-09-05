@@ -17,14 +17,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/batterie`, lastModified: now, changeFrequency: "daily", priority: 0.85 },
     { url: `${siteUrl}/accessories`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/spare-parts`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/maintenance-tools`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
     { url: `${siteUrl}/services`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${siteUrl}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
   ];
 
   try {
-    const [phonesRes, partsRes] = await Promise.all([
+    const [phonesRes, partsRes, toolsRes] = await Promise.all([
       fetch(`${API_URL}/api/phones?limit=500`, { cache: "no-store" }),
       fetch(`${API_URL}/api/spare-parts?limit=500`, { cache: "no-store" }),
+      fetch(`${API_URL}/api/maintenance-tools`, { cache: "no-store" }),
     ]);
 
     const productUrls: MetadataRoute.Sitemap = [];
@@ -50,6 +52,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           url: `${siteUrl}/product/${p._id}`,
           lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
           changeFrequency: "daily",
+          priority: 0.65,
+        });
+      }
+    }
+
+    if (toolsRes.ok) {
+      const tools = (await toolsRes.json()) as Array<{ _id?: string; updatedAt?: string }>;
+      for (const t of Array.isArray(tools) ? tools : []) {
+        if (!t?._id) continue;
+        productUrls.push({
+          url: `${siteUrl}/maintenance-tools/${t._id}`,
+          lastModified: t.updatedAt ? new Date(t.updatedAt) : now,
+          changeFrequency: "weekly",
           priority: 0.65,
         });
       }
