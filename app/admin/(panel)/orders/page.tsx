@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { API_URL, getAuthHeaders } from "@/lib/adminAuth";
 import { User, Phone, MapPin, Package, Calendar, Loader2, Send, Search } from "lucide-react";
-import { AdminPageHeader } from "@/components/admin";
+import { AdminPageHeader, AdminPagination } from "@/components/admin";
 
 const YALIDINE_MAX_PRICE = 150000;
+const ORDERS_PAGE_SIZE = 20;
 
 type OrderVariantLine = { label: string; price: number; quantity: number };
 type OrderItem = {
@@ -133,14 +134,25 @@ export default function AdminOrdersPage() {
     text: string;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   function isActiveOrder(order: Order) {
     const status = String(order.status || "");
     return status !== "cancelled" && status !== "completed";
   }
 
-  async function reloadOrders() {
-    const res = await fetch(`${API_URL}/api/orders`, {
+  const reloadOrders = useCallback(async (pageToLoad: number, search: string) => {
+    const params = new URLSearchParams({
+      page: String(pageToLoad),
+      limit: String(ORDERS_PAGE_SIZE),
+    });
+    const q = search.trim();
+    if (q) params.set("q", q);
+
+    const res = await fetch(`${API_URL}/api/orders?${params.toString()}`, {
       headers: getAuthHeaders(),
       credentials: "include",
       cache: "no-store",
@@ -148,13 +160,56 @@ export default function AdminOrdersPage() {
     if (!res.ok) {
       if (res.status === 401) setError("يجب تسجيل الدخول");
       else setError("فشل في جلب الطلبات");
-      return;
+      return { totalPages: 1 };
     }
     const data = await res.json();
     const list = (data.orders ?? (Array.isArray(data) ? data : [])) as Order[];
     setOrders(list.filter(isActiveOrder));
+    const total = typeof data.total === "number" ? data.total : list.length;
+    const pages =
+      typeof data.totalPages === "number"
+        ? Math.max(1, data.totalPages)
+        : Math.max(1, Math.ceil(total / ORDERS_PAGE_SIZE) || 1);
+    setTotalOrders(total);
+    setTotalPages(pages);
     setError("");
-  }
+    return { totalPages: pages };
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await reloadOrders(page, debouncedSearch);
+        if (!cancelled && result && page > result.totalPages) {
+          setPage(result.totalPages);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Load error:", err);
+          setError("خطأ في الاتصال");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, debouncedSearch, reloadOrders]);
 
   async function updateOrderStatus(orderId: string, status: string) {
     const cleanId = String(orderId || "").trim();
@@ -190,7 +245,7 @@ export default function AdminOrdersPage() {
         if (status === "completed" || status === "cancelled" || data?.deleted) {
           setOrders((prev) => prev.filter((o) => String(o._id) !== cleanId));
           // مزامنة مع السيرفر لضمان اختفاء الملغى/المكتمل
-          await reloadOrders().catch(() => undefined);
+          await reloadOrders(page, debouncedSearch).catch(() => undefined);
         } else {
           setOrders((prev) =>
             prev.map((o) =>
@@ -208,30 +263,18 @@ export default function AdminOrdersPage() {
           errorMsg += "فشل التحديث";
         }
         alert(errorMsg);
-        await reloadOrders().catch(() => undefined);
+        await reloadOrders(page, debouncedSearch).catch(() => undefined);
       }
     } catch (err) {
       console.error("Update error:", err);
       alert(`خطأ في الاتصال بالخادم: ${err}`);
-      await reloadOrders().catch(() => undefined);
+      await reloadOrders(page, debouncedSearch).catch(() => undefined);
     } finally {
       setUpdatingId(null);
     }
   }
 
-  useEffect(() => {
-    async function load() {
-      try {
-        await reloadOrders();
-      } catch (err) {
-        console.error("Load error:", err);
-        setError("خطأ في الاتصال");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const filteredOrders = orders;
 
   function updateOrderItemField(
     orderId: string,
@@ -293,23 +336,6 @@ export default function AdminOrdersPage() {
       })
     );
   }
-
-  const normalizedSearch = searchQuery.trim().toLowerCase();
-  const searchDigits = normalizedSearch.replace(/\D/g, "");
-  const filteredOrders = useMemo(() => {
-    const active = orders.filter(isActiveOrder);
-    if (!normalizedSearch) return active;
-    return active.filter((order) => {
-      const fullName = String(order.fullName || "").toLowerCase();
-      const phone = String(order.phone || "").toLowerCase();
-      const phoneDigits = phone.replace(/\D/g, "");
-      return (
-        fullName.includes(normalizedSearch) ||
-        phone.includes(normalizedSearch) ||
-        (searchDigits.length > 0 && phoneDigits.includes(searchDigits))
-      );
-    });
-  }, [orders, normalizedSearch, searchDigits]);
 
   const eligibleForYalidine = filteredOrders.filter(canSendOrderToYalidine);
   const selectedCount = selectedIds.size;
@@ -562,7 +588,7 @@ export default function AdminOrdersPage() {
         </div>
       ) : null}
 
-      {orders.length === 0 ? (
+      {totalOrders === 0 && !debouncedSearch ? (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12">
           <Package className="mx-auto h-12 w-12 text-slate-300 sm:h-14 sm:w-14" />
           <p className="mt-4 font-medium text-slate-600">لا توجد طلبات حتى الآن</p>
@@ -573,12 +599,13 @@ export default function AdminOrdersPage() {
           <p className="mt-4 font-medium text-slate-600">لا يوجد طلب مطابق لبحثك</p>
         </div>
       ) : (
-        <div className="mt-5 space-y-4 sm:mt-8 sm:space-y-6">
-          {filteredOrders.map((order) => (
-            <div
-              key={order._id}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:transition sm:hover:shadow-md"
-            >
+        <>
+          <div className="mt-5 space-y-4 sm:mt-8 sm:space-y-6">
+            {filteredOrders.map((order) => (
+              <div
+                key={order._id}
+                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:transition sm:hover:shadow-md"
+              >
               <div className="border-b border-slate-100 bg-slate-50/50 px-3 py-3 sm:px-6 sm:py-4">
                 <div className="flex flex-col gap-3">
                   <div className="flex items-start gap-3">
@@ -820,7 +847,25 @@ export default function AdminOrdersPage() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white px-3 py-4 shadow-sm sm:px-5">
+            <AdminPagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={(next) => {
+                setPage(next);
+                setSelectedIds(new Set());
+                if (typeof window !== "undefined") {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+              totalItems={totalOrders}
+              pageSize={ORDERS_PAGE_SIZE}
+              showInfo
+            />
+          </div>
+        </>
       )}
     </div>
   );
