@@ -10,8 +10,10 @@ const PHONE_SLOTS = 3;
 
 type ContactSettingsForm = {
   whatsappNumbers: string[];
+  whatsappLabels: string[];
   whatsappEnabled: boolean;
   phoneNumbers: string[];
+  phoneLabels: string[];
   phoneEnabled: boolean;
   messengerUrl: string;
   messengerEnabled: boolean;
@@ -19,11 +21,14 @@ type ContactSettingsForm = {
 
 const EMPTY_WHATSAPP = ["", "", ""];
 const EMPTY_PHONES = ["", "", ""];
+const EMPTY_LABELS = ["", "", ""];
 
 const EMPTY_FORM: ContactSettingsForm = {
   whatsappNumbers: [...EMPTY_WHATSAPP],
+  whatsappLabels: [...EMPTY_LABELS],
   whatsappEnabled: true,
   phoneNumbers: [...EMPTY_PHONES],
+  phoneLabels: [...EMPTY_LABELS],
   phoneEnabled: false,
   messengerUrl: "",
   messengerEnabled: false,
@@ -51,7 +56,9 @@ export default function ContactSettingsPage() {
   const whatsappNumbers = Array.isArray(form.whatsappNumbers)
     ? form.whatsappNumbers
     : EMPTY_WHATSAPP;
+  const whatsappLabels = Array.isArray(form.whatsappLabels) ? form.whatsappLabels : EMPTY_LABELS;
   const phoneNumbers = Array.isArray(form.phoneNumbers) ? form.phoneNumbers : EMPTY_PHONES;
+  const phoneLabels = Array.isArray(form.phoneLabels) ? form.phoneLabels : EMPTY_LABELS;
 
   const applyPayload = useCallback((data: Record<string, unknown>) => {
     setForm({
@@ -60,8 +67,10 @@ export default function ContactSettingsPage() {
         WHATSAPP_SLOTS,
         data.whatsappNumber
       ),
+      whatsappLabels: normalizeSlots(data.whatsappLabels, WHATSAPP_SLOTS),
       whatsappEnabled: Boolean(data.whatsappEnabled),
       phoneNumbers: normalizeSlots(data.phoneNumbers, PHONE_SLOTS, data.phoneNumber),
+      phoneLabels: normalizeSlots(data.phoneLabels, PHONE_SLOTS),
       phoneEnabled: Boolean(data.phoneEnabled),
       messengerUrl: String(data.messengerUrl || ""),
       messengerEnabled: Boolean(data.messengerEnabled),
@@ -103,12 +112,30 @@ export default function ContactSettingsPage() {
     });
   }
 
+  function updateWhatsAppLabel(index: number, value: string) {
+    setForm((prev) => {
+      const next = [...(Array.isArray(prev.whatsappLabels) ? prev.whatsappLabels : EMPTY_LABELS)];
+      while (next.length < WHATSAPP_SLOTS) next.push("");
+      next[index] = value;
+      return { ...prev, whatsappLabels: next };
+    });
+  }
+
   function updatePhoneSlot(index: number, value: string) {
     setForm((prev) => {
       const next = [...(Array.isArray(prev.phoneNumbers) ? prev.phoneNumbers : EMPTY_PHONES)];
       while (next.length < PHONE_SLOTS) next.push("");
       next[index] = value;
       return { ...prev, phoneNumbers: next };
+    });
+  }
+
+  function updatePhoneLabel(index: number, value: string) {
+    setForm((prev) => {
+      const next = [...(Array.isArray(prev.phoneLabels) ? prev.phoneLabels : EMPTY_LABELS)];
+      while (next.length < PHONE_SLOTS) next.push("");
+      next[index] = value;
+      return { ...prev, phoneLabels: next };
     });
   }
 
@@ -120,7 +147,9 @@ export default function ContactSettingsPage() {
       const payload = {
         ...form,
         whatsappNumbers,
+        whatsappLabels,
         phoneNumbers,
+        phoneLabels,
       };
       const res = await fetch(`${API_URL}/api/contact-settings`, {
         method: "PUT",
@@ -185,7 +214,7 @@ export default function ContactSettingsPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="إعدادات وسائل التواصل"
-        description="إدارة زر التواصل العائم وأرقام الهاتف في الفوتر — حتى 3 أرقام واتساب و3 أرقام هاتف."
+        description="إدارة زر التواصل العائم وأرقام الهاتف في الفوتر — حتى 3 أرقام واتساب و3 أرقام هاتف، مع إمكانية تسمية كل رقم (مثال: الدعم الفني)."
         icon={<Share2 className="h-6 w-6" />}
       />
 
@@ -199,19 +228,33 @@ export default function ContactSettingsPage() {
             {channelCard("واتساب", form.whatsappEnabled, (v) => updateField("whatsappEnabled", v), (
               <div className={`space-y-3 ${form.whatsappEnabled ? "" : "pointer-events-none opacity-50"}`}>
                 {whatsappNumbers.map((number, index) => (
-                  <div key={index}>
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">
-                      رقم واتساب {index + 1}
-                      {index === 0 ? " (إلزامي عند التفعيل)" : " (اختياري)"}
-                    </label>
-                    <input
-                      type="text"
-                      value={number}
-                      onChange={(e) => updateWhatsAppSlot(index, e.target.value)}
-                      placeholder="213542458175 أو 0542458175"
-                      dir="ltr"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
-                    />
+                  <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[1.3fr_1fr]">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-600">
+                        رقم واتساب {index + 1}
+                        {index === 0 ? " (إلزامي عند التفعيل)" : " (اختياري)"}
+                      </label>
+                      <input
+                        type="text"
+                        value={number}
+                        onChange={(e) => updateWhatsAppSlot(index, e.target.value)}
+                        placeholder="213542458175 أو 0542458175"
+                        dir="ltr"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-600">
+                        الاسم الظاهر (اختياري)
+                      </label>
+                      <input
+                        type="text"
+                        value={whatsappLabels[index] || ""}
+                        onChange={(e) => updateWhatsAppLabel(index, e.target.value)}
+                        placeholder="مثال: الدعم الفني"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+                      />
+                    </div>
                   </div>
                 ))}
                 <p className="text-xs text-slate-500">بدون مسافات — يُفضّل الصيغة الدولية 213…</p>
@@ -224,19 +267,33 @@ export default function ContactSettingsPage() {
                   الأرقام أدناه تظهر في <strong>الفوتر</strong> مكان رقم الهاتف. عند تفعيل المربّع أعلاه تظهر أيضاً في الزر العائم.
                 </p>
                 {phoneNumbers.map((number, index) => (
-                  <div key={index}>
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">
-                      رقم هاتف {index + 1}
-                      {index === 0 ? " (يظهر في الفوتر)" : " (اختياري — فوتر)"}
-                    </label>
-                    <input
-                      type="text"
-                      value={number}
-                      onChange={(e) => updatePhoneSlot(index, e.target.value)}
-                      placeholder="+213542458175 أو 0542458175"
-                      dir="ltr"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
-                    />
+                  <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[1.3fr_1fr]">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-600">
+                        رقم هاتف {index + 1}
+                        {index === 0 ? " (يظهر في الفوتر)" : " (اختياري — فوتر)"}
+                      </label>
+                      <input
+                        type="text"
+                        value={number}
+                        onChange={(e) => updatePhoneSlot(index, e.target.value)}
+                        placeholder="+213542458175 أو 0542458175"
+                        dir="ltr"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-600">
+                        الاسم الظاهر (اختياري)
+                      </label>
+                      <input
+                        type="text"
+                        value={phoneLabels[index] || ""}
+                        onChange={(e) => updatePhoneLabel(index, e.target.value)}
+                        placeholder="مثال: الدعم الفني"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-indigo-500 focus:ring-2"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>

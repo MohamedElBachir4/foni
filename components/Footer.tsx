@@ -24,10 +24,10 @@ const serviceLinks = [
 ];
 
 const FALLBACK_PHONES = [
-  { display: "+213 542 45 81 75", href: "tel:+213542458175" },
+  { display: "+213 542 45 81 75", href: "tel:+213542458175", label: "" },
 ];
 
-type FooterPhone = { display: string; href: string };
+type FooterPhone = { display: string; href: string; label?: string };
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
@@ -67,11 +67,12 @@ export function Footer() {
         const data = await res.json();
         const list = Array.isArray(data?.phones) ? data.phones : [];
         const mapped: FooterPhone[] = list
-          .map((p: { display?: string; href?: string; tel?: string }) => {
+          .map((p: { display?: string; href?: string; tel?: string; label?: string }) => {
             const href = String(p?.href || (p?.tel ? `tel:${p.tel}` : "")).trim();
             const display = String(p?.display || p?.tel || "").trim();
+            const label = String(p?.label || "").trim();
             if (!href || !display) return null;
-            return { display, href };
+            return { display, href, label };
           })
           .filter(Boolean) as FooterPhone[];
         if (!cancelled && mapped.length > 0) setPhones(mapped);
@@ -194,13 +195,18 @@ export function Footer() {
                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[var(--color-luxury-blue-light)] ring-1 ring-blue-600/15">
                           <Phone className="h-4 w-4" aria-hidden />
                         </span>
-                        <a
-                          href={phone.href}
-                          className="pt-1 font-semibold text-slate-900 hover:text-[var(--color-luxury-blue-light)]"
-                          dir="ltr"
-                        >
-                          {phone.display}
-                        </a>
+                        <span className="flex flex-col pt-1">
+                          {phone.label ? (
+                            <span className="text-xs text-slate-500">{phone.label}</span>
+                          ) : null}
+                          <a
+                            href={phone.href}
+                            className="font-semibold text-slate-900 hover:text-[var(--color-luxury-blue-light)]"
+                            dir="ltr"
+                          >
+                            {phone.display}
+                          </a>
+                        </span>
                       </li>
                     ))}
                     <li className="flex items-center gap-3 text-slate-600">
