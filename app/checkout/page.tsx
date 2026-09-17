@@ -822,10 +822,36 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            <div className="mt-6 space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm">
+              <div className="flex min-w-0 items-center justify-between gap-2 text-slate-600">
+                <span className="min-w-0 leading-snug">
+                  سعر التوصيل
+                  {deliveryType === "stopdesk" ? " (Stop desk)" : " (للمنزل)"}
+                </span>
+                <span className="shrink-0 font-semibold">
+                  {feesLoading
+                    ? "..."
+                    : deliveryFee > 0
+                    ? `${formatDzd(deliveryFee)} DA`
+                    : wilayaId
+                    ? "—"
+                    : "اختر الولاية"}
+                </span>
+              </div>
+              <div className="flex min-w-0 items-center justify-between gap-2 border-t border-slate-200 pt-2">
+                <span className="min-w-0 font-semibold text-slate-700">
+                  المجموع الكلي
+                </span>
+                <span className="shrink-0 text-lg font-bold text-blue-600">
+                  {formatDzd(grandTotal)} DA
+                </span>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading || !acceptedTerms}
-              className="mt-8 w-full rounded-full bg-gradient-to-l from-blue-600 to-blue-500 py-4 font-bold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-500 hover:to-blue-600 hover:shadow-xl disabled:opacity-60"
+              className="mt-4 w-full rounded-full bg-gradient-to-l from-blue-600 to-blue-500 py-4 font-bold text-white shadow-lg shadow-blue-500/30 transition hover:from-blue-500 hover:to-blue-600 hover:shadow-xl disabled:opacity-60"
             >
               {loading ? "جاري إرسال الطلب..." : "إرسال الطلب"}
             </button>

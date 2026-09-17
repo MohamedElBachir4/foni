@@ -512,32 +512,6 @@ export function ProductQuickOrderForm({
         </div>
       ) : null}
 
-      <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-        <div className="flex items-center justify-between gap-2 text-slate-600">
-          <span>مجموع المنتجات</span>
-          <span className="font-semibold">{formatDzd(itemsSubtotal)} DA</span>
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-2 text-slate-600">
-          <span className="leading-snug">
-            سعر التوصيل
-            {deliveryType === "stopdesk" ? " (Stop desk)" : " (للمنزل)"}
-          </span>
-          <span className="font-semibold">
-            {feesLoading
-              ? "..."
-              : deliveryFee > 0
-                ? `${formatDzd(deliveryFee)} DA`
-                : wilayaId
-                  ? "—"
-                  : "اختر الولاية"}
-          </span>
-        </div>
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-200 pt-3">
-          <span className="font-semibold text-slate-700">المجموع الكلي</span>
-          <span className="text-lg font-bold text-blue-600">{formatDzd(grandTotal)} DA</span>
-        </div>
-      </div>
-
       <h3 className="mb-4 text-base font-bold text-slate-800">بيانات التوصيل</h3>
       <div className="min-w-0 space-y-5">
         <div>
@@ -721,10 +695,36 @@ export function ProductQuickOrderForm({
         <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>
       ) : null}
 
+      <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+        <div className="flex items-center justify-between gap-2 text-slate-600">
+          <span>مجموع المنتجات</span>
+          <span className="font-semibold">{formatDzd(itemsSubtotal)} DA</span>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2 text-slate-600">
+          <span className="leading-snug">
+            سعر التوصيل
+            {deliveryType === "stopdesk" ? " (Stop desk)" : " (للمنزل)"}
+          </span>
+          <span className="font-semibold">
+            {feesLoading
+              ? "..."
+              : deliveryFee > 0
+                ? `${formatDzd(deliveryFee)} DA`
+                : wilayaId
+                  ? "—"
+                  : "اختر الولاية"}
+          </span>
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-200 pt-3">
+          <span className="font-semibold text-slate-700">المجموع الكلي</span>
+          <span className="text-lg font-bold text-blue-600">{formatDzd(grandTotal)} DA</span>
+        </div>
+      </div>
+
       <button
         type="submit"
         disabled={loading || disabled || !acceptedTerms}
-        className="mt-6 w-full rounded-xl bg-blue-600 py-3.5 font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
+        className="mt-4 w-full rounded-xl bg-blue-600 py-3.5 font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
       >
         {loading ? "جاري تأكيد الطلب..." : "تأكيد الطلب"}
       </button>

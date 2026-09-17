@@ -124,6 +124,7 @@ function buildItemsPayload(order: Order) {
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -202,7 +203,10 @@ export default function AdminOrdersPage() {
           setError("خطأ في الاتصال");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setHasLoadedOnce(true);
+        }
       }
     }
     load();
@@ -482,7 +486,7 @@ export default function AdminOrdersPage() {
     }
   }
 
-  if (loading) {
+  if (loading && !hasLoadedOnce) {
     return (
       <div className="mx-auto max-w-4xl">
         <AdminPageHeader
@@ -498,7 +502,7 @@ export default function AdminOrdersPage() {
     );
   }
 
-  if (error) {
+  if (error && !hasLoadedOnce) {
     return (
       <div className="mx-auto max-w-4xl">
         <AdminPageHeader title="الطلبات" icon={<Package className="h-5 w-5" />} />
@@ -517,6 +521,12 @@ export default function AdminOrdersPage() {
         icon={<Package className="h-5 w-5" />}
       />
 
+      {error ? (
+        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          {error}
+        </div>
+      ) : null}
+
       {bulkMessage ? (
         <div
           className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${
@@ -533,14 +543,18 @@ export default function AdminOrdersPage() {
 
       <div className="mt-3 sm:mt-4">
         <div className="relative w-full sm:max-w-md">
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          {loading ? (
+            <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-sky-400" />
+          ) : (
+            <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          )}
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث بالاسم أو رقم الهاتف"
+            placeholder="ابحث بالاسم أو رقم الهاتف أو اسم المنتج"
             className="w-full rounded-xl border border-slate-300 bg-white py-3 pr-10 pl-3 text-sm text-slate-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-100"
-            aria-label="بحث بالاسم أو رقم الهاتف"
+            aria-label="بحث بالاسم أو رقم الهاتف أو اسم المنتج"
           />
         </div>
       </div>
