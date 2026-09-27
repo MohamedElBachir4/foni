@@ -15,22 +15,61 @@ type OrderItem = {
   quantity: number;
   color?: string;
   option?: string;
+  productType?: string;
   variantSelections?: OrderVariantLine[];
 };
 type Order = {
   _id: string;
+  account?: string | null;
   fullName: string;
   phone: string;
   wilaya: string;
+  wilayaId?: number | null;
+  commune?: string;
   address: string;
   notes?: string;
   items: OrderItem[];
   totalPrice: number;
+  deliveryType?: "home" | "stopdesk";
+  stopdeskId?: number | null;
+  deliveryFee?: number;
   status?: string;
   customerType?: string;
   yalidineTracking?: string;
+  yalidineStatus?: string;
+  yalidineLabelUrl?: string;
+  yalidineError?: string;
   createdAt: string;
 };
+
+const productTypeLabels: Record<string, string> = {
+  phone: "هاتف",
+  accessory: "إكسسوار",
+  sparePart: "قطعة غيار",
+  maintenanceTool: "أداة صيانة",
+};
+
+function orderItemsCount(order: Order): number {
+  return order.items.reduce((sum, item) => {
+    const vs = item.variantSelections;
+    if (Array.isArray(vs) && vs.length > 0) {
+      return sum + vs.reduce((s, v) => s + (Number(v.quantity) || 0), 0);
+    }
+    return sum + (Number(item.quantity) || 0);
+  }, 0);
+}
+
+function orderDeliveryFee(order: Order): number {
+  return Math.max(0, Number(order.deliveryFee) || 0);
+}
+
+function orderGrandTotal(order: Order): number {
+  return (Number(order.totalPrice) || 0) + orderDeliveryFee(order);
+}
+
+function formatDzdAmount(n: number): string {
+  return `${(Number(n) || 0).toLocaleString()} دج`;
+}
 
 const ORDER_STATUSES = [
   "pending",
@@ -214,6 +253,43 @@ export default function AdminOrdersPage() {
       cancelled = true;
     };
   }, [page, debouncedSearch, reloadOrders]);
+
+  const [stopdeskNames, setStopdeskNames] = useState<Record<string, string>>({});
+  const stopdeskWilayaKey = Array.from(
+    new Set(
+      orders
+        .filter((o) => o.deliveryType === "stopdesk" && o.stopdeskId && o.wilayaId)
+        .map((o) => Number(o.wilayaId))
+    )
+  )
+    .sort((a, b) => a - b)
+    .join(",");
+
+  useEffect(() => {
+    if (!stopdeskWilayaKey) return;
+    let cancelled = false;
+    Promise.all(
+      stopdeskWilayaKey.split(",").map((wid) =>
+        fetch(`${API_URL}/api/yalidine/centers?wilaya_id=${wid}`, { cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => [])
+      )
+    ).then((lists) => {
+      if (cancelled) return;
+      const next: Record<string, string> = {};
+      for (const list of lists) {
+        if (!Array.isArray(list)) continue;
+        for (const c of list as { center_id?: number; name?: string; commune_name?: string }[]) {
+          if (c?.center_id == null) continue;
+          next[String(c.center_id)] = [c.name, c.commune_name].filter(Boolean).join(" — ");
+        }
+      }
+      setStopdeskNames((prev) => ({ ...prev, ...next }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stopdeskWilayaKey]);
 
   async function updateOrderStatus(orderId: string, status: string) {
     const cleanId = String(orderId || "").trim();
@@ -421,7 +497,7 @@ export default function AdminOrdersPage() {
       const failed = Array.isArray(data.failed) ? data.failed : [];
 
       if (succeeded.length > 0) {
-        const byId = new Map(
+        const byId = new Map<string, Partial<Order>>(
           succeeded.map((s: { id: string; order?: Order; yalidineTracking?: string }) => [
             s.id,
             s.order || { yalidineTracking: s.yalidineTracking },
@@ -662,11 +738,20 @@ export default function AdminOrdersPage() {
                       <p className="text-xs text-slate-500 sm:text-sm">
                         <Calendar className="ml-1 inline h-3.5 w-3.5" />
                         {formatDate(order.createdAt)}
+                        <span className="mx-2 text-slate-300">|</span>
+                        <span dir="ltr" className="font-mono">#{order._id.slice(-6).toUpperCase()}</span>
+                        <span className="mx-2 text-slate-300">|</span>
+                        {order.account ? "حساب مسجّل" : "بدون حساب"}
                       </p>
                     </div>
-                    <span className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white sm:rounded-full sm:px-4 sm:py-1.5 sm:text-lg">
-                      {order.totalPrice.toLocaleString()} دج
-                    </span>
+                    <div className="shrink-0 text-left">
+                      <span className="block rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white sm:rounded-full sm:px-4 sm:py-1.5 sm:text-lg">
+                        {formatDzdAmount(orderGrandTotal(order))}
+                      </span>
+                      <span className="mt-1 block text-center text-[11px] text-slate-500">
+                        الإجمالي مع التوصيل
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
@@ -728,8 +813,68 @@ export default function AdminOrdersPage() {
                     <MapPin className="h-4 w-4 text-slate-500" />
                     العنوان
                   </h3>
-                  <p className="text-sm text-slate-600 sm:text-base">{order.wilaya}</p>
-                  <p className="mt-1 text-sm text-slate-600 sm:text-base">{order.address}</p>
+                  <dl className="space-y-1.5 text-sm text-slate-600 sm:text-base">
+                    <div className="flex flex-wrap gap-1">
+                      <dt className="font-semibold text-slate-700">الولاية:</dt>
+                      <dd>{order.wilaya || "—"}</dd>
+                    </div>
+                    {order.commune?.trim() ? (
+                      <div className="flex flex-wrap gap-1">
+                        <dt className="font-semibold text-slate-700">البلدية:</dt>
+                        <dd>{order.commune}</dd>
+                      </div>
+                    ) : null}
+                    <div className="flex flex-wrap gap-1">
+                      <dt className="font-semibold text-slate-700">العنوان:</dt>
+                      <dd className="break-words">{order.address || "—"}</dd>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      <dt className="font-semibold text-slate-700">نوع التوصيل:</dt>
+                      <dd>
+                        {order.deliveryType === "stopdesk" ? "إلى مكتب Yalidine" : "إلى المنزل"}
+                      </dd>
+                    </div>
+                    {order.deliveryType === "stopdesk" && order.stopdeskId ? (
+                      <div className="flex flex-wrap gap-1">
+                        <dt className="font-semibold text-slate-700">المكتب:</dt>
+                        <dd className="break-words">
+                          {stopdeskNames[String(order.stopdeskId)] || `رقم ${order.stopdeskId}`}
+                        </dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                  {order.yalidineTracking || order.yalidineError ? (
+                    <div className="mt-3 space-y-1 rounded-lg border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-sm text-indigo-950">
+                      {order.yalidineTracking ? (
+                        <p>
+                          <span className="font-bold">رقم التتبع: </span>
+                          <span dir="ltr" className="font-mono">{order.yalidineTracking}</span>
+                        </p>
+                      ) : null}
+                      {order.yalidineStatus ? (
+                        <p>
+                          <span className="font-bold">حالة الشحنة: </span>
+                          {order.yalidineStatus}
+                        </p>
+                      ) : null}
+                      {order.yalidineLabelUrl ? (
+                        <a
+                          href={order.yalidineLabelUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block font-semibold text-indigo-700 underline"
+                        >
+                          تحميل ملصق الشحن
+                        </a>
+                      ) : null}
+                      {order.yalidineError && !order.yalidineTracking ? (
+                        <p className="text-rose-700">
+                          <span className="font-bold">خطأ Yalidine: </span>
+                          {order.yalidineError}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {order.notes?.trim() ? (
                     <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50/80 px-3 py-2 text-sm text-amber-950">
                       <span className="font-bold">ملاحظة الزبون: </span>
@@ -854,9 +999,45 @@ export default function AdminOrdersPage() {
                             }
                           </span>
                         )}
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-1.5 text-xs text-slate-500">
+                          <span>
+                            {item.productType ? productTypeLabels[item.productType] || item.productType : ""}
+                          </span>
+                          <span className="font-semibold text-slate-700">
+                            مجموع السطر: {formatDzdAmount(orderItemLineTotal(item))}
+                          </span>
+                        </div>
                       </li>
                     ))}
                   </ul>
+                  <dl className="mt-3 space-y-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                    <div className="flex items-center justify-between gap-2 text-slate-600">
+                      <dt>عدد القطع</dt>
+                      <dd className="font-semibold">{orderItemsCount(order)}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-slate-600">
+                      <dt>مجموع المنتجات</dt>
+                      <dd className="font-semibold">{formatDzdAmount(order.totalPrice)}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-slate-600">
+                      <dt>
+                        تكلفة التوصيل
+                        <span className="text-xs text-slate-400">
+                          {" "}
+                          ({order.deliveryType === "stopdesk" ? "مكتب" : "منزل"})
+                        </span>
+                      </dt>
+                      <dd className="font-semibold">
+                        {orderDeliveryFee(order) > 0
+                          ? formatDzdAmount(orderDeliveryFee(order))
+                          : "غير محددة"}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-1.5 text-base font-bold text-blue-700">
+                      <dt>الإجمالي</dt>
+                      <dd>{formatDzdAmount(orderGrandTotal(order))}</dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
             </div>
