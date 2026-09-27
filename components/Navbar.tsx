@@ -15,8 +15,34 @@ import {
 import { SearchBar } from "@/components/SearchBar";
 import { useAccount } from "@/context/AccountContext";
 import { getPricingAccount } from "@/lib/pricing";
-import { isMerchantRole, roleLabelAr } from "@/lib/accountRoles";
+import {
+  isMerchantRole,
+  nextPriceMode,
+  PRICE_MODES,
+  priceModeActivateLabel,
+  resolvePriceMode,
+  roleLabelAr,
+  type PriceMode,
+} from "@/lib/accountRoles";
 import type { AccountInfo } from "@/context/AccountContext";
+
+const PRICE_MODE_SHORT_LABEL: Record<PriceMode, string> = {
+  wholesale: "الجملة",
+  merchant: "التجار",
+  retail: "التجزئة",
+};
+
+const PRICE_MODE_BAR_CLASS: Record<PriceMode, string> = {
+  wholesale: "border-red-200/80 bg-red-50",
+  merchant: "border-amber-200/80 bg-amber-50",
+  retail: "border-blue-200/80 bg-blue-50",
+};
+
+const PRICE_MODE_BUTTON_CLASS: Record<PriceMode, string> = {
+  wholesale: "bg-red-600 hover:bg-red-700",
+  merchant: "bg-amber-600 hover:bg-amber-700",
+  retail: "bg-blue-600 hover:bg-blue-700",
+};
 
 function isClickInsideAccountMenu(
   e: MouseEvent,
@@ -35,7 +61,8 @@ type AccountMenuDropdownProps = {
   onClose: () => void;
   onNavigate: (href: string) => void;
   logout: () => void;
-  setUseWholesalePricing: (enabled: boolean) => Promise<void>;
+  changePriceMode: (mode: PriceMode) => Promise<void>;
+  priceModeBusy: boolean;
 };
 
 function AccountMenuDropdown({
@@ -43,8 +70,10 @@ function AccountMenuDropdown({
   onClose,
   onNavigate,
   logout,
-  setUseWholesalePricing,
+  changePriceMode,
+  priceModeBusy,
 }: AccountMenuDropdownProps) {
+  const currentMode = resolvePriceMode(account);
   return (
     <div
       role="menu"
@@ -102,23 +131,31 @@ function AccountMenuDropdown({
           {isMerchantRole(account.role) && (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
               <p className="text-[11px] font-semibold text-amber-900 sm:text-xs">
-                عرض خاص للتاجر أو صاحب المحل: أسعار الجملة
+                عرض الأسعار للتاجر أو صاحب المحل
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  void setUseWholesalePricing(!account.useWholesalePricing);
-                }}
-                className={`mt-2 inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-bold ${
-                  account.useWholesalePricing
-                    ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/25 hover:bg-emerald-700"
-                    : "bg-amber-600 text-white shadow-sm hover:bg-amber-700"
-                }`}
-              >
-                {account.useWholesalePricing
-                  ? "مفعّل: أسعار الجملة"
-                  : "تفعيل أسعار الجملة"}
-              </button>
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                {PRICE_MODES.map((mode) => {
+                  const active = mode === currentMode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      disabled={priceModeBusy}
+                      aria-pressed={active}
+                      onClick={() => {
+                        if (!active) void changePriceMode(mode);
+                      }}
+                      className={`inline-flex items-center justify-center rounded-lg px-2 py-2 text-[11px] font-bold transition disabled:opacity-70 sm:text-xs ${
+                        active
+                          ? `${PRICE_MODE_BUTTON_CLASS[mode]} text-white shadow-sm`
+                          : "border border-amber-200 bg-white text-amber-900 hover:bg-amber-100"
+                      }`}
+                    >
+                      {PRICE_MODE_SHORT_LABEL[mode]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
           <button
@@ -162,35 +199,36 @@ export function Navbar() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuDesktopRef = useRef<HTMLDivElement | null>(null);
   const accountMenuMobileRef = useRef<HTMLDivElement | null>(null);
-  const { account, logout, setUseWholesalePricing } = useAccount();
+  const { account, logout, setPriceMode } = useAccount();
   const approvedB2B = useMemo(() => getPricingAccount(account), [account]);
-  const [wholesaleBusy, setWholesaleBusy] = useState(false);
-  const [wholesaleError, setWholesaleError] = useState<string | null>(null);
-  const wholesaleErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentPriceMode = resolvePriceMode(approvedB2B);
+  const [priceModeBusy, setPriceModeBusy] = useState(false);
+  const [priceModeError, setPriceModeError] = useState<string | null>(null);
+  const priceModeErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const toggleWholesale = useCallback(
-    async (enabled: boolean) => {
-      if (wholesaleBusy) return;
-      setWholesaleBusy(true);
-      setWholesaleError(null);
+  const changePriceMode = useCallback(
+    async (mode: PriceMode) => {
+      if (priceModeBusy) return;
+      setPriceModeBusy(true);
+      setPriceModeError(null);
       try {
-        await setUseWholesalePricing(enabled);
+        await setPriceMode(mode);
       } catch (err) {
-        setWholesaleError(
-          err instanceof Error && err.message ? err.message : "تعذّر تحديث أسعار الجملة"
+        setPriceModeError(
+          err instanceof Error && err.message ? err.message : "تعذّر تحديث وضع الأسعار"
         );
-        if (wholesaleErrorTimerRef.current) clearTimeout(wholesaleErrorTimerRef.current);
-        wholesaleErrorTimerRef.current = setTimeout(() => setWholesaleError(null), 6000);
+        if (priceModeErrorTimerRef.current) clearTimeout(priceModeErrorTimerRef.current);
+        priceModeErrorTimerRef.current = setTimeout(() => setPriceModeError(null), 6000);
       } finally {
-        setWholesaleBusy(false);
+        setPriceModeBusy(false);
       }
     },
-    [wholesaleBusy, setUseWholesalePricing]
+    [priceModeBusy, setPriceMode]
   );
 
   useEffect(
     () => () => {
-      if (wholesaleErrorTimerRef.current) clearTimeout(wholesaleErrorTimerRef.current);
+      if (priceModeErrorTimerRef.current) clearTimeout(priceModeErrorTimerRef.current);
     },
     []
   );
@@ -214,33 +252,26 @@ export function Navbar() {
   return (
     <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible border-b border-white/20 shadow-md">
       {approvedB2B && isMerchantRole(approvedB2B.role) && (
-        <div
-          className={`border-b px-3 py-2 sm:px-4 ${
-            approvedB2B.useWholesalePricing
-              ? "border-red-200/80 bg-red-50"
-              : "border-amber-200/80 bg-amber-50"
-          }`}
-        >
+        <div className={`border-b px-3 py-2 sm:px-4 ${PRICE_MODE_BAR_CLASS[currentPriceMode]}`}>
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-center gap-1">
-            <button
-              type="button"
-              disabled={wholesaleBusy}
-              onClick={() => {
-                void toggleWholesale(!approvedB2B.useWholesalePricing);
-              }}
-              className={`inline-flex items-center justify-center rounded-full px-4 py-1.5 text-xs font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-70 sm:px-5 sm:text-sm ${
-                approvedB2B.useWholesalePricing
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "bg-amber-600 hover:bg-amber-700"
-              }`}
-            >
-              {approvedB2B.useWholesalePricing
-                ? "إيقاف أسعار الجملة"
-                : "تفعيل أسعار الجملة"}
-            </button>
-            {wholesaleError ? (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                disabled={priceModeBusy}
+                onClick={() => {
+                  void changePriceMode(nextPriceMode(currentPriceMode));
+                }}
+                className={`inline-flex items-center justify-center rounded-full px-4 py-1.5 text-xs font-bold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-70 sm:px-5 sm:text-sm ${PRICE_MODE_BUTTON_CLASS[nextPriceMode(currentPriceMode)]}`}
+              >
+                {priceModeActivateLabel(nextPriceMode(currentPriceMode))}
+              </button>
+              <span className="text-[11px] font-semibold text-slate-700 sm:text-xs">
+                الوضع الحالي: أسعار {PRICE_MODE_SHORT_LABEL[currentPriceMode]}
+              </span>
+            </div>
+            {priceModeError ? (
               <p role="alert" className="text-center text-[11px] font-semibold text-red-700 sm:text-xs">
-                {wholesaleError}
+                {priceModeError}
               </p>
             ) : null}
           </div>
@@ -332,7 +363,8 @@ export function Navbar() {
                   onClose={closeAccountMenu}
                   onNavigate={navigateFromAccountMenu}
                   logout={logout}
-                  setUseWholesalePricing={toggleWholesale}
+                  changePriceMode={changePriceMode}
+                  priceModeBusy={priceModeBusy}
                 />
               )}
             </div>
@@ -397,7 +429,8 @@ export function Navbar() {
                   onClose={closeAccountMenu}
                   onNavigate={navigateFromAccountMenu}
                   logout={logout}
-                  setUseWholesalePricing={toggleWholesale}
+                  changePriceMode={changePriceMode}
+                  priceModeBusy={priceModeBusy}
                 />
               )}
             </div>

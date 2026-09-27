@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 import { useAccount } from "@/context/AccountContext";
-import { isMerchantRole, resolveUseWholesalePricing } from "@/lib/accountRoles";
+import { isMerchantRole, resolvePriceMode } from "@/lib/accountRoles";
 import { getPricingAccount } from "@/lib/pricing";
 
 /**
- * زبون / زائر → أزرق (افتراضي)
- * تاجر بدون جملة → برتقالي
+ * زبون / زائر أو تاجر في وضع التجزئة → أزرق (افتراضي)
+ * تاجر في وضع أسعار التجار → برتقالي
  * تاجر مع أسعار الجملة → أحمر
  */
 export function ThemeAccentBinder() {
@@ -20,7 +20,8 @@ export function ThemeAccentBinder() {
 
     let accent: "customer" | "merchant" | "wholesale" = "customer";
     if (pricing && isMerchantRole(pricing.role)) {
-      accent = resolveUseWholesalePricing(pricing) ? "wholesale" : "merchant";
+      const mode = resolvePriceMode(pricing);
+      accent = mode === "wholesale" ? "wholesale" : mode === "merchant" ? "merchant" : "customer";
     }
 
     root.dataset.accent = accent;

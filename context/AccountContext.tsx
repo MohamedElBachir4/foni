@@ -13,8 +13,9 @@ import { clearGuestCheckoutShippingPrefs } from "@/lib/guestCheckoutPrefs";
 import {
   isMerchantRole,
   normalizeAccountRole,
-  resolveUseWholesalePricing,
+  resolvePriceMode,
   type AccountRole,
+  type PriceMode,
 } from "@/lib/accountRoles";
 import { publicFetch } from "@/lib/publicFetch";
 
@@ -27,6 +28,7 @@ export type AccountInfo = {
   role: AccountRole;
   approvalStatus?: "pending" | "approved" | "rejected";
   useWholesalePricing?: boolean;
+  priceMode?: PriceMode;
   wilaya?: string;
   shopName?: string;
   address?: string;
@@ -46,6 +48,7 @@ type AccountContextValue = {
   setFromApi: (payload: { account: any; token?: string }) => void;
   logout: () => void;
   setUseWholesalePricing: (enabled: boolean) => Promise<void>;
+  setPriceMode: (mode: PriceMode) => Promise<void>;
 };
 
 const STORAGE_KEY = "foni_account";
@@ -54,13 +57,15 @@ const AccountContext = createContext<AccountContextValue | null>(null);
 
 function mapApiAccount(raw: any): AccountInfo {
   const role = normalizeAccountRole(raw?.role);
-  const useWholesalePricing =
+  const priceMode: PriceMode =
     role === "merchant"
-      ? resolveUseWholesalePricing({
+      ? resolvePriceMode({
           role: raw?.role,
           useWholesalePricing: raw?.useWholesalePricing,
+          priceMode: raw?.priceMode,
         })
-      : false;
+      : "retail";
+  const useWholesalePricing = priceMode === "wholesale";
   return {
     id: String(raw?._id ?? raw?.id ?? ""),
     firstName: raw?.firstName ?? "",
@@ -73,6 +78,7 @@ function mapApiAccount(raw: any): AccountInfo {
     shopName: raw?.shopName ?? "",
     address: raw?.address ?? "",
     useWholesalePricing,
+    priceMode,
   };
 }
 
@@ -220,24 +226,25 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  const setUseWholesalePricing = useCallback(
-    async (enabled: boolean) => {
+  const setPriceMode = useCallback(
+    async (mode: PriceMode) => {
       if (!account) return;
       const previous = account;
+      const enabled = mode === "wholesale";
       // تحديث فوري للأسعار في الواجهة ثم التأكيد من السيرفر
-      setAccount({ ...previous, useWholesalePricing: enabled });
+      setAccount({ ...previous, priceMode: mode, useWholesalePricing: enabled });
       setUseWholesalePricingState(enabled);
 
       let res: Response;
       try {
-        res = await publicFetch("/api/accounts/me/wholesale-pricing", {
+        res = await publicFetch("/api/accounts/me/price-mode", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "include",
-          body: JSON.stringify({ enabled }),
+          body: JSON.stringify({ mode }),
         });
       } catch {
         setAccount(previous);
@@ -252,7 +259,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok || !data?.account) {
         setAccount(previous);
         setUseWholesalePricingState(!!previous.useWholesalePricing);
-        throw new Error(data.error || "تعذّر تحديث إعداد الشراء بالجملة");
+        throw new Error(data.error || "تعذّر تحديث وضع الأسعار");
       }
       const acc = mapApiAccount(data.account);
       setAccount(acc);
@@ -264,6 +271,11 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       });
     },
     [account, token, clearSession]
+  );
+
+  const setUseWholesalePricing = useCallback(
+    (enabled: boolean) => setPriceMode(enabled ? "wholesale" : "merchant"),
+    [setPriceMode]
   );
 
   const getAuthToken = useCallback(() => {
@@ -288,8 +300,18 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       setFromApi,
       logout,
       setUseWholesalePricing,
+      setPriceMode,
     }),
-    [account, token, hydrated, getAuthToken, setFromApi, logout, setUseWholesalePricing]
+    [
+      account,
+      token,
+      hydrated,
+      getAuthToken,
+      setFromApi,
+      logout,
+      setUseWholesalePricing,
+      setPriceMode,
+    ]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

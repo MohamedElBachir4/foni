@@ -2,7 +2,8 @@ import type { AccountInfo } from "@/context/AccountContext";
 import type { PricedVariant } from "@/lib/productPricedOptions";
 import {
   isMerchantRole,
-  resolveUseWholesalePricing,
+  PRICE_MODE_TIER,
+  resolvePriceMode,
 } from "@/lib/accountRoles";
 
 export type TieredPrice = {
@@ -25,8 +26,7 @@ export function getPricingAccount(account: AccountInfo | null): AccountInfo | nu
 /**
  * سعر الواجهة حسب نوع الحساب:
  * - زبون أو بدون حساب ← تجزئة
- * - تاجر/صاحب محل معتمد بدون شراء بالجملة ← سعر reparateur
- * - تاجر/صاحب محل مع تفعيل «الشراء بالجملة» ← جملة
+ * - تاجر معتمد ← حسب وضع الزر العلوي (جملة ← جملة، تجار/تجزئة ← تجزئة)
  */
 export function getEffectivePrice(
   tiered: TieredPrice,
@@ -42,21 +42,16 @@ export function getEffectivePrice(
   const pricingAccount = getPricingAccount(account);
   if (!pricingAccount) return baseRetail;
 
-  if (isMerchantRole(pricingAccount.role)) {
-    if (resolveUseWholesalePricing(pricingAccount)) {
-      const wholesale =
-        typeof tiered.priceWholesale === "number" &&
-        !Number.isNaN(tiered.priceWholesale)
-          ? tiered.priceWholesale
-          : null;
-      return wholesale ?? baseRetail;
-    }
-    const repair =
-      typeof tiered.priceReparateur === "number" &&
-      !Number.isNaN(tiered.priceReparateur)
-        ? tiered.priceReparateur
+  if (
+    isMerchantRole(pricingAccount.role) &&
+    PRICE_MODE_TIER[resolvePriceMode(pricingAccount)] === "wholesale"
+  ) {
+    const wholesale =
+      typeof tiered.priceWholesale === "number" &&
+      !Number.isNaN(tiered.priceWholesale)
+        ? tiered.priceWholesale
         : null;
-    return repair ?? baseRetail;
+    return wholesale ?? baseRetail;
   }
 
   return baseRetail;
@@ -81,9 +76,10 @@ export function describeActivePriceTier(account: AccountInfo | null): string {
   const acc = getPricingAccount(account);
   if (!acc) return "سعر التجزئة — العرض العام";
   if (isMerchantRole(acc.role)) {
-    return resolveUseWholesalePricing(acc)
-      ? "سعر الجملة — بعد تفعيل الشراء بالجملة"
-      : "سعر تاجر أو صاحب محل — حسابك";
+    const mode = resolvePriceMode(acc);
+    if (mode === "wholesale") return "سعر الجملة — بعد تفعيل أسعار الجملة";
+    if (mode === "merchant") return "سعر التجزئة — وضع أسعار التجار";
+    return "سعر التجزئة — وضع أسعار التجزئة";
   }
   return "سعر التجزئة — حسابك";
 }

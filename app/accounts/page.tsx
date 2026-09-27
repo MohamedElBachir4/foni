@@ -11,7 +11,15 @@ import { publicFetch } from "@/lib/publicFetch";
 import { useAccount } from "@/context/AccountContext";
 import { MyOrdersTab } from "@/components/accounts/MyOrdersTab";
 
-import { roleLabelAr, isMerchantRole } from "@/lib/accountRoles";
+import {
+  roleLabelAr,
+  isMerchantRole,
+  PRICE_MODES,
+  priceModeActivateLabel,
+  priceModeActiveLabel,
+  resolvePriceMode,
+  type PriceMode,
+} from "@/lib/accountRoles";
 
 type Role = "customer" | "merchant" | null;
 
@@ -105,7 +113,7 @@ const WILAYAS = [
 ];
 
 function AccountsPageContent() {
-  const { account, setFromApi, logout, setUseWholesalePricing } = useAccount();
+  const { account, setFromApi, logout, setPriceMode } = useAccount();
   const searchParams = useSearchParams();
   const [role, setRole] = useState<Role>(null);
   const [firstName, setFirstName] = useState("");
@@ -175,11 +183,11 @@ function AccountsPageContent() {
     };
   }, [role]);
 
-  async function handleWholesaleToggle(enabled: boolean) {
+  async function handlePriceModeChange(mode: PriceMode) {
     setWholesaleError("");
     setWholesaleSaving(true);
     try {
-      await setUseWholesalePricing(enabled);
+      await setPriceMode(mode);
     } catch (err) {
       setWholesaleError(
         err instanceof Error ? err.message : "تعذّر تحديث الإعداد"
@@ -451,29 +459,35 @@ function AccountsPageContent() {
             {account && isMerchantRole(account.role) && account.approvalStatus === "approved" && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 sm:p-5">
                 <h3 className="text-sm font-bold text-amber-950 sm:text-base">
-                  تفعيل الشراء بالجملة
+                  وضع عرض الأسعار
                 </h3>
                 <p className="mt-2 text-xs leading-relaxed text-amber-900/90 sm:text-sm">
-                  تُطبَّق أسعار الجملة تلقائياً على حسابك بعد موافقة الإدارة. عند إلغاء
-                  التفعيل تُعرض أسعار التاجر/صاحب المحل بدلاً منها، ويمكنك إعادة التفعيل في
-                  أي وقت.
+                  أسعار الجملة تعرض سعر الجملة، أما أسعار التجار وأسعار التجزئة فتعرضان سعر
+                  التجزئة. يمكنك التبديل في أي وقت.
                 </p>
-                <button
-                  type="button"
-                  disabled={wholesaleSaving}
-                  onClick={() => handleWholesaleToggle(!account.useWholesalePricing)}
-                  className={`mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-xs font-bold sm:w-auto sm:text-sm ${
-                    account.useWholesalePricing
-                      ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                      : "bg-amber-600 text-white hover:bg-amber-700"
-                  } disabled:opacity-60`}
-                >
-                  {wholesaleSaving
-                    ? "جاري الحفظ..."
-                    : account.useWholesalePricing
-                      ? "مفعّل: أسعار الجملة — إلغاء التفعيل"
-                      : "تفعيل الشراء بالجملة"}
-                </button>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {PRICE_MODES.map((mode) => {
+                    const active = resolvePriceMode(account) === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        disabled={wholesaleSaving}
+                        aria-pressed={active}
+                        onClick={() => {
+                          if (!active) void handlePriceModeChange(mode);
+                        }}
+                        className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-bold sm:text-sm disabled:opacity-60 ${
+                          active
+                            ? "bg-emerald-600 text-white"
+                            : "border border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                        }`}
+                      >
+                        {active ? priceModeActiveLabel(mode) : priceModeActivateLabel(mode)}
+                      </button>
+                    );
+                  })}
+                </div>
                 {wholesaleError && (
                   <p className="mt-2 text-xs font-medium text-red-600">{wholesaleError}</p>
                 )}
