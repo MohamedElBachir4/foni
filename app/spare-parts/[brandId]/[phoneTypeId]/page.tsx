@@ -155,7 +155,7 @@ export default function SparePartsListPage() {
     return () => {
       cancelled = true;
     };
-  }, [brandId, phoneTypeId]);
+  }, [brandId, phoneTypeId, account?.id]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-white antialiased">

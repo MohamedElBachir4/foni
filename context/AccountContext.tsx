@@ -127,24 +127,44 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     setHydrated(true);
   }, []);
 
+  const hasAccount = account != null;
+
+  const clearSession = useCallback(() => {
+    allowClearRef.current = true;
+    saveToStorage(null);
+    setAccount(null);
+    setToken(null);
+    setUseWholesalePricingState(false);
+  }, []);
+
   useEffect(() => {
-    if (!hydrated || !token) return;
+    if (!hydrated || (!token && !hasAccount)) return;
     let cancelled = false;
     publicFetch("/api/accounts/me", {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       cache: "no-store",
       credentials: "include",
     })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+      .then(async (res) => {
+        if (cancelled) return;
+        // 401 = الجلسة مرفوضة من السيرفر (حساب محذوف/رمز غير صالح): الإبقاء عليها
+        // يُظهر واجهة تاجر بينما السيرفر يعامل الطلبات كزائر (أسعار التجزئة).
+        if (res.status === 401 || res.status === 403) {
+          clearSession();
+          return;
+        }
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
         if (cancelled || !data?.account) return;
         const acc = mapApiAccount(data.account);
+        const nextToken =
+          typeof data.token === "string" && data.token ? data.token : token;
         setAccount(acc);
+        if (nextToken !== token) setToken(nextToken);
         setUseWholesalePricingState(!!acc.useWholesalePricing);
-        // حدّث التخزين فوراً بعد مزامنة السيرفر
         saveToStorage({
           account: acc,
-          token,
+          token: nextToken,
           useWholesalePricing: !!acc.useWholesalePricing,
         });
       })
@@ -154,6 +174,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, token]);
 
   useEffect(() => {
@@ -201,18 +222,36 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   const setUseWholesalePricing = useCallback(
     async (enabled: boolean) => {
-      if (!token) return;
-      const res = await publicFetch("/api/accounts/me/wholesale-pricing", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-        body: JSON.stringify({ enabled }),
-      });
+      if (!account) return;
+      const previous = account;
+      // تحديث فوري للأسعار في الواجهة ثم التأكيد من السيرفر
+      setAccount({ ...previous, useWholesalePricing: enabled });
+      setUseWholesalePricingState(enabled);
+
+      let res: Response;
+      try {
+        res = await publicFetch("/api/accounts/me/wholesale-pricing", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: "include",
+          body: JSON.stringify({ enabled }),
+        });
+      } catch {
+        setAccount(previous);
+        setUseWholesalePricingState(!!previous.useWholesalePricing);
+        throw new Error("تعذّر الاتصال بالخادم. تحقق من الشبكة وحاول مجدداً.");
+      }
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      if (res.status === 401) {
+        clearSession();
+        throw new Error(data.error || "انتهت الجلسة، يرجى تسجيل الدخول من جديد");
+      }
+      if (!res.ok || !data?.account) {
+        setAccount(previous);
+        setUseWholesalePricingState(!!previous.useWholesalePricing);
         throw new Error(data.error || "تعذّر تحديث إعداد الشراء بالجملة");
       }
       const acc = mapApiAccount(data.account);
@@ -224,7 +263,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         useWholesalePricing: !!acc.useWholesalePricing,
       });
     },
-    [token]
+    [account, token, clearSession]
   );
 
   const getAuthToken = useCallback(() => {

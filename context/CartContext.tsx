@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useAccount } from "@/context/AccountContext";
@@ -14,6 +15,12 @@ import {
   resolveCartLineUnitPrice,
   resolveCartVariantUnitPrice,
 } from "@/lib/pricing";
+import { isMerchantRole } from "@/lib/accountRoles";
+import {
+  fetchLiveTiers,
+  type LiveProductType,
+  type LiveTiers,
+} from "@/lib/liveTieredPrices";
 import type { AccountInfo } from "@/context/AccountContext";
 
 const CART_STORAGE_KEY = "foni_cart";
@@ -89,22 +96,44 @@ export function cartLineTotalQty(i: CartItem): number {
   return Math.max(1, Math.floor(Number(i.quantity)) || 1);
 }
 
+function optionalPrice(v: unknown): number | undefined {
+  if (v == null || v === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function normalizeVariantSelection(v: CartVariantSelection): CartVariantSelection {
+  return {
+    label: String(v.label || "").trim(),
+    price: Math.max(0, Number(v.price) || 0),
+    quantity: Math.max(1, Math.floor(Number(v.quantity)) || 1),
+    retailPrice: optionalPrice(v.retailPrice),
+    wholesalePrice: optionalPrice(v.wholesalePrice),
+    repairPrice: optionalPrice(v.repairPrice),
+  };
+}
+
 function mergeVariantSelections(
   a: CartVariantSelection[],
   b: CartVariantSelection[]
 ): CartVariantSelection[] {
   const map = new Map<string, CartVariantSelection>();
   for (const arr of [a, b]) {
-    for (const v of arr) {
-      const label = String(v.label || "").trim();
-      if (!label) continue;
-      const price = Math.max(0, Number(v.price) || 0);
-      const quantity = Math.max(1, Math.floor(Number(v.quantity)) || 1);
-      const prev = map.get(label);
+    for (const raw of arr) {
+      const v = normalizeVariantSelection(raw);
+      if (!v.label) continue;
+      const prev = map.get(v.label);
       if (prev) {
-        map.set(label, { label, price, quantity: prev.quantity + quantity });
+        map.set(v.label, {
+          ...prev,
+          ...v,
+          retailPrice: v.retailPrice ?? prev.retailPrice,
+          wholesalePrice: v.wholesalePrice ?? prev.wholesalePrice,
+          repairPrice: v.repairPrice ?? prev.repairPrice,
+          quantity: prev.quantity + v.quantity,
+        });
       } else {
-        map.set(label, { label, price, quantity });
+        map.set(v.label, v);
       }
     }
   }
@@ -145,11 +174,7 @@ function normalizeCartItemColors(list: CartItem[]): CartItem[] {
         availableOptions: undefined,
         quantity: totalQty,
         price: totalQty > 0 ? subtotal / totalQty : 0,
-        variantSelections: i.variantSelections!.map((v) => ({
-          label: String(v.label || "").trim(),
-          price: Math.max(0, Number(v.price) || 0),
-          quantity: Math.max(1, Math.floor(Number(v.quantity)) || 1),
-        })),
+        variantSelections: i.variantSelections!.map(normalizeVariantSelection),
       };
     }
     const ac = Array.isArray(i.availableColors)
@@ -210,6 +235,70 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     saveToStorage(items);
   }, [mounted, items]);
 
+  // أسطر أُضيفت كزائر (أو قبل الموافقة) لا تحمل أسعار التاجر/الجملة — نجلبها عند توفّر حساب تاجر
+  const merchantPricingKey = useMemo(() => {
+    const acc = getPricingAccount(account);
+    return acc && isMerchantRole(acc.role) ? acc.id : null;
+  }, [account]);
+  const refreshedForRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!mounted || !merchantPricingKey) {
+      refreshedForRef.current = null;
+      return;
+    }
+    if (refreshedForRef.current === merchantPricingKey) return;
+    refreshedForRef.current = merchantPricingKey;
+
+    const targets = new Map<string, { id: string; type: LiveProductType }>();
+    for (const i of items) {
+      const type = (i.productType ?? "phone") as LiveProductType;
+      targets.set(`${type}:${i.id}`, { id: i.id, type });
+    }
+    if (targets.size === 0) return;
+
+    let cancelled = false;
+    const entries = [...targets.entries()];
+    Promise.all(entries.map(([, t]) => fetchLiveTiers(t.type, t.id))).then((results) => {
+      if (cancelled) return;
+      const byKey = new Map<string, LiveTiers>();
+      results.forEach((r, idx) => {
+        if (r) byKey.set(entries[idx]![0], r);
+      });
+      if (byKey.size === 0) return;
+      setItems((prev) =>
+        prev.map((i) => {
+          const live = byKey.get(`${i.productType ?? "phone"}:${i.id}`);
+          if (!live) return i;
+          const next: CartItem = {
+            ...i,
+            priceRetail: live.priceRetail ?? i.priceRetail,
+            priceWholesale: live.priceWholesale ?? i.priceWholesale,
+            priceReparateur: live.priceReparateur ?? i.priceReparateur,
+          };
+          if (i.variantSelections?.length && live.pricedOptions.length) {
+            next.variantSelections = i.variantSelections.map((v) => {
+              const opt = live.pricedOptions.find((o) => o.label === v.label);
+              return opt
+                ? {
+                    ...v,
+                    retailPrice: opt.retailPrice,
+                    wholesalePrice: opt.wholesalePrice,
+                    repairPrice: opt.repairPrice,
+                  }
+                : v;
+            });
+          }
+          return next;
+        })
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, merchantPricingKey]);
+
   const addToCart = useCallback(
     (item: Omit<CartItem, "quantity"> | CartItem) => {
       const q = "quantity" in item ? item.quantity : 1;
@@ -246,11 +335,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             nextColor = rawCol || undefined;
           }
 
-          const normalizedSel = incomingVariants.map((v) => ({
-            label: String(v.label || "").trim(),
-            price: Math.max(0, Number(v.price) || 0),
-            quantity: Math.max(1, Math.floor(Number(v.quantity)) || 1),
-          }));
+          const normalizedSel = incomingVariants.map(normalizeVariantSelection);
 
           const stub: CartItem = {
             id: item.id,

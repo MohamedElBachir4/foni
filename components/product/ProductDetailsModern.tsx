@@ -26,6 +26,8 @@ import { useAccount } from "@/context/AccountContext";
 import { slugifyProductName } from "@/lib/seo";
 import { publicFetch } from "@/lib/publicFetch";
 import { parsePricedVariantsFromApi } from "@/lib/productPricedOptions";
+import { isMerchantRole } from "@/lib/accountRoles";
+import { useLiveTiers, type LiveTiers } from "@/lib/liveTieredPrices";
 import { linkifyHtml, linkifyPlainText } from "@/lib/linkifyDescription";
 import {
   ProductQuickOrderForm,
@@ -82,6 +84,16 @@ function cartProductType(
   if (category === "أكسسوارات" || category === "اكسسوارات") return "accessory";
   if (category === "أدوات الصيانة") return "maintenanceTool";
   return "phone";
+}
+
+function withLiveTiers<T extends RelatedProduct>(item: T, live?: LiveTiers): T {
+  if (!live) return item;
+  return {
+    ...item,
+    priceRetail: live.priceRetail ?? item.priceRetail,
+    priceWholesale: live.priceWholesale ?? item.priceWholesale,
+    priceReparateur: live.priceReparateur ?? item.priceReparateur,
+  };
 }
 
 function isHtml(value: string) {
@@ -180,6 +192,29 @@ export function ProductDetailsModern({
   }, [product.category, product.hasVariants, variantList.length]);
 
   const pricingAccount = useMemo(() => getPricingAccount(account), [account]);
+
+  // القوائم الجانبية تُجلب على السيرفر بدون رمز الحساب (تجزئة فقط) — نعيد جلب أسعار التاجر هنا
+  const merchantPricingKey =
+    pricingAccount && isMerchantRole(pricingAccount.role) ? pricingAccount.id : null;
+  const relatedIds = useMemo(() => relatedProducts.map((p) => p._id), [relatedProducts]);
+  const compatibleIds = useMemo(
+    () => compatibleAccessories.map((p) => p._id),
+    [compatibleAccessories]
+  );
+  const relatedLiveTiers = useLiveTiers(
+    cartProductType(product.category),
+    relatedIds,
+    merchantPricingKey
+  );
+  const compatibleLiveTiers = useLiveTiers("accessory", compatibleIds, merchantPricingKey);
+  const relatedWithTiers = useMemo(
+    () => relatedProducts.map((p) => withLiveTiers(p, relatedLiveTiers[p._id])),
+    [relatedProducts, relatedLiveTiers]
+  );
+  const compatibleWithTiers = useMemo(
+    () => compatibleAccessories.map((p) => withLiveTiers(p, compatibleLiveTiers[p._id])),
+    [compatibleAccessories, compatibleLiveTiers]
+  );
 
   const images = useMemo(() => {
     const merged = [product.image, ...(product.extraImages || [])]
@@ -757,7 +792,7 @@ export function ProductDetailsModern({
           </h2>
           <div className="overflow-hidden">
           <div className="grid grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4">
-            {compatibleAccessories.map((item) => {
+            {compatibleWithTiers.map((item) => {
               const accessoryEffective = getEffectivePrice(
                 {
                   price: item.price,
@@ -807,6 +842,9 @@ export function ProductDetailsModern({
                       id={item._id}
                       name={item.name}
                       price={accessoryEffective}
+                      priceRetail={item.priceRetail ?? item.price}
+                      priceWholesale={item.priceWholesale}
+                      priceReparateur={item.priceReparateur}
                       image={item.image ?? ""}
                       colors={Array.isArray(item.colors) ? item.colors : []}
                       productType="accessory"
@@ -829,7 +867,7 @@ export function ProductDetailsModern({
           <h2 className="text-xl font-extrabold text-slate-900 sm:text-2xl">منتجات مشابهة</h2>
           <div className="overflow-hidden">
           <div className="grid grid-cols-2 gap-2 sm:gap-2 lg:grid-cols-4">
-            {relatedProducts.map((item) => {
+            {relatedWithTiers.map((item) => {
               const relatedEffective = getEffectivePrice(
                 {
                   price: item.price,
@@ -879,6 +917,9 @@ export function ProductDetailsModern({
                       id={item._id}
                       name={item.name}
                       price={relatedEffective}
+                      priceRetail={item.priceRetail ?? item.price}
+                      priceWholesale={item.priceWholesale}
+                      priceReparateur={item.priceReparateur}
                       image={item.image ?? ""}
                       colors={Array.isArray(item.colors) ? item.colors : []}
                       productType={cartProductType(product.category)}

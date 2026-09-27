@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Phone, Clock, Sparkles, ShoppingBag, ExternalLink } from "lucide-react";
-import { SiTiktok, SiTelegram } from "react-icons/si";
+import { SiTiktok, SiTelegram, SiWhatsapp } from "react-icons/si";
 
 const shopLinks = [
   { href: "/", label: "الرئيسية" },
@@ -28,6 +28,19 @@ const FALLBACK_PHONES = [
 ];
 
 type FooterPhone = { display: string; href: string; label?: string };
+
+function mapFooterContacts(raw: unknown): FooterPhone[] {
+  const list = Array.isArray(raw) ? raw : [];
+  return list
+    .map((p: { display?: string; href?: string; tel?: string; label?: string }) => {
+      const href = String(p?.href || (p?.tel ? `tel:${p.tel}` : "")).trim();
+      const display = String(p?.display || p?.tel || "").trim();
+      const label = String(p?.label || "").trim();
+      if (!href || !display) return null;
+      return { display, href, label };
+    })
+    .filter(Boolean) as FooterPhone[];
+}
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
@@ -57,25 +70,23 @@ function FooterLinkList({ links }: { links: { href: string; label: string }[] })
 
 export function Footer() {
   const [phones, setPhones] = useState<FooterPhone[]>(FALLBACK_PHONES);
+  const [whatsapps, setWhatsapps] = useState<FooterPhone[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/contact-settings/public", { credentials: "include" });
+        const res = await fetch("/api/contact-settings/public", {
+          credentials: "include",
+          cache: "no-store",
+        });
         if (!res.ok) return;
         const data = await res.json();
-        const list = Array.isArray(data?.phones) ? data.phones : [];
-        const mapped: FooterPhone[] = list
-          .map((p: { display?: string; href?: string; tel?: string; label?: string }) => {
-            const href = String(p?.href || (p?.tel ? `tel:${p.tel}` : "")).trim();
-            const display = String(p?.display || p?.tel || "").trim();
-            const label = String(p?.label || "").trim();
-            if (!href || !display) return null;
-            return { display, href, label };
-          })
-          .filter(Boolean) as FooterPhone[];
-        if (!cancelled && mapped.length > 0) setPhones(mapped);
+        const mappedPhones = mapFooterContacts(data?.phones);
+        const mappedWhatsapps = mapFooterContacts(data?.whatsapps);
+        if (cancelled) return;
+        if (mappedPhones.length > 0) setPhones(mappedPhones);
+        setWhatsapps(mappedWhatsapps);
       } catch {
         // keep fallback
       }
@@ -205,6 +216,27 @@ export function Footer() {
                             dir="ltr"
                           >
                             {phone.display}
+                          </a>
+                        </span>
+                      </li>
+                    ))}
+                    {whatsapps.map((wa) => (
+                      <li key={wa.href} className="flex gap-3">
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-[#25D366] ring-1 ring-emerald-600/15">
+                          <SiWhatsapp className="h-4 w-4" aria-hidden />
+                        </span>
+                        <span className="flex flex-col pt-1">
+                          {wa.label ? (
+                            <span className="text-xs text-slate-500">{wa.label}</span>
+                          ) : null}
+                          <a
+                            href={wa.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold text-slate-900 hover:text-emerald-700"
+                            dir="ltr"
+                          >
+                            {wa.display}
                           </a>
                         </span>
                       </li>
