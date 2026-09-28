@@ -26,7 +26,7 @@ export function getPricingAccount(account: AccountInfo | null): AccountInfo | nu
 /**
  * سعر الواجهة حسب نوع الحساب:
  * - زبون أو بدون حساب ← تجزئة
- * - تاجر معتمد ← حسب وضع الزر العلوي (جملة ← جملة، تجار/تجزئة ← تجزئة)
+ * - تاجر معتمد ← حسب وضع الزر العلوي (جملة ← جملة، تجار ← reparateur، تجزئة ← تجزئة)
  */
 export function getEffectivePrice(
   tiered: TieredPrice,
@@ -42,19 +42,18 @@ export function getEffectivePrice(
   const pricingAccount = getPricingAccount(account);
   if (!pricingAccount) return baseRetail;
 
-  if (
-    isMerchantRole(pricingAccount.role) &&
-    PRICE_MODE_TIER[resolvePriceMode(pricingAccount)] === "wholesale"
-  ) {
-    const wholesale =
-      typeof tiered.priceWholesale === "number" &&
-      !Number.isNaN(tiered.priceWholesale)
-        ? tiered.priceWholesale
-        : null;
-    return wholesale ?? baseRetail;
-  }
+  if (!isMerchantRole(pricingAccount.role)) return baseRetail;
 
-  return baseRetail;
+  const tier = PRICE_MODE_TIER[resolvePriceMode(pricingAccount)];
+  const tierPrice =
+    tier === "wholesale"
+      ? tiered.priceWholesale
+      : tier === "repair"
+      ? tiered.priceReparateur
+      : null;
+  return typeof tierPrice === "number" && !Number.isNaN(tierPrice)
+    ? tierPrice
+    : baseRetail;
 }
 
 export function getEffectivePriceForVariant(
@@ -78,7 +77,7 @@ export function describeActivePriceTier(account: AccountInfo | null): string {
   if (isMerchantRole(acc.role)) {
     const mode = resolvePriceMode(acc);
     if (mode === "wholesale") return "سعر الجملة — بعد تفعيل أسعار الجملة";
-    if (mode === "merchant") return "سعر التجزئة — وضع أسعار التجار";
+    if (mode === "merchant") return "سعر التجار — بعد تفعيل أسعار التجار";
     return "سعر التجزئة — وضع أسعار التجزئة";
   }
   return "سعر التجزئة — حسابك";

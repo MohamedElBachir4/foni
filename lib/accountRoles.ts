@@ -22,9 +22,9 @@ export type PriceMode = "wholesale" | "merchant" | "retail";
 export const PRICE_MODES: PriceMode[] = ["wholesale", "merchant", "retail"];
 
 /** شريحة السعر المطبّقة لكل وضع */
-export const PRICE_MODE_TIER: Record<PriceMode, "wholesale" | "retail"> = {
+export const PRICE_MODE_TIER: Record<PriceMode, "wholesale" | "repair" | "retail"> = {
   wholesale: "wholesale",
-  merchant: "retail",
+  merchant: "repair",
   retail: "retail",
 };
 
