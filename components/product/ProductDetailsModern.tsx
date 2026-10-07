@@ -745,7 +745,8 @@ export function ProductDetailsModern({
                 priceReparateur={tiered.priceReparateur ?? undefined}
                 image={product.image}
                 colors={product.colors || []}
-                lockColorToSelection={false}
+                lockColorToSelection={Boolean(selectedColorId)}
+                lockedColor={selectedColorId}
                 variantCartSelections={multiVariantMode ? variantCartSelections : undefined}
                 options={
                   multiVariantMode
