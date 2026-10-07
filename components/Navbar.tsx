@@ -233,6 +233,26 @@ export function Navbar() {
     []
   );
 
+  const showPriceBar = Boolean(approvedB2B && isMerchantRole(approvedB2B.role));
+  const priceBarRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const el = priceBarRef.current;
+    if (!showPriceBar || !el) {
+      root.style.removeProperty("--price-bar-h");
+      return;
+    }
+    const apply = () => root.style.setProperty("--price-bar-h", `${el.offsetHeight}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--price-bar-h");
+    };
+  }, [showPriceBar]);
+
   const closeAccountMenu = () => setIsAccountMenuOpen(false);
   const navigateFromAccountMenu = (href: string) => router.push(href);
 
@@ -251,8 +271,11 @@ export function Navbar() {
 
   return (
     <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible border-b border-white/20 shadow-md">
-      {approvedB2B && isMerchantRole(approvedB2B.role) && (
-        <div className={`border-b px-3 py-2 sm:px-4 ${PRICE_MODE_BAR_CLASS[currentPriceMode]}`}>
+      {showPriceBar && (
+        <div
+          ref={priceBarRef}
+          className={`border-b px-3 py-1.5 sm:px-4 ${PRICE_MODE_BAR_CLASS[currentPriceMode]}`}
+        >
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-center gap-1">
             <div className="flex flex-wrap items-center justify-center gap-2">
               <button
@@ -279,8 +302,8 @@ export function Navbar() {
       )}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Desktop: شعار + روابط | بحث | حساب */}
-        <div className="hidden h-20 items-center gap-4 overflow-visible lg:grid lg:grid-cols-[1fr_minmax(240px,420px)_1fr]">
-          <div className="flex min-w-0 items-center justify-start gap-5 xl:gap-8">
+        <div className="hidden h-20 items-center gap-4 overflow-visible lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] xl:gap-6">
+          <div className="flex items-center justify-start gap-4 xl:gap-8">
             <Link
               href="/"
               className="group flex h-14 shrink-0 items-center overflow-hidden rounded-xl border-2 border-white/40 shadow-md transition-all duration-300 hover:scale-105 hover:border-white/60 hover:shadow-lg"
@@ -294,7 +317,7 @@ export function Navbar() {
                 className="block h-full w-auto max-h-14 max-w-[140px] object-contain"
               />
             </Link>
-            <nav className="flex min-w-0 items-center gap-4 xl:gap-6" aria-label="التنقل الرئيسي">
+            <nav className="flex items-center gap-4 xl:gap-6" aria-label="التنقل الرئيسي">
               <Link
                 href="/"
                 className="group relative shrink-0 text-base font-medium text-gray-700 transition hover:text-blue-600 xl:text-lg"
@@ -326,7 +349,7 @@ export function Navbar() {
             </nav>
           </div>
 
-          <div className="min-w-0 px-1">
+          <div className="mx-auto w-full min-w-0 max-w-[420px]">
             <SearchBar />
           </div>
 
