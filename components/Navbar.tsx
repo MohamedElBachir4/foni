@@ -270,6 +270,7 @@ export function Navbar() {
   }, []);
 
   return (
+    <>
     <nav className="glass fixed top-0 left-0 z-[1100] w-full overflow-visible border-b border-white/20 shadow-md">
       {showPriceBar && (
         <div
@@ -538,5 +539,8 @@ export function Navbar() {
         </div>
       )}
     </nav>
+    {/* الصفحات تحجز مكان الهيدر العادي فقط؛ هذا يحجز ارتفاع شريط وضع الأسعار */}
+    {showPriceBar && <div aria-hidden style={{ height: "var(--price-bar-h, 0px)" }} />}
+    </>
   );
 }

@@ -93,8 +93,6 @@ html {
 
 body {
   margin: 0;
-  /* ارتفاع شريط وضع الأسعار للتجار (يضبطه Navbar) — الصفحات تحجز مكان الهيدر العادي فقط */
-  padding-top: var(--price-bar-h, 0px);
   min-height: 100vh;
   font-family: var(--font-cairo), system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;

@@ -21,7 +21,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
         damping: 34,
         mass: 0.9,
       }}
-      className="min-h-0 will-change-transform"
+      className="min-h-0"
     >
       {children}
     </motion.div>
