@@ -22,6 +22,7 @@ import {
   Share2,
   Megaphone,
   Hammer,
+  FileText,
 } from "lucide-react";
 
 const LG_BREAKPOINT = 1024;
@@ -371,6 +372,13 @@ export default function AdminPanelLayout({
               "الإعلانات المنبثقة",
               undefined,
               "text-amber-500 group-hover:text-amber-600"
+            )}
+            {navLink(
+              "/admin/legal-pages",
+              <FileText className="h-5 w-5 shrink-0" />,
+              "سياسة الخصوصية والشروط",
+              undefined,
+              "text-sky-500 group-hover:text-sky-600"
             )}
           </div>
 
