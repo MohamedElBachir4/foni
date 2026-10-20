@@ -293,21 +293,20 @@ export default function AdminOrdersPage() {
 
   async function updateOrderStatus(orderId: string, status: string) {
     const cleanId = String(orderId || "").trim();
-    if (!cleanId) {
+    if (!cleanId || !/^[a-fA-F0-9]{24}$/.test(cleanId)) {
       alert("خطأ: معرف الطلب غير صحيح");
       return;
     }
 
     if (status === "cancelled") {
       const ok = window.confirm(
-        "سيتم حذف هذا الطلب نهائياً ولا يمكن استرجاعه. هل تريد المتابعة؟"
+        "سيتم حذف هذا الطلب فقط نهائياً (الطلبات الأخرى لنفس الزبون تبقى). هل تريد المتابعة؟"
       );
       if (!ok) {
-        setOrders((prev) => [...prev]);
+        // إعادة ضبط القائمة لإرجاع قيمة الـ select إلى الحالة السابقة
+        setOrders((prev) => prev.map((o) => ({ ...o })));
         return;
       }
-      // إزالة فورية من الواجهة ثم حذف من السيرفر
-      setOrders((prev) => prev.filter((o) => String(o._id) !== cleanId));
     }
 
     setUpdatingId(cleanId);
@@ -322,14 +321,15 @@ export default function AdminOrdersPage() {
 
       if (res.ok) {
         const data = await res.json();
+        const removedId = String(data?.orderId || cleanId);
         if (status === "completed" || status === "cancelled" || data?.deleted) {
-          setOrders((prev) => prev.filter((o) => String(o._id) !== cleanId));
-          // مزامنة مع السيرفر لضمان اختفاء الملغى/المكتمل
+          // احذف من الواجهة الطلب المستهدف فقط — بعد تأكيد السيرفر
+          setOrders((prev) => prev.filter((o) => String(o._id) !== removedId));
           await reloadOrders(page, debouncedSearch).catch(() => undefined);
         } else {
           setOrders((prev) =>
             prev.map((o) =>
-              String(o._id) === cleanId ? { ...o, ...data } : o
+              String(o._id) === cleanId ? { ...o, ...data, _id: o._id } : o
             )
           );
         }
@@ -756,17 +756,16 @@ export default function AdminOrdersPage() {
 
                   <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                     <select
+                      key={`${order._id}-${order.status || "pending"}`}
                       value={order.status || "pending"}
-                      data-order-id={order._id}
                       onChange={(e) => {
-                        const selectElement = e.currentTarget as HTMLSelectElement;
-                        const id = selectElement.getAttribute("data-order-id");
                         const newStatus = e.target.value;
-                        if (id) {
-                          updateOrderStatus(id, newStatus);
-                        }
+                        const id = String(order._id);
+                        // أعد القيمة فوراً؛ التحديث الفعلي يتم بعد رد السيرفر
+                        e.target.value = order.status || "pending";
+                        void updateOrderStatus(id, newStatus);
                       }}
-                      disabled={updatingId === order._id}
+                      disabled={updatingId === String(order._id)}
                       className={`min-h-[44px] w-full rounded-xl px-3 py-2 text-sm font-medium sm:w-auto sm:rounded-full sm:py-1 ${statusClasses[order.status || "pending"] || "bg-slate-100 text-slate-700"
                         } border-0 focus:ring-2 focus:ring-sky-500`}
                     >
