@@ -8,12 +8,14 @@ import {
   Menu,
   CircleUserRound,
   Search,
+  ShoppingCart,
   X,
   ListOrdered,
   User,
 } from "lucide-react";
 import { SearchBar } from "@/components/SearchBar";
 import { useAccount } from "@/context/AccountContext";
+import { useCart } from "@/context/CartContext";
 import { getPricingAccount } from "@/lib/pricing";
 import {
   isMerchantRole,
@@ -200,6 +202,7 @@ export function Navbar() {
   const accountMenuDesktopRef = useRef<HTMLDivElement | null>(null);
   const accountMenuMobileRef = useRef<HTMLDivElement | null>(null);
   const { account, logout, setPriceMode } = useAccount();
+  const { totalItems } = useCart();
   const approvedB2B = useMemo(() => getPricingAccount(account), [account]);
   const currentPriceMode = resolvePriceMode(approvedB2B);
   const [priceModeBusy, setPriceModeBusy] = useState(false);
@@ -357,6 +360,21 @@ export function Navbar() {
           <div
             className={`relative flex items-center justify-end gap-2 overflow-visible ${isAccountMenuOpen ? "z-[1400]" : ""}`}
           >
+            <Link
+              href="/cart"
+              aria-label={totalItems > 0 ? `السلة (${totalItems})` : "السلة"}
+              className="group relative flex items-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-2.5 py-2 text-gray-700 shadow-md transition-all duration-300 hover:scale-105 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600"
+            >
+              <span className="relative flex h-8 w-8 items-center justify-center sm:h-9 sm:w-9">
+                <ShoppingCart className="h-5 w-5" strokeWidth={2.5} />
+                {totalItems > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow-sm">
+                    {totalItems > 99 ? "99+" : totalItems}
+                  </span>
+                ) : null}
+              </span>
+              <span className="hidden text-xs font-semibold sm:inline sm:text-sm">السلة</span>
+            </Link>
             <div
               className="relative flex items-center gap-2 overflow-visible"
               ref={accountMenuDesktopRef}
