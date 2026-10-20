@@ -363,17 +363,32 @@ export function Navbar() {
             <Link
               href="/cart"
               aria-label={totalItems > 0 ? `السلة (${totalItems})` : "السلة"}
-              className="group relative flex items-center gap-2 rounded-xl border-2 border-gray-300 bg-white px-2.5 py-2 text-gray-700 shadow-md transition-all duration-300 hover:scale-105 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600"
+              className={`group relative inline-flex h-11 items-center gap-2.5 rounded-2xl border px-3.5 transition-all duration-200 ${
+                totalItems > 0
+                  ? "border-blue-200/80 bg-gradient-to-l from-blue-600 to-blue-500 text-white shadow-md shadow-blue-500/25 hover:from-blue-500 hover:to-blue-600 hover:shadow-lg hover:shadow-blue-500/30"
+                  : "border-slate-200/90 bg-white/90 text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50/80 hover:text-blue-700 hover:shadow-md"
+              }`}
             >
-              <span className="relative flex h-8 w-8 items-center justify-center sm:h-9 sm:w-9">
-                <ShoppingCart className="h-5 w-5" strokeWidth={2.5} />
+              <span className="relative flex items-center justify-center">
+                <ShoppingCart
+                  className={`h-[1.15rem] w-[1.15rem] transition-transform duration-200 group-hover:-translate-y-px ${
+                    totalItems > 0 ? "drop-shadow-sm" : ""
+                  }`}
+                  strokeWidth={2.25}
+                />
                 {totalItems > 0 ? (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow-sm">
+                  <span className="absolute -right-2.5 -top-2.5 flex h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-white px-1 text-[10px] font-extrabold leading-none text-blue-700 ring-2 ring-blue-500/30">
                     {totalItems > 99 ? "99+" : totalItems}
                   </span>
                 ) : null}
               </span>
-              <span className="hidden text-xs font-semibold sm:inline sm:text-sm">السلة</span>
+              <span
+                className={`hidden text-sm font-bold tracking-wide sm:inline ${
+                  totalItems > 0 ? "text-white" : "text-slate-700 group-hover:text-blue-700"
+                }`}
+              >
+                السلة
+              </span>
             </Link>
             <div
               className="relative flex items-center gap-2 overflow-visible"
