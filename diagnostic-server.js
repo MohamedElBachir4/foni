@@ -25,8 +25,8 @@ const hostname = process.env.HOSTNAME || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 const baseDir = __dirname;
 
-/** On by default for this entry; set DIAGNOSTIC_REQUEST_LOG=0 to disable */
-const diagDefaultOn = true;
+/** OFF by default — كان يملأ القرص. فعّله فقط بـ DIAGNOSTIC_REQUEST_LOG=1 */
+const diagDefaultOn = false;
 const diagOn = isDiagnosticEnabled(diagDefaultOn);
 
 const app = next({ dev, hostname, port });
